@@ -2379,14 +2379,20 @@ function openAddModal(){
 }
 function closeAddModal(){document.getElementById('add-overlay').classList.add('hidden');}
 
-// 保存先ユーザー変更時：帳簿リストを更新
+// 保存先ユーザー変更時：帳簿リスト・費目グリッド・支払い方法をそのユーザーに合わせて更新
 function onDestUserChange(){
   const uid=document.getElementById('f-dest-user')?.value;
   const u=DB.users.find(x=>x.id===uid);
   if(!u)return;
+  // 帳簿セレクト更新
   const sel=document.getElementById('f-dest-ledger');
   if(sel)sel.innerHTML=u.ledgers.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
-  // 支払い方法もリセット
+  // 費目グリッドを保存先ユーザーのカテゴリで再構築
+  const savedId=DB.activeUser;
+  DB.activeUser=u.id;
+  buildCatGrid('cat-grid',UI.txType,null,null,'pickCat');
+  DB.activeUser=savedId;
+  // 支払い方法リセット
   UI.selKind='cash';UI.selPayeeId=null;
   ['pk-cash','pk-bank','pk-card'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='pk-btn';});
   const pkc=document.getElementById('pk-cash');if(pkc)pkc.className='pk-btn sel-cash';
@@ -2397,7 +2403,21 @@ function setType(t){
   UI.txType=t;UI.selEmoji=null;UI.selEmojiName=null;UI.selKind=null;UI.selPayeeId=null;
   document.getElementById('tb-inc').className='tt-btn'+(t==='income'?' a-inc':'');
   document.getElementById('tb-exp').className='tt-btn'+(t==='expense'?' a-exp':'');
-  buildCatGrid('cat-grid',t,null,null,'pickCat');
+  // isMainMode時は保存先ユーザーのカテゴリで構築
+  if(UI.isMainMode){
+    const uid=document.getElementById('f-dest-user')?.value;
+    const destUser=DB.users.find(x=>x.id===uid);
+    if(destUser){
+      const savedId=DB.activeUser;
+      DB.activeUser=destUser.id;
+      buildCatGrid('cat-grid',t,null,null,'pickCat');
+      DB.activeUser=savedId;
+    } else {
+      buildCatGrid('cat-grid',t,null,null,'pickCat');
+    }
+  } else {
+    buildCatGrid('cat-grid',t,null,null,'pickCat');
+  }
   document.getElementById('f-pay-section').style.display=t==='expense'?'block':'none';
   ['pk-cash','pk-bank','pk-card'].forEach(id=>document.getElementById(id).className='pk-btn');
   document.getElementById('f-payee-wrap').classList.add('hidden');
