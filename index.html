@@ -227,6 +227,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .mnav-btn{background:none;border:none;cursor:pointer;color:var(--text-sub);font-size:22px;padding:0 10px;font-family:var(--font);line-height:1}
 .month-label{flex:1;text-align:center;font-size:15px;font-weight:700;letter-spacing:-0.2px}
 .mnav-today{font-size:12px;color:var(--pri);font-weight:600;cursor:pointer;padding:4px 8px;border-radius:var(--r4);border:1px solid var(--pri);background:var(--pri-l);font-family:var(--font)}
+.memo-hist{display:none;flex-wrap:wrap;gap:6px;margin-top:7px}
+.memo-hist-chip{padding:5px 11px;border-radius:16px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:12px;font-family:var(--font);color:var(--text-sub);transition:all 0.12s;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.memo-hist-chip:active{background:var(--pri);color:#fff;border-color:var(--pri)}
 
 /* ===== SUMMARY ===== */
 .summary-wrap{background:var(--bg-card);border-bottom:1px solid var(--border);padding:6px 12px 8px}
@@ -366,7 +369,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .amount-yen{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text-sub);font-weight:700}
 .cat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:4px}
 .cat-btn{border-radius:var(--r12);border:2.5px solid transparent;background:transparent;cursor:pointer;display:flex;align-items:center;flex-direction:column;gap:5px;padding:8px 4px;transition:all 0.12s}
-.cat-btn .cat-icon-wrap{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all 0.12s;flex:none}
+.cat-btn .cat-icon-wrap{width:44px;height:44px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;transition:all 0.12s;flex:none}
 .cat-btn .cat-icon-wrap svg{width:30px;height:30px}
 .cat-btn span.cn{font-size:9px;color:var(--text-sub);line-height:1.2;text-align:center;word-break:keep-all}
 .cat-btn.sel .cat-icon-wrap{box-shadow:0 0 0 3px var(--pri)}
@@ -386,7 +389,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* アイコンSVG描画品質向上 */
 .cat-icon-wrap svg,.cat-mgr-icon-wrap svg,.isb-inner svg{shape-rendering:geometricPrecision;text-rendering:optimizeLegibility}
 /* 費目管理リスト内アイコン */
-.cat-mgr-icon-wrap{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.cat-mgr-icon-wrap{width:36px;height:36px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none}
 .cat-mgr-icon-wrap svg{width:20px;height:20px}
 /* 並び替えハンドル */
 .drag-handle{cursor:grab;color:var(--text-hint);font-size:18px;padding:4px 6px;flex:none;touch-action:none;line-height:1;user-select:none}
@@ -397,7 +400,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* 費目選択ピッカー（管理画面）*/
 .icon-sel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px;margin-top:6px;max-height:280px;overflow-y:auto}
 .isb{width:100%;max-width:72px;aspect-ratio:1;border-radius:var(--r4);border:2px solid transparent;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.1s;padding:1px}
-.isb .isb-inner{width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.isb .isb-inner{width:100%;height:100%;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center}
 .isb .isb-inner svg{width:65%;height:65%}
 .isb.sel{border-color:var(--pri);background:var(--pri-l)}
 .pay-kinds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
@@ -520,6 +523,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div class="topbar-btns" style="gap:2px;margin-left:auto">
       <button class="tib nav-btn" id="navBtn-home" onclick="switchTab('home')" title="ホーム">
         <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M3 12L12 3l9 9" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M9 21V12h6v9" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <button class="tib nav-btn" id="navBtn-forecast" onclick="openForecast()" title="年間予測">
+        <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M3 17l5-5 4 3 8-8" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 7h4v4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="tib nav-btn" id="navBtn-graph" onclick="switchTab('graph')" title="グラフ">
         <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><rect x="3" y="12" width="4" height="9" rx="1" stroke="#fff" stroke-width="1.5"/><rect x="10" y="7" width="4" height="14" rx="1" stroke="#fff" stroke-width="1.5"/><rect x="17" y="3" width="4" height="18" rx="1" stroke="#fff" stroke-width="1.5"/></svg>
@@ -749,10 +755,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="field">
         <div class="field-lbl">内訳</div>
         <input type="text" id="f-memo" placeholder="例）イオンで買い物">
+        <div class="memo-hist" id="f-memo-hist"></div>
       </div>
       <div class="field">
         <div class="field-lbl">メモ</div>
         <input type="text" id="f-memo2" placeholder="例）セール品、ポイント利用">
+        <div class="memo-hist" id="f-memo2-hist"></div>
       </div>
       <div class="field">
         <div class="field-lbl">日付</div>
@@ -879,13 +887,33 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
         </div>
         <!-- プレビュー＋プリセット＋カスタム -->
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <div id="ce-color-preview" style="width:44px;height:44px;border-radius:50%;flex-shrink:0;border:2px solid rgba(0,0,0,0.1)"></div>
+          <div id="ce-color-preview" style="width:44px;height:44px;border-radius:10px;flex-shrink:0;border:2px solid var(--border);background:var(--bg-card);display:flex;align-items:center;justify-content:center"></div>
           <div style="flex:1">
             <div id="ce-color-presets" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-size:12px;color:var(--text-hint)">カスタム</span>
-              <input type="color" id="ce-color-picker" style="width:36px;height:28px;border:none;border-radius:6px;cursor:pointer;padding:2px" oninput="onCatColorPick(this.value)">
+              <button onclick="toggleCustomPicker()" id="ce-custom-btn"
+                style="font-size:11px;padding:4px 10px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">▼ 詳細</button>
             </div>
+          </div>
+        </div>
+        <!-- 独自カラーピッカー（折りたたみ） -->
+        <div id="ce-custom-picker" style="display:none;margin-bottom:8px">
+          <div style="position:relative;margin-bottom:8px">
+            <canvas id="ce-sv-canvas" width="260" height="160"
+              style="width:100%;height:160px;border-radius:8px;cursor:crosshair;display:block;touch-action:none"></canvas>
+            <div id="ce-sv-cursor" style="position:absolute;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 3px rgba(0,0,0,0.5);pointer-events:none;transform:translate(-50%,-50%);top:50%;left:50%"></div>
+          </div>
+          <div style="position:relative;margin-bottom:8px">
+            <canvas id="ce-hue-canvas" width="260" height="20"
+              style="width:100%;height:20px;border-radius:10px;cursor:pointer;display:block;touch-action:none"></canvas>
+            <div id="ce-hue-cursor" style="position:absolute;width:20px;height:20px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 3px rgba(0,0,0,0.4);pointer-events:none;transform:translate(-50%,-50%);top:50%;left:0%"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:var(--text-hint);flex-shrink:0">HEX</span>
+            <input id="ce-hex-input" type="text" maxlength="7" placeholder="#FF9900"
+              style="flex:1;padding:5px 8px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:monospace"
+              oninput="onHexInput(this.value)">
           </div>
         </div>
       </div>
@@ -926,10 +954,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="field">
         <div class="field-lbl">内訳</div>
         <input type="text" id="te-memo" placeholder="例）イオンで買い物">
+        <div class="memo-hist" id="te-memo-hist"></div>
       </div>
       <div class="field">
         <div class="field-lbl">メモ</div>
         <input type="text" id="te-memo2" placeholder="例）セール品、ポイント利用">
+        <div class="memo-hist" id="te-memo2-hist"></div>
       </div>
       <div class="field">
         <div class="field-lbl">日付</div>
@@ -1125,6 +1155,21 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </div>
 </div>
 
+<!-- ===== 年間予測オーバーレイ ===== -->
+<div class="overlay hidden" id="forecast-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">📈 年間予測</span>
+      <button class="sheet-close" onclick="closeForecast()">✕</button>
+    </div>
+    <div class="form-body">
+      <p class="hint" style="margin-bottom:12px">実績のある月の平均×12ヶ月で算出した目安です。月数が増えるほど精度が上がります。</p>
+      <div id="forecast-body"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =========================================================
    カラーテーマ定義
@@ -1290,6 +1335,12 @@ const CAT_ICONS={
   tree:    {color:'#26C6DA', emoji:'🌲', svg:'<circle cx="12" cy="8" r="4.5" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M12 12.5v4.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="6.5" cy="11" r="4" fill="none" stroke="#fff" stroke-width="1.3"/><path d="M6.5 15v5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="17.5" cy="11" r="4" fill="none" stroke="#fff" stroke-width="1.3"/><path d="M17.5 15v5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><path d="M3 22h18" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>'},
   factory: {color:'#EC407A', emoji:'🏭', svg:'<rect x="2" y="13" width="14" height="9" rx="1" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M2 13L7.5 9v4L13 9v4" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="17" y="4" width="5" height="18" rx="1" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M18.5 3c0-1.5 1.5-1.5 1.5-3" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity="0.8"/><rect x="4" y="16" width="3" height="3" rx="0.5" fill="none" stroke="#fff" stroke-width="1.2"/><rect x="9" y="16" width="3" height="3" rx="0.5" fill="none" stroke="#fff" stroke-width="1.2"/>'},
   church:  {color:'#26C6DA', emoji:'⛪', svg:'<path d="M3.5 22V12L12 7l8.5 5V22H3.5z" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2.5v6M10 5.5h4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M9.5 22v-6a2.5 2.5 0 0 1 5 0v6" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="15" r="1.3" fill="none" stroke="#fff" stroke-width="1.2"/><circle cx="16" cy="15" r="1.3" fill="none" stroke="#fff" stroke-width="1.2"/>'},
+  // ── 追加アイコン ──
+  capsule: {color:'#AB47BC', emoji:'💊', svg:'<rect x="2.5" y="11" width="13" height="5.5" rx="2.75" transform="rotate(-30, 9, 13.75)" fill="none" stroke="#fff" stroke-width="1.5"/><line x1="7.6" y1="11.4" x2="10.4" y2="16.1" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/><circle cx="18.5" cy="7.5" r="3.5" fill="none" stroke="#fff" stroke-width="1.5"/><line x1="15.1" y1="7.5" x2="21.9" y2="7.5" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/>'},
+  dental:  {color:'#4FC3F7', emoji:'🦷', svg:'<path d="M7 14V7.5C7 5 9 3 12 3s5 2 5 4.5V14H7z" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.5 14v7M15.5 14v7" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M6.5 21h4M13.5 21h4" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity="0.6"/><path d="M10 4c0 2 1 2.5 2 2C13 5.5 14 5 14 4" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity="0.6"/>'},
+  shoe:    {color:'#FF8A65', emoji:'👟', svg:'<rect x="2" y="17.5" width="20" height="2.5" rx="1.2" fill="none" stroke="#fff" stroke-width="1.5"/><path d="M3 17.5c0-2 1-3.5 3-4.5L9.5 12l1.5-6h3l2 7 4 1.5c1.5 0.5 2.5 2 2.5 3.5" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 16h7" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity="0.65"/>'},
+  watch:   {color:'#78909C', emoji:'⌚', svg:'<circle cx="12" cy="12" r="5.5" fill="none" stroke="#fff" stroke-width="1.5"/><path d="M12 8.5V12l2.5 2" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 4h5l0.5 3.5h-6z" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 20h5l0.5-3.5h-6z" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>'},
+  umbrella:{color:'#42A5F5', emoji:'☂️', svg:'<path d="M12 4v17" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><path d="M12 21c0 0-3 0-3-2.5" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><path d="M3.5 12A8.5 8.5 0 0 1 20.5 12" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><path d="M3.5 12c0.5-2 1.5-2 2.5-1.5s1.5 1.5 2.5 1 1.5-1.5 2.5-1 1.5 1.5 2.5 1 1.5-1.5 2.5-1 1.5 1.5 2 1.5" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>'},
   other:   {color:'#8D8D8D', emoji:'📌', svg:'<circle cx="12" cy="12" r="9" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M12 8v4l3 3" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>'},
 };
 
@@ -1332,12 +1383,18 @@ function catColorOf(catOrId){
   return CAT_ICONS[id]?.color||'#8D8D8D';
 }
 
+// SVGのwhiteストローク/fillをカラーに置換（ラインアートカラー化）
+function svgColored(svg, color){
+  return svg
+    .replace(/stroke="#fff"/g, `stroke="${color}"`)
+    .replace(/fill="#fff"/g, `fill="${color}"`);
+}
 function catIconDiv(iconId, size=44, customColor=null){
   const ic=CAT_ICONS[iconId]||CAT_ICONS['other'];
   const color=customColor||ic.color;
-  const fs=Math.round(size*0.70);
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;flex:none">
-    <svg viewBox="-1 -1 26 26" width="${fs}" height="${fs}" fill="none" xmlns="http://www.w3.org/2000/svg">${ic.svg}</svg>
+  const fs=Math.round(size*0.65);
+  return `<div style="width:${size}px;height:${size}px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+    <svg viewBox="-1 -1 26 26" width="${fs}" height="${fs}" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
   </div>`;
 }
 
@@ -1351,8 +1408,8 @@ function iconHTML(iconId, size='lg', customColor=null){
   const color=customColor||ic.color;
   const sz=size==='lg'?44:size==='md'?32:24;
   const fs=size==='lg'?30:size==='md'?22:17;
-  return `<div class="cat-icon-wrap" style="width:${sz}px;height:${sz}px;background:${color};display:flex;align-items:center;justify-content:center;border-radius:50%">
-    <svg viewBox="-1 -1 26 26" width="${fs}" height="${fs}" fill="none" xmlns="http://www.w3.org/2000/svg">${ic.svg}</svg>
+  return `<div class="cat-icon-wrap" style="width:${sz}px;height:${sz}px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;border-radius:10px">
+    <svg viewBox="-1 -1 26 26" width="${fs}" height="${fs}" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
   </div>`;
 }
 
@@ -1433,6 +1490,9 @@ function load(){
   }catch(e){}
   // migration（tryの外で必ず実行）
   if(!DB.mainUser)DB.mainUser={enabled:false,name:'メイン',theme:'indigo'};
+  if(!DB.memoHistory)DB.memoHistory={memo:[],memo2:[]};
+  if(!DB.memoHistory.memo)DB.memoHistory.memo=[];
+  if(!DB.memoHistory.memo2)DB.memoHistory.memo2=[];
   DB.users.forEach(u=>{
     if(!u.payees)u.payees={bank:[],card:[]};
     if(!u.transactions)u.transactions=[];
@@ -1894,7 +1954,7 @@ function billingHTML(e){
   const u=activeUser();
   const cardName=u.payees.card.find(c=>c.id===e.payeeId)?.name||e.cardName||'カード';
   return `<div class="tx-item credit-billing">
-    <div style="width:42px;height:42px;border-radius:50%;background:var(--red-l);display:flex;align-items:center;justify-content:center;flex:none;font-size:20px">💳</div>
+    <div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none;font-size:20px">💳</div>
     <div class="tx-info">
       <div class="tx-name" style="color:var(--text-sub)">クレジット請求</div>
       <div class="tx-meta">
@@ -1911,8 +1971,8 @@ function txHTML(t){
   const isI=t.type==='income';
   const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
-  const iconEl=`<div style="width:42px;height:42px;border-radius:50%;background:${ic.color};display:flex;align-items:center;justify-content:center;flex:none">
-    <svg viewBox="-2 -2 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">${ic.svg}</svg>
+  const iconEl=`<div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+    <svg viewBox="-2 -2 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
   </div>`;
 
   // メインユーザーの場合、保存先バッジを表示（inputByがある場合＝メインユーザーが入力した取引）
@@ -1983,10 +2043,10 @@ function renderChart(){
   }
   el.innerHTML=items.map(v=>{
     const iconEl=v.iconId
-      ? `<div style="width:28px;height:28px;border-radius:50%;background:${v.color};display:flex;align-items:center;justify-content:center;flex:none">
-           <svg viewBox="-2 -2 28 28" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">${CAT_ICONS[v.iconId]?.svg||''}</svg>
+      ? `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+           <svg viewBox="-2 -2 28 28" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(CAT_ICONS[v.iconId]?.svg||'',v.color)}</svg>
          </div>`
-      : `<div style="width:28px;height:28px;border-radius:50%;background:${v.color};display:flex;align-items:center;justify-content:center;flex:none;font-size:14px">${v.emoji||'💳'}</div>`;
+      : `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none;font-size:14px">${v.emoji||'💳'}</div>`;
     return `<div class="chart-row">
       ${iconEl}
       <div class="chart-lbl">${v.label}</div>
@@ -2176,6 +2236,8 @@ function openAddModal(){
   document.getElementById('f-amount').value='';
   document.getElementById('f-memo').value='';
   document.getElementById('f-memo2').value='';
+  renderMemoHistory('f-memo-hist','memo','f-memo');
+  renderMemoHistory('f-memo2-hist','memo2','f-memo2');
   const n=new Date(),yr=UI.year,mo=UI.month;
   const dd=UI.selDay||(yr===n.getFullYear()&&mo===n.getMonth()?n.getDate():1);
   document.getElementById('f-date').value=`${yr}-${String(mo+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
@@ -2228,10 +2290,9 @@ function buildCatGrid(gridId,type,selIconId,selName,pickFn){
     const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
     const color=c.color||ic.color;
     const isSel=iid===selIconId;
-    const shadow=isSel?`;box-shadow:0 0 0 3px ${color}88`:'';
     return `<button class="cat-btn${isSel?' sel':''}" onclick="${pickFn}('${iid}','${c.n}',this)" style="${isSel?'border-color:'+color:''}">
-      <div class="cat-icon-wrap" style="width:44px;height:44px;background:${color}${shadow};display:flex;align-items:center;justify-content:center;border-radius:50%;flex:none">
-        <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${ic.svg}</svg>
+      <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1.5px solid ${isSel?color:'var(--border)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
+        <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
       </div>
       <span class="cn">${c.n}</span>
     </button>`;
@@ -2304,6 +2365,8 @@ function addTx(){
     tx.payeeId=UI.selPayeeId||null;
   }
   targetUser.transactions.push(tx);
+  pushMemoHistory('memo', document.getElementById('f-memo').value);
+  pushMemoHistory('memo2', document.getElementById('f-memo2').value);
   save();closeAddModal();renderAll();
 }
 
@@ -2755,6 +2818,8 @@ function openTxEdit(id){
   document.getElementById('te-amount').value=t.amount;
   document.getElementById('te-memo').value=t.memo;
   document.getElementById('te-memo2').value=t.memo2||'';
+  renderMemoHistory('te-memo-hist','memo','te-memo');
+  renderMemoHistory('te-memo2-hist','memo2','te-memo2');
   document.getElementById('te-date').value=t.date;
   // 帳簿
   document.getElementById('te-ledger').innerHTML=u.ledgers.map(l=>`<option value="${l.id}"${l.id===t.ledger?' selected':''}>${l.name}</option>`).join('');
@@ -2834,8 +2899,40 @@ function saveTxEdit(){
   } else {
     t.payKind=null;t.payeeId=null;
   }
+  pushMemoHistory('memo', memo);
+  pushMemoHistory('memo2', memo2);
   save();closeTxEdit();renderAll();
 }
+
+// ── メモ・内訳 入力履歴 ──
+function pushMemoHistory(field, value){
+  if(!value||!value.trim())return;
+  value=value.trim();
+  if(!DB.memoHistory)DB.memoHistory={memo:[],memo2:[]};
+  let arr=DB.memoHistory[field]||[];
+  arr=arr.filter(v=>v!==value);
+  arr.unshift(value);
+  if(arr.length>10)arr=arr.slice(0,10);
+  DB.memoHistory[field]=arr;
+}
+
+function renderMemoHistory(containerId, field, inputId){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const arr=(DB.memoHistory&&DB.memoHistory[field])||[];
+  if(!arr.length){el.innerHTML='';el.style.display='none';return;}
+  el.style.display='flex';
+  el.innerHTML=arr.map(v=>{
+    const safe=v.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return `<button type="button" class="memo-hist-chip" onclick="applyMemoHistory('${inputId}','${safe}')">${v}</button>`;
+  }).join('');
+}
+
+function applyMemoHistory(inputId, value){
+  const inp=document.getElementById(inputId);
+  if(inp){inp.value=value;inp.focus();}
+}
+
 function delTxFromEdit(){
   if(!confirm('この取引を削除しますか？'))return;
   const u=activeUser();u.transactions=u.transactions.filter(t=>t.id!==UI.editingTxId);
@@ -2998,8 +3095,8 @@ function renderCatList(){
       ondragstart="catDragStart(event,${i})" ondragover="catDragOver(event,${i})" ondrop="catDrop(event,${i})" ondragend="catDragEnd(event)"
       ontouchstart="catTouchStart(event,${i})" ontouchmove="catTouchMove(event)" ontouchend="catTouchEnd(event,${i})">
       <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
-      <div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;flex:none">
-        <svg viewBox="-1 -1 26 26" style="width:24px;height:24px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${ic.svg}</svg></div>
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+        <svg viewBox="-1 -1 26 26" style="width:24px;height:24px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg></div>
       <span class="cat-mgr-name">${c.n}</span>
       <div class="cat-mgr-btns">
         <button class="cat-mgr-btn" onclick="moveCat(${i},-1)" ${i===0?'disabled style="opacity:0.25"':''} title="上へ">↑</button>
@@ -3017,8 +3114,8 @@ function buildCatEmojiGrid(gridId){
     const ic=CAT_ICONS[iid];
     const isSel=iid===UI.selCatEmoji;
     return `<button class="isb${isSel?' sel':''}" onclick="pickCatEmoji('${iid}','${gridId}')" title="${iid}">
-      <div class="isb-inner" style="background:${ic.color}${isSel?';box-shadow:0 0 0 2px '+ic.color+'88':''}">
-        <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${ic.svg}</svg>
+      <div class="isb-inner" style="${isSel?'border-color:'+ic.color:''}">
+        <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
       </div>
     </button>`;
   }).join('');
@@ -3084,9 +3181,21 @@ function closeCatEdit(){document.getElementById('cat-edit-overlay').classList.ad
 function buildCatColorUI(){
   const defaultColor=CAT_ICONS[UI.catEditSelEmoji]?.color||'#8D8D8D';
   const currentColor=UI.catEditSelColor||defaultColor;
-  // プレビュー
-  document.getElementById('ce-color-preview').style.background=currentColor;
-  document.getElementById('ce-color-picker').value=currentColor;
+  // プレビュー（ラインアートアイコンで表示）
+  const prevEl=document.getElementById('ce-color-preview');
+  prevEl.style.background='var(--bg-card)';
+  prevEl.style.border=`2px solid ${currentColor}`;
+  const prevIc=CAT_ICONS[UI.catEditSelEmoji||'other']||CAT_ICONS['other'];
+  prevEl.innerHTML=`<svg viewBox="-1 -1 26 26" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(prevIc.svg,currentColor)}</svg>`;
+  const hexEl=document.getElementById('ce-hex-input');
+  if(hexEl) hexEl.value=currentColor;
+  // ピッカーが開いていたら再描画
+  const picker=document.getElementById('ce-custom-picker');
+  if(picker&&picker.style.display!=='none'){
+    const hsv=hexToHsv(currentColor);
+    CP.h=hsv.h;CP.s=hsv.s;CP.v=hsv.v;
+    drawHueCanvas();drawSvCanvas();
+  }
   // プリセット（3段×12色）
   const labels=['ビビッド','ミディアム','パステル'];
   const rows=[
@@ -3117,13 +3226,194 @@ function resetCatColor(){
   buildCatColorUI();
 }
 
+// ── カスタムカラーピッカー ──
+const CP={h:0,s:1,v:1};
+
+function toggleCustomPicker(){
+  const el=document.getElementById('ce-custom-picker');
+  const btn=document.getElementById('ce-custom-btn');
+  if(el.style.display==='none'){
+    el.style.display='block';
+    btn.textContent='▲ 閉じる';
+    initCustomPicker();
+  } else {
+    el.style.display='none';
+    btn.textContent='▼ 詳細';
+  }
+}
+
+function hexToHsv(hex){
+  let r=parseInt(hex.slice(1,3),16)/255;
+  let g=parseInt(hex.slice(3,5),16)/255;
+  let b=parseInt(hex.slice(5,7),16)/255;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
+  let h=0,s=max===0?0:d/max,v=max;
+  if(d){
+    if(max===r) h=((g-b)/d+6)%6;
+    else if(max===g) h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h/=6;
+  }
+  return{h,s,v};
+}
+function hsvToHex(h,s,v){
+  const f=n=>{const k=(n+h*6)%6;return Math.round(255*v*(1-s*Math.max(0,Math.min(k,4-k,1))));};
+  return '#'+[f(5),f(3),f(1)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+function drawSvCanvas(){
+  const canvas=document.getElementById('ce-sv-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  const hueColor=hsvToHex(CP.h,1,1);
+  const gH=ctx.createLinearGradient(0,0,W,0);
+  gH.addColorStop(0,'#fff');gH.addColorStop(1,hueColor);
+  ctx.fillStyle=gH;ctx.fillRect(0,0,W,H);
+  const gV=ctx.createLinearGradient(0,0,0,H);
+  gV.addColorStop(0,'rgba(0,0,0,0)');gV.addColorStop(1,'#000');
+  ctx.fillStyle=gV;ctx.fillRect(0,0,W,H);
+  const cur=document.getElementById('ce-sv-cursor');
+  if(cur){cur.style.left=(CP.s*100)+'%';cur.style.top=((1-CP.v)*100)+'%';}
+}
+
+function drawHueCanvas(){
+  const canvas=document.getElementById('ce-hue-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  const g=ctx.createLinearGradient(0,0,W,0);
+  for(let i=0;i<=6;i++) g.addColorStop(i/6,`hsl(${i*60},100%,50%)`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  const cur=document.getElementById('ce-hue-cursor');
+  if(cur) cur.style.left=(CP.h*100)+'%';
+}
+
+function initCustomPicker(){
+  const currentColor=UI.catEditSelColor||CAT_ICONS[UI.catEditSelEmoji]?.color||'#4CAF8E';
+  const hsv=hexToHsv(currentColor);
+  CP.h=hsv.h;CP.s=hsv.s;CP.v=hsv.v;
+  drawHueCanvas();drawSvCanvas();
+  document.getElementById('ce-hex-input').value=currentColor;
+  const svC=document.getElementById('ce-sv-canvas');
+  svC.onmousedown=svC.ontouchstart=e=>{
+    const move=ev=>{
+      const r=svC.getBoundingClientRect();
+      const pt=ev.touches?ev.touches[0]:ev;
+      CP.s=Math.max(0,Math.min(1,(pt.clientX-r.left)/r.width));
+      CP.v=Math.max(0,Math.min(1,1-(pt.clientY-r.top)/r.height));
+      drawSvCanvas();syncPickerColor();ev.preventDefault();
+    };
+    const up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);document.removeEventListener('touchmove',move);document.removeEventListener('touchend',up);};
+    document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
+    document.addEventListener('touchmove',move,{passive:false});document.addEventListener('touchend',up);
+    move(e);
+  };
+  const hC=document.getElementById('ce-hue-canvas');
+  hC.onmousedown=hC.ontouchstart=e=>{
+    const move=ev=>{
+      const r=hC.getBoundingClientRect();
+      const pt=ev.touches?ev.touches[0]:ev;
+      CP.h=Math.max(0,Math.min(1,(pt.clientX-r.left)/r.width));
+      drawHueCanvas();drawSvCanvas();syncPickerColor();ev.preventDefault();
+    };
+    const up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);document.removeEventListener('touchmove',move);document.removeEventListener('touchend',up);};
+    document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
+    document.addEventListener('touchmove',move,{passive:false});document.addEventListener('touchend',up);
+    move(e);
+  };
+}
+
+function syncPickerColor(){
+  const hex=hsvToHex(CP.h,CP.s,CP.v);
+  document.getElementById('ce-hex-input').value=hex;
+  onCatColorPick(hex);
+}
+
+function onHexInput(val){
+  if(/^#[0-9a-fA-F]{6}$/.test(val)){
+    const hsv=hexToHsv(val);
+    CP.h=hsv.h;CP.s=hsv.s;CP.v=hsv.v;
+    drawHueCanvas();drawSvCanvas();
+    onCatColorPick(val);
+  }
+}
+
+/* =========================================================
+   年間予測
+========================================================= */
+function openForecast(){
+  renderForecast();
+  document.getElementById('forecast-overlay').classList.remove('hidden');
+}
+function closeForecast(){document.getElementById('forecast-overlay').classList.add('hidden');}
+
+function _forecastFromTxs(txs){
+  const months={};
+  txs.forEach(t=>{
+    const d=new Date(t.date);
+    if(isNaN(d))return;
+    const key=d.getFullYear()+'-'+d.getMonth();
+    if(!months[key])months[key]={inc:0,exp:0};
+    if(t.type==='income')months[key].inc+=t.amount;
+    else months[key].exp+=t.amount;
+  });
+  const keys=Object.keys(months);
+  const mCount=keys.length;
+  if(mCount===0)return{months:0,incY:0,expY:0,balY:0,incAvg:0,expAvg:0,balAvg:0};
+  let incSum=0,expSum=0;
+  keys.forEach(k=>{incSum+=months[k].inc;expSum+=months[k].exp;});
+  const incAvg=incSum/mCount, expAvg=expSum/mCount;
+  return{
+    months:mCount,
+    incAvg:Math.round(incAvg), expAvg:Math.round(expAvg), balAvg:Math.round(incAvg-expAvg),
+    incY:Math.round(incAvg*12), expY:Math.round(expAvg*12), balY:Math.round((incAvg-expAvg)*12)
+  };
+}
+
+function _forecastCard(title, sub, fc, accent){
+  const balColor=fc.balY>=0?'var(--blue)':'var(--red)';
+  return `<div style="border:1.5px solid var(--border);border-radius:var(--r12);padding:14px;margin-bottom:12px;background:var(--bg-card)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+      <span style="width:8px;height:8px;border-radius:50%;background:${accent};flex:none"></span>
+      <span style="font-size:15px;font-weight:700">${title}</span>
+    </div>
+    <div style="font-size:11px;color:var(--text-hint);margin-bottom:10px;padding-left:16px">${sub} ・ 実績${fc.months}ヶ月から予測</div>
+    ${fc.months===0
+      ? `<div style="font-size:13px;color:var(--text-hint);padding:6px 0 2px 16px">まだ取引データがありません</div>`
+      : `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+          <div><div style="font-size:10px;color:var(--text-hint)">年間収入</div><div style="font-size:14px;font-weight:700;color:var(--blue)">${fmt(fc.incY)}</div></div>
+          <div><div style="font-size:10px;color:var(--text-hint)">年間支出</div><div style="font-size:14px;font-weight:700;color:var(--red)">${fmt(fc.expY)}</div></div>
+          <div><div style="font-size:10px;color:var(--text-hint)">年間収支</div><div style="font-size:14px;font-weight:700;color:${balColor}">${fc.balY>=0?'+':'-'}${fmt(Math.abs(fc.balY))}</div></div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:11px;color:var(--text-sub);text-align:center">
+          月平均：収入 ${fmt(fc.incAvg)} / 支出 ${fmt(fc.expAvg)} / 収支 ${fc.balAvg>=0?'+':'-'}${fmt(Math.abs(fc.balAvg))}
+        </div>`
+    }
+  </div>`;
+}
+
+function renderForecast(){
+  const u=activeUser();
+  const body=document.getElementById('forecast-body');
+  let html='';
+  const allFc=_forecastFromTxs(u.transactions);
+  html+=`<div style="font-size:12px;font-weight:700;color:var(--text-sub);margin:4px 0 8px">${u.name} の年間予測</div>`;
+  html+=_forecastCard('総合（全帳簿）', '帳簿すべての合算', allFc, 'var(--pri)');
+  const palette=['#5B9BD5','#FF7043','#66BB6A','#AB47BC','#26C6DA','#F5A623','#EC407A','#78909C'];
+  u.ledgers.forEach((lg,i)=>{
+    const txs=u.transactions.filter(t=>t.ledger===lg.id);
+    const fc=_forecastFromTxs(txs);
+    html+=_forecastCard(lg.name, '帳簿別', fc, palette[i%palette.length]);
+  });
+  body.innerHTML=html;
+}
+
 function buildCatEditEmojiGrid(){
   document.getElementById('cat-edit-emoji-grid').innerHTML=ALL_ICON_IDS.map(iid=>{
     const ic=CAT_ICONS[iid];
     const isSel=iid===UI.catEditSelEmoji;
     return `<button class="isb${isSel?' sel':''}" onclick="pickCatEditEmoji('${iid}')" title="${iid}">
-      <div class="isb-inner" style="background:${ic.color}${isSel?';box-shadow:0 0 0 2px '+ic.color+'88':''}">
-        <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${ic.svg}</svg>
+      <div class="isb-inner" style="${isSel?'border-color:'+ic.color:''}">
+        <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
       </div>
     </button>`;
   }).join('');
@@ -3641,8 +3931,8 @@ function renderDonutAndList(){
   if(!items.length){list.innerHTML=`<div class="empty-msg" style="padding:12px">データなし</div>`;return;}
   list.innerHTML=items.map((v,i)=>`
     <div class="cat-sum-item">
-      <div style="width:32px;height:32px;border-radius:50%;background:${v.color};display:flex;align-items:center;justify-content:center;flex:none">
-        <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${v.svg||''}</svg>
+      <div style="width:32px;height:32px;border-radius:9px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+        <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(v.svg||'',v.color)}</svg>
       </div>
       <div style="flex:1;min-width:0">
         <div class="cat-sum-name">${v.name}</div>
