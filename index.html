@@ -1927,11 +1927,12 @@ function renderMainUserList(){
   }).join('');
 }
 
-// No.0モード用txHTML：取引オーナーを一時的にactiveにしてtxHTMLを呼び、ユーザーバッジを付加
+// No.0モード用txHTML：取引オーナーを一時的にactiveにしてtxHTMLを呼び、
+// アイテム全体のタップ → 該当ユーザー・日付に遷移、ユーザー名＋帳簿名バッジを付加
 function txHTMLMainMode(t){
   const savedId=DB.activeUser;
   DB.activeUser=t._ownerId||savedId;
-  const html=txHTML(t);
+  let html=txHTML(t);
   DB.activeUser=savedId;
   if(DB.users.length<2)return html;
   const owner=DB.users.find(u=>u.id===t._ownerId);
@@ -1939,16 +1940,36 @@ function txHTMLMainMode(t){
   const ut=getTheme(owner.theme||'green');
   const pri=ut.g1||ut.pri;
   const ledgerId=t.ledger||owner.ledgers[0]?.id||'';
-  const badge=`<span class="tx-owner-badge" style="background:${pri}22;color:${pri};cursor:pointer" onclick="event.stopPropagation();switchToUserLedger('${owner.id}','${ledgerId}')">${owner.name} ↗</span>`;
+  const ledgerName=owner.ledgers.find(l=>l.id===ledgerId)?.name||'';
+  const badgeLabel=ledgerName?`${owner.name}｜${ledgerName}`:`${owner.name}`;
+  // アイテム全体のonclickを編集→ユーザー遷移に変更
+  html=html.replace(
+    `onclick="openTxEdit('${t.id}')"`,
+    `onclick="switchToUserLedgerOnDate('${owner.id}','${ledgerId}','${t.date}')"`
+  );
+  // ユーザー名＋帳簿バッジをtx-metaの先頭に追加
+  const badge=`<span class="tx-owner-badge" style="background:${pri}22;color:${pri}">${badgeLabel}</span>`;
   return html.replace('<div class="tx-meta">', `<div class="tx-meta">${badge}`);
 }
 
-// メインユーザーから特定ユーザー・帳簿に切り替え
+// メインユーザーから特定ユーザー・帳簿に切り替え（日付指定なし）
 function switchToUserLedger(userId,ledgerId){
   UI.isMainMode=false;
   DB.activeUser=userId;
   UI.activeLedger=ledgerId;
   UI.selDay=null;UI.payFilter='all';
+  save();
+  applyTheme(activeUser().theme||DEFAULT_THEME);
+  renderAll();
+}
+
+// メインユーザーから特定ユーザー・帳簿・日付に遷移（明細タップ用）
+function switchToUserLedgerOnDate(userId,ledgerId,dateStr){
+  UI.isMainMode=false;
+  DB.activeUser=userId;
+  UI.activeLedger=ledgerId;
+  UI.selDay=parseInt(dateStr.split('-')[2]);
+  UI.payFilter='all';
   save();
   applyTheme(activeUser().theme||DEFAULT_THEME);
   renderAll();
