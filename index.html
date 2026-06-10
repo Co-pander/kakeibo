@@ -841,6 +841,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <button class="sheet-close" onclick="closeCatMgr()">✕</button>
     </div>
     <div class="form-body" style="padding-bottom:0">
+      <!-- 帳簿セレクタ（帳簿が複数のとき表示） -->
+      <div id="cat-ledger-sel" style="display:none;margin-bottom:10px">
+        <div class="field-lbl" style="font-size:11px;margin-bottom:4px">編集する帳簿</div>
+        <select id="cat-ledger-select" onchange="setCatMgrLedger(this.value)"
+          style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);font-family:var(--font);font-size:13px"></select>
+      </div>
       <div class="cat-type-tabs">
         <button class="cat-type-tab active" id="cat-tab-exp" onclick="setCatTab('expense')">🔴 支出費目</button>
         <button class="cat-type-tab" id="cat-tab-inc" onclick="setCatTab('income')">💚 収入費目</button>
@@ -1370,8 +1376,34 @@ const DEFAULT_EXP_CATS=[
 
 const ALL_ICON_IDS=Object.keys(CAT_ICONS);
 
-function getINC_CATS(){return activeUser().customCats?.income||DEFAULT_INC_CATS;}
-function getEXP_CATS(){return activeUser().customCats?.expense||DEFAULT_EXP_CATS;}
+// アクティブ帳簿オブジェクトを返す
+function activeLedgerObj(){
+  const u=activeUser();
+  return u.ledgers.find(l=>l.id===UI.activeLedger)||u.ledgers[0];
+}
+// 費目管理モーダルで編集中の帳簿を返す
+function catMgrLedgerObj(){
+  const u=activeUser();
+  return u.ledgers.find(l=>l.id===UI.catMgrLedgerId)||u.ledgers[0];
+}
+// 帳簿のcustomCatsを初期化して返す（未設定ならデフォルトで初期化）
+function ensureLedgerCats(ledger){
+  if(!ledger.customCats){
+    ledger.customCats={
+      income:JSON.parse(JSON.stringify(DEFAULT_INC_CATS)),
+      expense:JSON.parse(JSON.stringify(DEFAULT_EXP_CATS))
+    };
+  }
+  return ledger.customCats;
+}
+function getINC_CATS(){
+  const l=activeLedgerObj();
+  return l?.customCats?.income||JSON.parse(JSON.stringify(DEFAULT_INC_CATS));
+}
+function getEXP_CATS(){
+  const l=activeLedgerObj();
+  return l?.customCats?.expense||JSON.parse(JSON.stringify(DEFAULT_EXP_CATS));
+}
 
 // 費目アイコン：カラー丸 + SVGラインアイコン（インライン直接埋め込み）
 // 費目のカラーを取得（カスタム色 > デフォルト色）
@@ -1424,10 +1456,18 @@ function resolveIconId(cat){
 // 取引のemoji/emojiNameからアイコンを解決
 function txIconHTML(t){
   const id=t.iconId||(t.e&&EMOJI_TO_ICON[t.e])||(t.emoji&&EMOJI_TO_ICON[t.emoji])||'other';
-  // アクティブユーザーの費目カスタムカラーを探す
+  // 取引の帳簿→全帳簿の順でカスタムカラーを探す
   const u=activeUser();
-  const allCats=[...(u.customCats?.income||[]),...(u.customCats?.expense||[])];
-  const cat=allCats.find(c=>resolveIconId(c)===id&&c.color);
+  let cat=null;
+  const ledgersToSearch=t.ledger
+    ?[u.ledgers.find(l=>l.id===t.ledger),...u.ledgers.filter(l=>l.id!==t.ledger)]
+    :u.ledgers;
+  for(const l of ledgersToSearch){
+    if(!l||!l.customCats)continue;
+    const allCats=[...(l.customCats.income||[]),...(l.customCats.expense||[])];
+    cat=allCats.find(c=>resolveIconId(c)===id&&c.color);
+    if(cat)break;
+  }
   return iconHTML(id,'lg', cat?.color||null);
 }
 const CHART_COLORS=['#2EBD8F','#3B82C4','#E07B2E','#9B59B6','#E74C3C','#1ABC9C','#F39C12','#2980B9'];
@@ -1445,8 +1485,7 @@ let DB={
   users:[
     {id:'u1',name:'ユーザー',avatar:'person',theme:'green',
      ledgers:[{id:'l1',name:'家計',theme:null}],
-     payees:{bank:[],card:[]},transactions:[],
-     customCats:{income:JSON.parse(JSON.stringify(DEFAULT_INC_CATS)),expense:JSON.parse(JSON.stringify(DEFAULT_EXP_CATS))}}
+     payees:{bank:[],card:[]},transactions:[]}
   ],
   activeUser:'u1',
   mainUser:{           // ユーザーNo.0（マスター）
@@ -1478,7 +1517,8 @@ let UI={
   txEditType:'expense',
   txEditEmoji:null,txEditEmojiName:null,
   txEditKind:null,txEditPayeeId:null,
-  isMainMode:false    // メインユーザー(No.0)として表示中か
+  isMainMode:false,   // メインユーザー(No.0)として表示中か
+  catMgrLedgerId:null // 費目管理モーダルで編集中の帳簿ID
 };
 
 /* =========================================================
@@ -1498,7 +1538,11 @@ function load(){
     if(!u.payees)u.payees={bank:[],card:[]};
     if(!u.transactions)u.transactions=[];
     if(!u.ledgers)u.ledgers=[{id:'l1',name:'家計',theme:null}];
-    if(!u.customCats)u.customCats={income:JSON.parse(JSON.stringify(DEFAULT_INC_CATS)),expense:JSON.parse(JSON.stringify(DEFAULT_EXP_CATS))};
+    // migration: ユーザーレベルのcustomCatsを最初の帳簿に移行
+    if(u.customCats){
+      if(u.ledgers[0]&&!u.ledgers[0].customCats)u.ledgers[0].customCats=u.customCats;
+      delete u.customCats;
+    }
     if(u.avatar&&!USER_AVATARS.find(a=>a.id===u.avatar))u.avatar='person';
     if(u.isMain){DB.mainUser.enabled=true;delete u.isMain;}
   });
@@ -2331,8 +2375,7 @@ function saveUser(){
     const id='u'+Date.now();
     const newU={id,name,avatar:avatarId,theme:UI.selThemeId,
       ledgers:[{id:'l'+Date.now(),name:'家計',theme:null}],
-      payees:{bank:[],card:[]},transactions:[],
-      customCats:{income:JSON.parse(JSON.stringify(DEFAULT_INC_CATS)),expense:JSON.parse(JSON.stringify(DEFAULT_EXP_CATS))}};
+      payees:{bank:[],card:[]},transactions:[]};
     DB.users.push(newU);
   }
   closeUserEdit();save();renderAll();
@@ -2387,11 +2430,12 @@ function onDestUserChange(){
   // 帳簿セレクト更新
   const sel=document.getElementById('f-dest-ledger');
   if(sel)sel.innerHTML=u.ledgers.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
-  // 費目グリッドを保存先ユーザーのカテゴリで再構築
-  const savedId=DB.activeUser;
-  DB.activeUser=u.id;
+  // 費目グリッドを保存先ユーザー・帳簿のカテゴリで再構築
+  const destLid=document.getElementById('f-dest-ledger')?.value||u.ledgers[0]?.id||'';
+  const savedId=DB.activeUser, savedLid=UI.activeLedger;
+  DB.activeUser=u.id; UI.activeLedger=destLid;
   buildCatGrid('cat-grid',UI.txType,null,null,'pickCat');
-  DB.activeUser=savedId;
+  DB.activeUser=savedId; UI.activeLedger=savedLid;
   // 支払い方法リセット
   UI.selKind='cash';UI.selPayeeId=null;
   ['pk-cash','pk-bank','pk-card'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='pk-btn';});
@@ -2407,11 +2451,12 @@ function setType(t){
   if(UI.isMainMode){
     const uid=document.getElementById('f-dest-user')?.value;
     const destUser=DB.users.find(x=>x.id===uid);
+    const destLid=document.getElementById('f-dest-ledger')?.value||destUser?.ledgers[0]?.id||'';
     if(destUser){
-      const savedId=DB.activeUser;
-      DB.activeUser=destUser.id;
+      const savedId=DB.activeUser, savedLid=UI.activeLedger;
+      DB.activeUser=destUser.id; UI.activeLedger=destLid;
       buildCatGrid('cat-grid',t,null,null,'pickCat');
-      DB.activeUser=savedId;
+      DB.activeUser=savedId; UI.activeLedger=savedLid;
     } else {
       buildCatGrid('cat-grid',t,null,null,'pickCat');
     }
@@ -2933,7 +2978,7 @@ function parseCSV(line){
 }
 function clearAll(){
   if(!confirm('⚠️ 全データを削除します。取り消せません。\nCSVエクスポートを先に行ってください。'))return;
-  DB={users:[{id:'u1',name:'ユーザー',avatar:'👤',theme:'green',ledgers:[{id:'l1',name:'家計',theme:null}],payees:{bank:[],card:[]},transactions:[],customCats:{income:JSON.parse(JSON.stringify(DEFAULT_INC_CATS)),expense:JSON.parse(JSON.stringify(DEFAULT_EXP_CATS))}}],activeUser:'u1',mainUser:{enabled:true,name:'マスター',theme:'indigo'}};
+  DB={users:[{id:'u1',name:'ユーザー',avatar:'👤',theme:'green',ledgers:[{id:'l1',name:'家計',theme:null}],payees:{bank:[],card:[]},transactions:[]}],activeUser:'u1',mainUser:{enabled:true,name:'マスター',theme:'indigo'}};
   UI.activeLedger='l1';UI.selDay=null;UI.payFilter='all';
   save();renderAll();alert('削除しました');
 }
@@ -3085,8 +3130,7 @@ function delTxFromEdit(){
 /* =========================================================
 ========================================================= */
 function moveCat(idx, dir){
-  const u=activeUser();
-  const cats=u.customCats[UI.catTab];
+  const cats=ensureLedgerCats(catMgrLedgerObj())[UI.catTab];
   const to=idx+dir;
   if(to<0||to>=cats.length)return;
   [cats[idx],cats[to]]=[cats[to],cats[idx]];
@@ -3109,8 +3153,7 @@ function catDragOver(e,i){
 function catDrop(e,i){
   e.preventDefault();
   if(catDragIdx===null||catDragIdx===i)return;
-  const u=activeUser();
-  const cats=u.customCats[UI.catTab];
+  const cats=ensureLedgerCats(catMgrLedgerObj())[UI.catTab];
   const moved=cats.splice(catDragIdx,1)[0];
   cats.splice(i,0,moved);
   catDragIdx=null;
@@ -3169,8 +3212,7 @@ function catTouchEnd(e,i){
   if(target){
     const to=parseInt(target.dataset.idx);
     if(to!==touchDragIdx&&!isNaN(to)){
-      const u=activeUser();
-      const cats=u.customCats[UI.catTab];
+      const cats=ensureLedgerCats(catMgrLedgerObj())[UI.catTab];
       const moved=cats.splice(touchDragIdx,1)[0];
       cats.splice(to,0,moved);
       save();
@@ -3181,11 +3223,30 @@ function catTouchEnd(e,i){
 }
 let catMgrCaller=null; // 'add' | 'edit' | null
 
+function renderCatLedgerSel(){
+  const u=activeUser();
+  const wrap=document.getElementById('cat-ledger-sel');
+  const sel=document.getElementById('cat-ledger-select');
+  if(!wrap||!sel)return;
+  if(u.ledgers.length<=1){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  sel.innerHTML=u.ledgers.map(l=>`<option value="${l.id}"${l.id===UI.catMgrLedgerId?' selected':''}>${l.name}</option>`).join('');
+}
+function setCatMgrLedger(id){
+  UI.catMgrLedgerId=id;
+  renderCatList();
+  buildCatEmojiGrid('cat-emoji-grid');
+  document.getElementById('nc-catname').value='';
+  UI.selCatEmoji=null;
+}
+
 function openCatMgr(){
   catMgrCaller=null;
   document.getElementById('cat-back-bar').classList.add('hidden');
   document.getElementById('cat-overlay').classList.remove('hidden');
   UI.selCatEmoji=null;
+  UI.catMgrLedgerId=UI.activeLedger;
+  renderCatLedgerSel();
   setCatTab('expense');
 }
 
@@ -3195,6 +3256,17 @@ function openCatMgrFromTx(caller){
   document.getElementById('cat-back-bar').classList.remove('hidden');
   document.getElementById('cat-overlay').classList.remove('hidden');
   UI.selCatEmoji=null;
+  // isMainMode時は保存先帳簿、通常はアクティブ帳簿
+  if(UI.isMainMode&&caller==='add'){
+    const destLid=document.getElementById('f-dest-ledger')?.value;
+    UI.catMgrLedgerId=destLid||UI.activeLedger;
+  } else if(UI.isMainMode&&caller==='edit'){
+    const t=activeUser().transactions.find(x=>x.id===UI.editingTxId)||findTxOwner(UI.editingTxId)?.transactions.find(x=>x.id===UI.editingTxId);
+    UI.catMgrLedgerId=t?.ledger||UI.activeLedger;
+  } else {
+    UI.catMgrLedgerId=UI.activeLedger;
+  }
+  renderCatLedgerSel();
   setCatTab(type);
 }
 
@@ -3224,8 +3296,8 @@ function setCatTab(type){
 }
 
 function renderCatList(){
-  const u=activeUser();
-  const cats=u.customCats[UI.catTab];
+  const l=catMgrLedgerObj();
+  const cats=l.customCats?.[UI.catTab]||JSON.parse(JSON.stringify(UI.catTab==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS));
   const el=document.getElementById('cat-list-ui');
   if(!cats.length){el.innerHTML=`<div style="color:var(--text-hint);font-size:13px;padding:8px 0">費目がありません</div>`;return;}
   el.innerHTML=cats.map((c,i)=>{
@@ -3267,8 +3339,7 @@ function addCat(){
   const name=document.getElementById('nc-catname').value.trim();
   if(!name){alert('費目名を入力してください');return;}
   const iconId=UI.selCatEmoji||'other';
-  const u=activeUser();
-  u.customCats[UI.catTab].push({id:iconId,n:name});
+  ensureLedgerCats(catMgrLedgerObj())[UI.catTab].push({id:iconId,n:name});
   document.getElementById('nc-catname').value='';
   UI.selCatEmoji=null;
   save();renderCatList();buildCatEmojiGrid('cat-emoji-grid');
@@ -3276,15 +3347,13 @@ function addCat(){
 
 function delCat(idx){
   if(!confirm('この費目を削除しますか？'))return;
-  const u=activeUser();
-  u.customCats[UI.catTab].splice(idx,1);
+  ensureLedgerCats(catMgrLedgerObj())[UI.catTab].splice(idx,1);
   save();renderCatList();
 }
 
 function resetCats(){
   if(!confirm('費目をデフォルトに戻しますか？\n追加した費目はすべて削除されます。'))return;
-  const u=activeUser();
-  u.customCats[UI.catTab]=JSON.parse(JSON.stringify(UI.catTab==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS));
+  ensureLedgerCats(catMgrLedgerObj())[UI.catTab]=JSON.parse(JSON.stringify(UI.catTab==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS));
   save();renderCatList();
 }
 
@@ -3306,8 +3375,8 @@ const CAT_COLOR_PRESETS=[
 ];
 
 function openCatEdit(idx){
-  const u=activeUser();
-  const c=u.customCats[UI.catTab][idx];if(!c)return;
+  const cats=catMgrLedgerObj().customCats?.[UI.catTab]||[];
+  const c=cats[idx];if(!c)return;
   UI.editingCatIdx=idx;
   UI.catEditSelEmoji=resolveIconId(c);
   // カラー初期値（保存済み or デフォルト）
@@ -3569,14 +3638,12 @@ function pickCatEditEmoji(id){
 function saveCatEdit(){
   const name=document.getElementById('ce-name').value.trim();
   if(!name){alert('費目名を入力してください');return;}
-  const u=activeUser();
   const defaultColor=CAT_ICONS[UI.catEditSelEmoji]?.color||'#8D8D8D';
   const cat={id:UI.catEditSelEmoji||'other',n:name};
-  // デフォルト色と異なる場合のみ保存
   if(UI.catEditSelColor && UI.catEditSelColor.toLowerCase()!==defaultColor.toLowerCase()){
     cat.color=UI.catEditSelColor;
   }
-  u.customCats[UI.catTab][UI.editingCatIdx]=cat;
+  ensureLedgerCats(catMgrLedgerObj())[UI.catTab][UI.editingCatIdx]=cat;
   save();closeCatEdit();renderCatList();
 }
 
