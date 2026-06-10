@@ -285,6 +285,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tx-meta{display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap}
 .tx-cat{font-size:11px;color:var(--text-sub)}
 .pay-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:1px 6px;border-radius:20px}
+.tx-owner-badge{font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;display:inline-block;flex:none}
 .pb-cash{background:var(--orange-l);color:var(--orange)}
 .pb-bank{background:var(--blue-l);color:var(--blue)}
 .pb-card{background:var(--red-l);color:var(--red)}
@@ -1510,6 +1511,11 @@ function save(){
 }
 
 function activeUser(){return DB.users.find(u=>u.id===DB.activeUser)||DB.users[0];}
+// 取引IDからオーナーユーザーを検索（No.0モード対応）
+function findTxOwner(txId){
+  for(const u of DB.users){if(u.transactions.find(x=>x.id===txId))return u;}
+  return activeUser();
+}
 function getTheme(themeId){return THEMES.find(t=>t.id===(themeId||DEFAULT_THEME))||THEMES[0];}
 
 /* =========================================================
@@ -1842,56 +1848,56 @@ function renderTxArea(){
   }).join('');
 }
 
-// メインユーザー専用：ユーザー×帳簿の月合計リスト
+// No.0専用：全ユーザーの取引を集約表示（個別取引リスト＋ユーザーバッジ）
 function renderMainUserList(){
   const el=document.getElementById('tx-area');
   const yr=UI.year,mo=UI.month;
-  const items=[];
+  const allTxs=[];
 
   DB.users.forEach(usr=>{
-    usr.ledgers.forEach(l=>{
-      let txs=usr.transactions.filter(tx=>{
-        const d=new Date(tx.date);
-        if(tx.ledger!==l.id||d.getFullYear()!==yr||d.getMonth()!==mo)return false;
-        // 日付選択中はその日のみ
-        if(UI.selDay&&parseInt(tx.date.split('-')[2])!==UI.selDay)return false;
-        return true;
-      });
-      // 取引がなければ表示しない
-      if(!txs.length)return;
-      const inc=txs.filter(tx=>tx.type==='income').reduce((s,tx)=>s+tx.amount,0);
-      const exp=txs.filter(tx=>tx.type==='expense').reduce((s,tx)=>s+tx.amount,0);
-      items.push({usr,ledger:l,inc,exp});
+    usr.transactions.forEach(t=>{
+      const d=new Date(t.date);
+      if(d.getFullYear()!==yr||d.getMonth()!==mo)return;
+      if(UI.selDay&&parseInt(t.date.split('-')[2])!==UI.selDay)return;
+      allTxs.push({...t, _ownerId:usr.id});
     });
   });
 
-  if(!items.length){
+  if(!allTxs.length){
     el.innerHTML=`<div class="empty-msg"><span>記録された取引はありません</span></div>`;return;
   }
 
-  el.innerHTML=`<div style="padding:0">
-    ${items.map(({usr,ledger,inc,exp})=>{
-      const bal=inc-exp;
-      const balColor=bal>=0?'#3B82C4':'var(--red)';
-      const ut=getTheme(usr.theme||'green');
-      const lt=getTheme(ledger.theme||usr.theme||'green');
-      const avatarHTML=renderAvatarSVG('person',ut.g1||ut.pri,36,ut.g2||null);
-      return `<div class="tx-item tx-item-tap" onclick="switchToUserLedger('${usr.id}','${ledger.id}')">
-        ${avatarHTML}
-        <div class="tx-info">
-          <div class="tx-name" style="font-weight:700">${usr.name}</div>
-          <div class="tx-meta">
-            <span class="tx-cat">${ledger.name}</span>
-            <span style="font-size:10px;color:#3B82C4;font-weight:600">収 ${fmt(inc)}</span>
-            <span style="font-size:10px;color:var(--red);font-weight:600">支 ${fmt(exp)}</span>
-          </div>
-        </div>
-        <div class="tx-right">
-          <div class="tx-amount" style="color:${balColor};font-size:13px">${bal>=0?'+':''}${fmt(bal)}</div>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>`;
+  const groups={};
+  allTxs.forEach(t=>{groups[t.date]=groups[t.date]||[];groups[t.date].push(t);});
+  const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+
+  el.innerHTML=dates.map(dt=>{
+    const list=groups[dt];
+    const ds=dt.split('-');
+    const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
+    const di=list.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const de=list.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const bal=di-de;
+    const balColor=bal>=0?'#3B82C4':'var(--red)';
+    const balStr=`残高 <span style="color:${balColor};font-weight:700">${bal>=0?'+':''}${fmt(bal)}</span>`;
+    return `<div class="tx-date-header"><span>${label}</span><span class="tdh-line"></span><span class="tdh-bal">${balStr}</span></div>
+    <div class="tx-list">${list.map(t=>txHTMLMainMode(t)).join('')}</div>`;
+  }).join('');
+}
+
+// No.0モード用txHTML：取引オーナーを一時的にactiveにしてtxHTMLを呼び、ユーザーバッジを付加
+function txHTMLMainMode(t){
+  const savedId=DB.activeUser;
+  DB.activeUser=t._ownerId||savedId;
+  const html=txHTML(t);
+  DB.activeUser=savedId;
+  if(DB.users.length<2)return html;
+  const owner=DB.users.find(u=>u.id===t._ownerId);
+  if(!owner)return html;
+  const ut=getTheme(owner.theme||'green');
+  const pri=ut.g1||ut.pri;
+  const badge=`<span class="tx-owner-badge" style="background:${pri}22;color:${pri}">${owner.name}</span>`;
+  return html.replace('<div class="tx-meta">', `<div class="tx-meta">${badge}`);
 }
 
 // メインユーザーから特定ユーザー・帳簿に切り替え
@@ -2007,7 +2013,8 @@ function payBadge(t){
 }
 function delTx(id){
   if(!confirm('この取引を削除しますか？'))return;
-  const u=activeUser();u.transactions=u.transactions.filter(t=>t.id!==id);save();renderAll();
+  const u=findTxOwner(id);  // No.0モード対応
+  u.transactions=u.transactions.filter(t=>t.id!==id);save();renderAll();
 }
 
 function renderChart(){
@@ -2804,7 +2811,7 @@ function clearAll(){
 /* =========================================================
 ========================================================= */
 function openTxEdit(id){
-  const u=activeUser();
+  const u=findTxOwner(id);  // No.0モード対応：オーナーユーザーを検索
   const t=u.transactions.find(x=>x.id===id);if(!t)return;
   UI.editingTxId=id;
   UI.txEditType=t.type;
@@ -2821,12 +2828,12 @@ function openTxEdit(id){
   renderMemoHistory('te-memo-hist','memo','te-memo');
   renderMemoHistory('te-memo2-hist','memo2','te-memo2');
   document.getElementById('te-date').value=t.date;
-  // 帳簿
+  // 帳簿（オーナーユーザーの帳簿リスト）
   document.getElementById('te-ledger').innerHTML=u.ledgers.map(l=>`<option value="${l.id}"${l.id===t.ledger?' selected':''}>${l.name}</option>`).join('');
   // カテゴリグリッド
   buildTxEditCatGrid(t.type, UI.txEditEmoji);
-  // 支払い方法
-  setTxEditKindUI(t.type,t.payKind||'cash',t.payeeId);
+  // 支払い方法（オーナーユーザーの支払い先を参照）
+  setTxEditKindUI(t.type,t.payKind||'cash',t.payeeId,u);
   document.getElementById('tx-edit-overlay').classList.remove('hidden');
 }
 function closeTxEdit(){document.getElementById('tx-edit-overlay').classList.add('hidden');}
@@ -2851,9 +2858,10 @@ function pickTxEditCat(iconId,n,btn){
 }
 function setTxEditKind(k){
   UI.txEditKind=k;UI.txEditPayeeId=null;
-  setTxEditKindUI(UI.txEditType,k,null);
+  const owner=UI.editingTxId?findTxOwner(UI.editingTxId):null;
+  setTxEditKindUI(UI.txEditType,k,null,owner);
 }
-function setTxEditKindUI(type,k,payeeId){
+function setTxEditKindUI(type,k,payeeId,ownerUser=null){
   if(type!=='expense'){document.getElementById('te-pay-section').style.display='none';return;}
   document.getElementById('te-pay-section').style.display='block';
   document.getElementById('te-pk-cash').className='pk-btn'+(k==='cash'?' sel-cash':'');
@@ -2862,7 +2870,7 @@ function setTxEditKindUI(type,k,payeeId){
   UI.txEditKind=k;
   const wrap=document.getElementById('te-payee-wrap');
   if(k==='cash'){wrap.classList.add('hidden');return;}
-  const u=activeUser();const list=u.payees[k]||[];
+  const u=ownerUser||activeUser();const list=u.payees[k]||[];
   if(!list.length){wrap.classList.add('hidden');return;}
   document.getElementById('te-payee-lbl').textContent=k==='bank'?'🏦 口座を選択':'💳 カードを選択';
   document.getElementById('te-payee-chips').innerHTML=list.map(p=>`<button class="payee-chip${p.id===payeeId?' sel':''}" id="te-py-${p.id}" onclick="pickTxEditPayee('${p.id}')">${p.name}</button>`).join('');
@@ -2882,7 +2890,7 @@ function saveTxEdit(){
   const date=document.getElementById('te-date').value;
   if(!date){alert('日付を選択してください');return;}
   const ledger=document.getElementById('te-ledger').value;
-  const u=activeUser();
+  const u=findTxOwner(UI.editingTxId);  // No.0モード対応
   const t=u.transactions.find(x=>x.id===UI.editingTxId);if(!t)return;
   t.amount=amount;
   t.memo=memo;t.memo2=memo2;
@@ -2935,7 +2943,8 @@ function applyMemoHistory(inputId, value){
 
 function delTxFromEdit(){
   if(!confirm('この取引を削除しますか？'))return;
-  const u=activeUser();u.transactions=u.transactions.filter(t=>t.id!==UI.editingTxId);
+  const u=findTxOwner(UI.editingTxId);  // No.0モード対応
+  u.transactions=u.transactions.filter(t=>t.id!==UI.editingTxId);
   save();closeTxEdit();renderAll();
 }
 
