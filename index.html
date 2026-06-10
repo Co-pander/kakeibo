@@ -1443,15 +1443,15 @@ const PAY_META={
 ========================================================= */
 let DB={
   users:[
-    {id:'u1',name:'メイン',avatar:'person',theme:'green',
+    {id:'u1',name:'ユーザー',avatar:'person',theme:'green',
      ledgers:[{id:'l1',name:'家計',theme:null}],
      payees:{bank:[],card:[]},transactions:[],
      customCats:{income:JSON.parse(JSON.stringify(DEFAULT_INC_CATS)),expense:JSON.parse(JSON.stringify(DEFAULT_EXP_CATS))}}
   ],
   activeUser:'u1',
-  mainUser:{           // ユーザーNo.0
+  mainUser:{           // ユーザーNo.0（マスター）
     enabled:false,     // 有効/無効
-    name:'メイン',
+    name:'マスター',
     theme:'indigo'
   }
 };
@@ -1490,7 +1490,7 @@ function load(){
     if(d){const p=JSON.parse(d);DB=p.DB||DB;UI.year=p.UIyear||UI.year;UI.month=p.UImonth||UI.month;UI.activeUser=p.activeUser||DB.activeUser||'u1';DB.activeUser=UI.activeUser||DB.users[0].id;}
   }catch(e){}
   // migration（tryの外で必ず実行）
-  if(!DB.mainUser)DB.mainUser={enabled:false,name:'メイン',theme:'indigo'};
+  if(!DB.mainUser)DB.mainUser={enabled:false,name:'マスター',theme:'indigo'};
   if(!DB.memoHistory)DB.memoHistory={memo:[],memo2:[]};
   if(!DB.memoHistory.memo)DB.memoHistory.memo=[];
   if(!DB.memoHistory.memo2)DB.memoHistory.memo2=[];
@@ -2933,7 +2933,7 @@ function parseCSV(line){
 }
 function clearAll(){
   if(!confirm('⚠️ 全データを削除します。取り消せません。\nCSVエクスポートを先に行ってください。'))return;
-  DB={users:[{id:'u1',name:'メイン',avatar:'👤',theme:'green',ledgers:[{id:'l1',name:'家計',theme:null}],payees:{bank:[],card:[]},transactions:[],customCats:{income:JSON.parse(JSON.stringify(DEFAULT_INC_CATS)),expense:JSON.parse(JSON.stringify(DEFAULT_EXP_CATS))}}],activeUser:'u1'};
+  DB={users:[{id:'u1',name:'ユーザー',avatar:'👤',theme:'green',ledgers:[{id:'l1',name:'家計',theme:null}],payees:{bank:[],card:[]},transactions:[],customCats:{income:JSON.parse(JSON.stringify(DEFAULT_INC_CATS)),expense:JSON.parse(JSON.stringify(DEFAULT_EXP_CATS))}}],activeUser:'u1',mainUser:{enabled:false,name:'マスター',theme:'indigo'}};
   UI.activeLedger='l1';UI.selDay=null;UI.payFilter='all';
   save();renderAll();alert('削除しました');
 }
@@ -3643,7 +3643,7 @@ function updateMainUserSettingUI(){
   chk.checked=en;
   if(track)track.style.background=en?'var(--pri)':'var(--border)';
   if(thumb)thumb.style.left=en?'23px':'3px';
-  if(nameInp)nameInp.value=DB.mainUser.name||'メイン';
+  if(nameInp)nameInp.value=DB.mainUser.name||'マスター';
   if(nameRow)nameRow.style.display=en?'flex':'none';
 }
 
