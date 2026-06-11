@@ -370,7 +370,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .amount-yen{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text-sub);font-weight:700}
 .cat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:4px}
 .cat-btn{border-radius:var(--r12);border:1.5px solid transparent;background:transparent;cursor:pointer;display:flex;align-items:center;flex-direction:column;gap:5px;padding:8px 4px;transition:all 0.12s}
-.cat-btn .cat-icon-wrap{width:44px;height:44px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;transition:all 0.12s;flex:none}
+.cat-btn .cat-icon-wrap{width:44px;height:44px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;transition:all 0.12s;flex:none}
 .cat-btn .cat-icon-wrap svg{width:30px;height:30px}
 .cat-btn span.cn{font-size:9px;color:var(--text-sub);line-height:1.2;text-align:center;word-break:keep-all}
 .cat-btn.sel .cat-icon-wrap{border-color:transparent;box-shadow:none}
@@ -390,7 +390,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* アイコンSVG描画品質向上 */
 .cat-icon-wrap svg,.cat-mgr-icon-wrap svg,.isb-inner svg{shape-rendering:geometricPrecision;text-rendering:optimizeLegibility}
 /* 費目管理リスト内アイコン */
-.cat-mgr-icon-wrap{width:36px;height:36px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none}
+.cat-mgr-icon-wrap{width:36px;height:36px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none}
 .cat-mgr-icon-wrap svg{width:20px;height:20px}
 /* 並び替えハンドル */
 .drag-handle{cursor:grab;color:var(--text-hint);font-size:18px;padding:4px 6px;flex:none;touch-action:none;line-height:1;user-select:none}
@@ -401,7 +401,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* 費目選択ピッカー（管理画面）*/
 .icon-sel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px;margin-top:6px;max-height:280px;overflow-y:auto}
 .isb{width:100%;max-width:72px;aspect-ratio:1;border-radius:var(--r4);border:2px solid transparent;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.1s;padding:1px}
-.isb .isb-inner{width:100%;height:100%;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center}
+.isb .isb-inner{width:100%;height:100%;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center}
 .isb .isb-inner svg{width:65%;height:65%}
 .isb.sel{border-color:var(--pri);background:var(--pri-l)}
 .pay-kinds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
@@ -746,6 +746,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
         <div class="field-lbl">金額</div>
         <div class="amount-wrap"><span class="amount-yen">¥</span><input type="number" id="f-amount" inputmode="numeric" placeholder="0"></div>
       </div>
+      <!-- メインユーザー専用：保存先選択 -->
+      <div id="f-save-dest" class="hidden">
+        <div class="field-lbl" style="margin-bottom:6px;color:var(--pri);font-weight:700">📌 保存先</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
+          <div>
+            <div class="field-lbl" style="font-size:11px;margin-bottom:4px">ユーザー</div>
+            <select id="f-dest-user" onchange="onDestUserChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);font-family:var(--font);font-size:13px"></select>
+          </div>
+          <div>
+            <div class="field-lbl" style="font-size:11px;margin-bottom:4px">帳簿</div>
+            <select id="f-dest-ledger" onchange="onDestLedgerChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);font-family:var(--font);font-size:13px"></select>
+          </div>
+        </div>
+      </div>
       <div class="field">
         <div class="field-lbl" style="display:flex;align-items:center;justify-content:space-between">
           <span>カテゴリ</span>
@@ -770,20 +784,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="field">
         <div class="field-lbl">帳簿</div>
         <select id="f-ledger"></select>
-      </div>
-      <!-- メインユーザー専用：保存先選択 -->
-      <div id="f-save-dest" class="hidden">
-        <div class="field-lbl" style="margin-bottom:6px;color:var(--pri);font-weight:700">📌 保存先</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
-          <div>
-            <div class="field-lbl" style="font-size:11px;margin-bottom:4px">ユーザー</div>
-            <select id="f-dest-user" onchange="onDestUserChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);font-family:var(--font);font-size:13px"></select>
-          </div>
-          <div>
-            <div class="field-lbl" style="font-size:11px;margin-bottom:4px">帳簿</div>
-            <select id="f-dest-ledger" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);font-family:var(--font);font-size:13px"></select>
-          </div>
-        </div>
       </div>
       <div id="f-pay-section">
         <div class="field-lbl" style="margin-bottom:8px">💳 支払い方法</div>
@@ -856,12 +856,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div id="cat-list-ui"></div>
       <div style="margin-top:12px;background:var(--bg);border-radius:var(--r12);padding:12px;border:1px solid var(--border-l)">
         <div class="field-lbl" style="margin-bottom:8px">新しい費目を追加</div>
-        <div class="field-lbl" style="margin-bottom:4px;font-weight:400;color:var(--text-hint)">アイコンを選択</div>
-        <div class="icon-sel-grid" id="cat-emoji-grid"></div>
-        <div class="add-row" style="margin-top:10px">
+        <div class="add-row" style="margin-bottom:10px">
           <input type="text" id="nc-catname" placeholder="費目名（例）習い事">
           <button onclick="addCat()">追加</button>
         </div>
+        <div class="field-lbl" style="margin-bottom:4px;font-weight:400;color:var(--text-hint)">アイコンを選択</div>
+        <div class="icon-sel-grid" id="cat-emoji-grid"></div>
       </div>
     </div>
     <div style="padding:12px 16px;display:flex;gap:8px">
@@ -1426,7 +1426,7 @@ function catIconDiv(iconId, size=44, customColor=null){
   const ic=CAT_ICONS[iconId]||CAT_ICONS['other'];
   const color=customColor||ic.color;
   const fs=Math.round(size*0.65);
-  return `<div style="width:${size}px;height:${size}px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+  return `<div style="width:${size}px;height:${size}px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
     <svg viewBox="-1 -1 26 26" width="${fs}" height="${fs}" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
   </div>`;
 }
@@ -1441,7 +1441,7 @@ function iconHTML(iconId, size='lg', customColor=null){
   const color=customColor||ic.color;
   const sz=size==='lg'?44:size==='md'?32:24;
   const fs=size==='lg'?30:size==='md'?22:17;
-  return `<div class="cat-icon-wrap" style="width:${sz}px;height:${sz}px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;border-radius:10px">
+  return `<div class="cat-icon-wrap" style="width:${sz}px;height:${sz}px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;border-radius:10px">
     <svg viewBox="-1 -1 26 26" width="${fs}" height="${fs}" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
   </div>`;
 }
@@ -2206,10 +2206,10 @@ function renderChart(){
   }
   el.innerHTML=items.map(v=>{
     const iconEl=v.iconId
-      ? `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+      ? `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
            <svg viewBox="-2 -2 28 28" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(CAT_ICONS[v.iconId]?.svg||'',v.color)}</svg>
          </div>`
-      : `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none;font-size:14px">${v.emoji||'💳'}</div>`;
+      : `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none;font-size:14px">${v.emoji||'💳'}</div>`;
     return `<div class="chart-row">
       ${iconEl}
       <div class="chart-lbl">${v.label}</div>
@@ -2443,6 +2443,19 @@ function onDestUserChange(){
   const pw=document.getElementById('f-payee-wrap');if(pw)pw.classList.add('hidden');
 }
 
+// 保存先帳簿変更時：その帳簿の費目で費目グリッドを再構築
+function onDestLedgerChange(){
+  const uid=document.getElementById('f-dest-user')?.value;
+  const u=DB.users.find(x=>x.id===uid);
+  if(!u)return;
+  const destLid=document.getElementById('f-dest-ledger')?.value||u.ledgers[0]?.id||'';
+  const savedId=DB.activeUser, savedLid=UI.activeLedger;
+  DB.activeUser=u.id; UI.activeLedger=destLid;
+  buildCatGrid('cat-grid',UI.txType,null,null,'pickCat');
+  DB.activeUser=savedId; UI.activeLedger=savedLid;
+  UI.selEmoji=null;UI.selEmojiName=null;
+}
+
 function setType(t){
   UI.txType=t;UI.selEmoji=null;UI.selEmojiName=null;UI.selKind=null;UI.selPayeeId=null;
   document.getElementById('tb-inc').className='tt-btn'+(t==='income'?' a-inc':'');
@@ -2475,7 +2488,7 @@ function buildCatGrid(gridId,type,selIconId,selName,pickFn){
     const color=c.color||ic.color;
     const isSel=iid===selIconId;
     return `<button class="cat-btn${isSel?' sel':''}" onclick="${pickFn}('${iid}','${c.n}',this)" style="${isSel?'border-color:'+color:''}">
-      <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1px solid ${isSel?'transparent':'var(--border)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
+      <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1px solid ${isSel?'transparent':'var(--border-l)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
         <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
       </div>
       <span class="cn">${c.n}</span>
@@ -3308,7 +3321,7 @@ function renderCatList(){
       ondragstart="catDragStart(event,${i})" ondragover="catDragOver(event,${i})" ondrop="catDrop(event,${i})" ondragend="catDragEnd(event)"
       ontouchstart="catTouchStart(event,${i})" ontouchmove="catTouchMove(event)" ontouchend="catTouchEnd(event,${i})">
       <span class="drag-handle" title="ドラッグして並び替え">⠿</span>
-      <div style="width:36px;height:36px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
         <svg viewBox="-1 -1 26 26" style="width:24px;height:24px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg></div>
       <span class="cat-mgr-name">${c.n}</span>
       <div class="cat-mgr-btns">
