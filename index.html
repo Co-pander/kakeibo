@@ -550,7 +550,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="tab-page active" id="tab-home">
     <div class="month-nav">
       <button class="mnav-btn" onclick="changeMonth(-1)">‹</button>
-      <span class="month-label" id="month-label"></span>
+      <span class="month-label" id="month-label" onclick="openMonthPicker()" style="cursor:pointer"></span>
       <button class="mnav-today" onclick="goToday()">今月</button>
       <button class="mnav-btn" onclick="changeMonth(1)">›</button>
     </div>
@@ -572,7 +572,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
     <div class="filter-bar" id="filter-bar"></div>
 
-    <div class="cal-section" style="position:relative">
+    <div class="cal-section" style="position:relative" id="cal-section"
+         ontouchstart="calTouchStart(event)" ontouchend="calTouchEnd(event)">
       <div class="cal-grid" id="cal-grid"></div>
       <button class="cal-fab" onclick="openAddModal()" id="cal-fab">＋</button>
     </div>
@@ -682,6 +683,24 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div class="datesel-foot">
       <button class="datesel-cancel" onclick="closeDateSel()">キャンセル</button>
       <button class="datesel-ok" id="datesel-ok" onclick="confirmDateSel()">この日に決定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 月選択モーダル ===== -->
+<div class="datesel-overlay hidden" id="monthpicker-overlay">
+  <div class="datesel-sheet">
+    <div class="datesel-head">
+      <div class="datesel-title">月を選択</div>
+      <div class="datesel-nav">
+        <button onclick="monthPickerYear(-1)">‹</button>
+        <span class="datesel-month" id="monthpicker-year"></span>
+        <button onclick="monthPickerYear(1)">›</button>
+      </div>
+    </div>
+    <div id="monthpicker-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px"></div>
+    <div class="datesel-foot">
+      <button class="datesel-cancel" onclick="closeMonthPicker()">キャンセル</button>
     </div>
   </div>
 </div>
@@ -1241,6 +1260,7 @@ const CAT_ICONS={
   salary:  {color:'#4CAF8E', emoji:'💰', svg:'<rect x="4" y="2" width="16" height="20" rx="1.5" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M7 7h5M7 10h4M7 13h3" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/><path d="M13.5 7l1.5 3M16.5 7l-1.5 3M15 10v6M13 11.5h4M13 13h4" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><path d="M7 18h10" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>'},
   invest:  {color:'#5B9BD5', emoji:'📈', svg:'<polyline points="3,17 8,11 13,14 21,5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><polyline points="16,5 21,5 21,10" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M3 20h18" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity="0.5"/>'},
   bonus:   {color:'#F5A623', emoji:'⭐', svg:'<polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="#fff" fill-opacity="0.25" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>'},
+  transfer:{color:'#7E78C9', emoji:'↗️', svg:'<path d="M4 16c0-5 4-8 9-8.2V4.5L20.5 11 13 17.5V14c-4 0-7 1-9 4z" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>'},
   rent_in: {color:'#7B68EE', emoji:'🏠', svg:'<path d="M3 12L12 3l9 9" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v11h12V10" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><path d="M9 10l3 4 3-4" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 15h4M10 17.5h4M12 15v3.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>'},
   side:    {color:'#26C6DA', emoji:'💼', svg:'<rect x="2" y="7" width="20" height="14" rx="2" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M2 13h20" stroke="#fff" stroke-width="1.2" opacity="0.6"/><path d="M10 13v2h4v-2" fill="none" stroke="#fff" stroke-width="1.3"/>'},
   gift_in: {color:'#EF5350', emoji:'🎁', svg:'<rect x="3" y="9" width="18" height="12" rx="1.5" fill="none" stroke="#fff" stroke-width="1.7"/><rect x="2" y="6" width="20" height="4" rx="1" fill="none" stroke="#fff" stroke-width="1.5"/><path d="M12 6V21M3 14h18" stroke="#fff" stroke-width="1.3"/><path d="M12 6c-1-2.5-4-3.5-4-1.5S10 6 12 6z" fill="#fff" opacity="0.8"/><path d="M12 6c1-2.5 4-3.5 4-1.5S14 6 12 6z" fill="#fff" opacity="0.8"/>'},
@@ -2231,6 +2251,51 @@ function changeMonth(d){
   UI.selDay=null;UI.payFilter='all';renderAll();
 }
 function goToday(){const n=new Date();UI.year=n.getFullYear();UI.month=n.getMonth();UI.selDay=null;UI.payFilter='all';renderAll();}
+
+// ── カレンダー左右スワイプ ──
+let calTouchX=null, calTouchY=null;
+function calTouchStart(e){
+  if(e.touches.length!==1){calTouchX=null;return;}
+  calTouchX=e.touches[0].clientX;
+  calTouchY=e.touches[0].clientY;
+}
+function calTouchEnd(e){
+  if(calTouchX===null)return;
+  const dx=e.changedTouches[0].clientX-calTouchX;
+  const dy=e.changedTouches[0].clientY-calTouchY;
+  calTouchX=null;
+  // 横方向のスワイプのみ（縦移動が大きい場合は無視）
+  if(Math.abs(dx)<50||Math.abs(dy)>Math.abs(dx))return;
+  changeMonth(dx<0?1:-1); // 左スワイプ→翌月、右スワイプ→前月
+}
+
+// ── 月選択モーダル ──
+let monthPickerYearVal=null;
+function openMonthPicker(){
+  monthPickerYearVal=UI.year;
+  document.getElementById('monthpicker-overlay').classList.remove('hidden');
+  renderMonthPicker();
+}
+function closeMonthPicker(){document.getElementById('monthpicker-overlay').classList.add('hidden');}
+function monthPickerYear(d){monthPickerYearVal+=d;renderMonthPicker();}
+function renderMonthPicker(){
+  document.getElementById('monthpicker-year').textContent=`${monthPickerYearVal}年`;
+  const now=new Date();
+  const grid=document.getElementById('monthpicker-grid');
+  grid.innerHTML=Array.from({length:12},(_,m)=>{
+    const isCur=monthPickerYearVal===UI.year&&m===UI.month;
+    const isThis=monthPickerYearVal===now.getFullYear()&&m===now.getMonth();
+    const bg=isCur?'var(--pri)':'var(--bg)';
+    const col=isCur?'#fff':'var(--text)';
+    const bd=isThis&&!isCur?'1.5px solid var(--pri)':'1px solid var(--border-l)';
+    return `<button onclick="pickMonth(${m})" style="padding:14px 0;border-radius:var(--r8);border:${bd};background:${bg};color:${col};font-family:var(--font);font-size:14px;font-weight:${isCur?'700':'500'};cursor:pointer">${m+1}月</button>`;
+  }).join('');
+}
+function pickMonth(m){
+  UI.year=monthPickerYearVal;UI.month=m;
+  UI.selDay=null;UI.payFilter='all';
+  closeMonthPicker();renderAll();
+}
 
 /* =========================================================
    ユーザードロワー
