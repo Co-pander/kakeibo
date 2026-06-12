@@ -956,7 +956,7 @@ function billingHTML(e){
   const u=activeUser();
   const cardName=u.payees.card.find(c=>c.id===e.payeeId)?.name||e.cardName||'カード';
   return `<div class="tx-item credit-billing">
-    <div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none;font-size:20px">💳</div>
+    <div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none;font-size:20px">💳</div>
     <div class="tx-info">
       <div class="tx-name" style="color:var(--text-sub)">クレジット請求</div>
       <div class="tx-meta">
@@ -973,7 +973,7 @@ function txHTML(t){
   const isI=t.type==='income';
   const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
-  const iconEl=`<div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+  const iconEl=`<div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
     <svg viewBox="-2 -2 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
   </div>`;
 
@@ -1029,39 +1029,47 @@ function renderChart(){
   const total=txs.reduce((s,t)=>s+t.amount,0);
   const el=document.getElementById('chart-body');
   if(!total){el.innerHTML=`<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px">支出データなし</div>`;return;}
-  let items=[];
-  if(UI.chartMode==='cat'){
-    const map={};
-    txs.forEach(x=>{
-      const iid=x.iconId||resolveIconId({id:x.iconId,e:x.emoji})||'other';
-      map[iid]=map[iid]||{n:x.emojiName||x.memo||iid,amt:0};
-      map[iid].amt+=x.amount;
+
+  // 支払い別：全ユーザーの payees を横断して集計
+  const payItems=[];
+  const usersToScan=UI.isMainMode?DB.users:[activeUser()];
+  const seenPayees=new Set();
+  const ca=txs.filter(x=>!x.payKind||x.payKind==='cash').reduce((s,x)=>s+x.amount,0);
+  if(ca>0)payItems.push({iconId:null,label:'現金',amt:ca,color:'#E07B2E',emoji:'💴'});
+  usersToScan.forEach(u=>{
+    u.payees.bank.forEach(b=>{
+      if(seenPayees.has(b.id))return; seenPayees.add(b.id);
+      const a=txs.filter(x=>x.payKind==='bank'&&x.payeeId===b.id).reduce((s,x)=>s+x.amount,0);
+      if(a>0)payItems.push({iconId:null,label:b.name,amt:a,color:'#3B82C4',emoji:'🏦'});
     });
-    items=Object.entries(map).sort((a,b)=>b[1].amt-a[1].amt).slice(0,8).map(([iid,v])=>{
-      const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
-      return {iconId:iid,label:v.n,amt:v.amt,color:ic.color,svg:ic.svg,emoji:ic.emoji||'💰'};
+    u.payees.card.forEach(c=>{
+      if(seenPayees.has(c.id))return; seenPayees.add(c.id);
+      const a=txs.filter(x=>x.payKind==='card'&&x.payeeId===c.id).reduce((s,x)=>s+x.amount,0);
+      if(a>0)payItems.push({iconId:null,label:c.name,amt:a,color:'#E05252',emoji:'💳'});
     });
-  } else {
-    // 支払い別：全ユーザーの payees を横断して集計
-    const usersToScan=UI.isMainMode?DB.users:[activeUser()];
-    const seenPayees=new Set();
-    const ca=txs.filter(x=>!x.payKind||x.payKind==='cash').reduce((s,x)=>s+x.amount,0);
-    if(ca>0)items.push({iconId:null,label:'現金',amt:ca,color:'#E07B2E',emoji:'💴'});
-    usersToScan.forEach(u=>{
-      u.payees.bank.forEach(b=>{
-        if(seenPayees.has(b.id))return; seenPayees.add(b.id);
-        const a=txs.filter(x=>x.payKind==='bank'&&x.payeeId===b.id).reduce((s,x)=>s+x.amount,0);
-        if(a>0)items.push({iconId:null,label:b.name,amt:a,color:'#3B82C4',emoji:'🏦'});
-      });
-      u.payees.card.forEach(c=>{
-        if(seenPayees.has(c.id))return; seenPayees.add(c.id);
-        const a=txs.filter(x=>x.payKind==='card'&&x.payeeId===c.id).reduce((s,x)=>s+x.amount,0);
-        if(a>0)items.push({iconId:null,label:c.name,amt:a,color:'#E05252',emoji:'💳'});
-      });
-    });
-    items.sort((a,b)=>b.amt-a.amt);
-  }
-  el.innerHTML=items.map(v=>{
+  });
+  payItems.sort((a,b)=>b.amt-a.amt);
+
+  // カテゴリ別
+  const map={};
+  txs.forEach(x=>{
+    const iid=x.iconId||resolveIconId({id:x.iconId,e:x.emoji})||'other';
+    map[iid]=map[iid]||{n:x.emojiName||x.memo||iid,amt:0};
+    map[iid].amt+=x.amount;
+  });
+  const catItems=Object.entries(map).sort((a,b)=>b[1].amt-a[1].amt).slice(0,8).map(([iid,v])=>{
+    const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
+    return {iconId:iid,label:v.n,amt:v.amt,color:ic.color,svg:ic.svg,emoji:ic.emoji||'💰'};
+  });
+
+  // 支払別 → カテゴリ別 の順で縦に並べる
+  let h='';
+  if(payItems.length)h+=`<div class="chart-sub">支払別</div>${_chartRows(payItems,total)}`;
+  if(catItems.length)h+=`<div class="chart-sub"${payItems.length?' style="margin-top:12px"':''}>カテゴリ別</div>${_chartRows(catItems,total)}`;
+  el.innerHTML=h;
+}
+function _chartRows(items,total){
+  return items.map(v=>{
     const iconEl=v.iconId
       ? `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
            <svg viewBox="-2 -2 28 28" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(CAT_ICONS[v.iconId]?.svg||'',v.color)}</svg>
@@ -1079,9 +1087,8 @@ function renderChart(){
   }).join('');
 }
 function setChart(m){
+  // タブ統合により未使用（互換のため残置）
   UI.chartMode=m;
-  document.getElementById('ct-cat').className='ct-btn'+(m==='cat'?' active':'');
-  document.getElementById('ct-pay').className='ct-btn'+(m==='pay'?' active':'');
   renderChart();
 }
 
@@ -3119,7 +3126,7 @@ function renderDonutAndList(){
   if(!items.length){list.innerHTML=`<div class="empty-msg" style="padding:12px">データなし</div>`;return;}
   list.innerHTML=items.map((v,i)=>`
     <div class="cat-sum-item">
-      <div style="width:32px;height:32px;border-radius:9px;background:var(--bg-card);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex:none">
+      <div style="width:32px;height:32px;border-radius:9px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
         <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(v.svg||'',v.color)}</svg>
       </div>
       <div style="flex:1;min-width:0">

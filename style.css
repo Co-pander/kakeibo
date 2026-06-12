@@ -442,3 +442,5 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tdh-inc,.tdh-exp{font-weight:600}
 .tdh-bal{font-size:12px;font-weight:700}
 .tdh-line{background:transparent}
+/* 内訳グラフ：支払別／カテゴリ別の小見出し */
+.chart-sub{font-size:11px;font-weight:700;color:var(--text-sub);padding:2px 0 6px;letter-spacing:0.03em}
