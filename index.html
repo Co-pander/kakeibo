@@ -472,29 +472,15 @@
           <div style="flex:1">
             <div id="ce-color-presets" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:12px;color:var(--text-hint)">カスタム</span>
-              <button onclick="toggleCustomPicker()" id="ce-custom-btn"
-                style="font-size:11px;padding:4px 10px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer">▼ 詳細</button>
+              <span style="font-size:12px;color:var(--text-hint);flex-shrink:0">カスタム</span>
+              <!-- OS標準のカラーピッカー（iOSはシステムのピッカーシートが開く） -->
+              <input type="color" id="ce-native-color" value="#4CAF8E"
+                oninput="onCatColorPick(this.value)"
+                style="width:44px;height:30px;padding:0;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer">
+              <input id="ce-hex-input" type="text" maxlength="7" placeholder="#FF9900"
+                style="flex:1;min-width:0;padding:5px 8px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:monospace"
+                oninput="onHexInput(this.value)">
             </div>
-          </div>
-        </div>
-        <!-- 独自カラーピッカー（折りたたみ） -->
-        <div id="ce-custom-picker" style="display:none;margin-bottom:8px">
-          <div style="position:relative;margin-bottom:8px">
-            <canvas id="ce-sv-canvas" width="260" height="160"
-              style="width:100%;height:160px;border-radius:8px;cursor:crosshair;display:block;touch-action:none"></canvas>
-            <div id="ce-sv-cursor" style="position:absolute;width:14px;height:14px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 3px rgba(0,0,0,0.5);pointer-events:none;transform:translate(-50%,-50%);top:50%;left:50%"></div>
-          </div>
-          <div style="position:relative;margin-bottom:8px">
-            <canvas id="ce-hue-canvas" width="260" height="20"
-              style="width:100%;height:20px;border-radius:10px;cursor:pointer;display:block;touch-action:none"></canvas>
-            <div id="ce-hue-cursor" style="position:absolute;width:20px;height:20px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 0 3px rgba(0,0,0,0.4);pointer-events:none;transform:translate(-50%,-50%);top:50%;left:0%"></div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:12px;color:var(--text-hint);flex-shrink:0">HEX</span>
-            <input id="ce-hex-input" type="text" maxlength="7" placeholder="#FF9900"
-              style="flex:1;padding:5px 8px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:monospace"
-              oninput="onHexInput(this.value)">
           </div>
         </div>
       </div>

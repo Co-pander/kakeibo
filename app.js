@@ -2301,7 +2301,7 @@ function buildCatEmojiGrid(gridId){
     const ic=CAT_ICONS[iid];
     const isSel=iid===UI.selCatEmoji;
     return `<button class="isb${isSel?' sel':''}" onclick="pickCatEmoji('${iid}','${gridId}')" title="${iid}">
-      <div class="isb-inner" style="${isSel?'border-color:'+ic.color:''}">
+      <div class="isb-inner" style="${isSel?`border-color:${ic.color};border-width:2px`:''}">
         <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
       </div>
     </button>`;
@@ -2356,9 +2356,12 @@ function openCatEdit(idx){
   // カラー初期値（保存済み or デフォルト）
   UI.catEditSelColor=c.color||null;
   document.getElementById('ce-name').value=c.n;
-  buildCatEditEmojiGrid();
-  buildCatColorUI();
+  // 先にモーダルを表示し、重いグリッド構築は次フレームに回す（タップの反応を即時に）
   document.getElementById('cat-edit-overlay').classList.remove('hidden');
+  requestAnimationFrame(()=>{
+    buildCatEditEmojiGrid();
+    buildCatColorUI();
+  });
 }
 function closeCatEdit(){document.getElementById('cat-edit-overlay').classList.add('hidden');}
 
@@ -2372,14 +2375,10 @@ function buildCatColorUI(){
   const prevIc=CAT_ICONS[UI.catEditSelEmoji||'other']||CAT_ICONS['other'];
   prevEl.innerHTML=`<svg viewBox="-1 -1 26 26" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(prevIc.svg,currentColor)}</svg>`;
   const hexEl=document.getElementById('ce-hex-input');
-  if(hexEl) hexEl.value=currentColor;
-  // ピッカーが開いていたら再描画
-  const picker=document.getElementById('ce-custom-picker');
-  if(picker&&picker.style.display!=='none'){
-    const hsv=hexToHsv(currentColor);
-    CP.h=hsv.h;CP.s=hsv.s;CP.v=hsv.v;
-    drawHueCanvas();drawSvCanvas();
-  }
+  if(hexEl&&document.activeElement!==hexEl) hexEl.value=currentColor;
+  // OS標準カラーピッカーと同期
+  const nativeEl=document.getElementById('ce-native-color');
+  if(nativeEl) nativeEl.value=currentColor;
   // プリセット（3段×12色）
   const labels=['ビビッド','ミディアム','パステル'];
   const rows=[
@@ -2410,113 +2409,11 @@ function resetCatColor(){
   buildCatColorUI();
 }
 
-// ── カスタムカラーピッカー ──
-const CP={h:0,s:1,v:1};
-
-function toggleCustomPicker(){
-  const el=document.getElementById('ce-custom-picker');
-  const btn=document.getElementById('ce-custom-btn');
-  if(el.style.display==='none'){
-    el.style.display='block';
-    btn.textContent='▲ 閉じる';
-    initCustomPicker();
-  } else {
-    el.style.display='none';
-    btn.textContent='▼ 詳細';
-  }
-}
-
-function hexToHsv(hex){
-  let r=parseInt(hex.slice(1,3),16)/255;
-  let g=parseInt(hex.slice(3,5),16)/255;
-  let b=parseInt(hex.slice(5,7),16)/255;
-  const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
-  let h=0,s=max===0?0:d/max,v=max;
-  if(d){
-    if(max===r) h=((g-b)/d+6)%6;
-    else if(max===g) h=(b-r)/d+2;
-    else h=(r-g)/d+4;
-    h/=6;
-  }
-  return{h,s,v};
-}
-function hsvToHex(h,s,v){
-  const f=n=>{const k=(n+h*6)%6;return Math.round(255*v*(1-s*Math.max(0,Math.min(k,4-k,1))));};
-  return '#'+[f(5),f(3),f(1)].map(x=>x.toString(16).padStart(2,'0')).join('');
-}
-
-function drawSvCanvas(){
-  const canvas=document.getElementById('ce-sv-canvas');if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  const W=canvas.width,H=canvas.height;
-  const hueColor=hsvToHex(CP.h,1,1);
-  const gH=ctx.createLinearGradient(0,0,W,0);
-  gH.addColorStop(0,'#fff');gH.addColorStop(1,hueColor);
-  ctx.fillStyle=gH;ctx.fillRect(0,0,W,H);
-  const gV=ctx.createLinearGradient(0,0,0,H);
-  gV.addColorStop(0,'rgba(0,0,0,0)');gV.addColorStop(1,'#000');
-  ctx.fillStyle=gV;ctx.fillRect(0,0,W,H);
-  const cur=document.getElementById('ce-sv-cursor');
-  if(cur){cur.style.left=(CP.s*100)+'%';cur.style.top=((1-CP.v)*100)+'%';}
-}
-
-function drawHueCanvas(){
-  const canvas=document.getElementById('ce-hue-canvas');if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  const W=canvas.width,H=canvas.height;
-  const g=ctx.createLinearGradient(0,0,W,0);
-  for(let i=0;i<=6;i++) g.addColorStop(i/6,`hsl(${i*60},100%,50%)`);
-  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  const cur=document.getElementById('ce-hue-cursor');
-  if(cur) cur.style.left=(CP.h*100)+'%';
-}
-
-function initCustomPicker(){
-  const currentColor=UI.catEditSelColor||CAT_ICONS[UI.catEditSelEmoji]?.color||'#4CAF8E';
-  const hsv=hexToHsv(currentColor);
-  CP.h=hsv.h;CP.s=hsv.s;CP.v=hsv.v;
-  drawHueCanvas();drawSvCanvas();
-  document.getElementById('ce-hex-input').value=currentColor;
-  const svC=document.getElementById('ce-sv-canvas');
-  svC.onmousedown=svC.ontouchstart=e=>{
-    const move=ev=>{
-      const r=svC.getBoundingClientRect();
-      const pt=ev.touches?ev.touches[0]:ev;
-      CP.s=Math.max(0,Math.min(1,(pt.clientX-r.left)/r.width));
-      CP.v=Math.max(0,Math.min(1,1-(pt.clientY-r.top)/r.height));
-      drawSvCanvas();syncPickerColor();ev.preventDefault();
-    };
-    const up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);document.removeEventListener('touchmove',move);document.removeEventListener('touchend',up);};
-    document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
-    document.addEventListener('touchmove',move,{passive:false});document.addEventListener('touchend',up);
-    move(e);
-  };
-  const hC=document.getElementById('ce-hue-canvas');
-  hC.onmousedown=hC.ontouchstart=e=>{
-    const move=ev=>{
-      const r=hC.getBoundingClientRect();
-      const pt=ev.touches?ev.touches[0]:ev;
-      CP.h=Math.max(0,Math.min(1,(pt.clientX-r.left)/r.width));
-      drawHueCanvas();drawSvCanvas();syncPickerColor();ev.preventDefault();
-    };
-    const up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);document.removeEventListener('touchmove',move);document.removeEventListener('touchend',up);};
-    document.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
-    document.addEventListener('touchmove',move,{passive:false});document.addEventListener('touchend',up);
-    move(e);
-  };
-}
-
-function syncPickerColor(){
-  const hex=hsvToHex(CP.h,CP.s,CP.v);
-  document.getElementById('ce-hex-input').value=hex;
-  onCatColorPick(hex);
-}
-
+// ── カスタムカラー ──
+// 旧: 自作キャンバス式ピッカー → 現在はOS標準の <input type="color"> を使用
+// （iOSではシステムのカラーピッカーシートが開く）
 function onHexInput(val){
   if(/^#[0-9a-fA-F]{6}$/.test(val)){
-    const hsv=hexToHsv(val);
-    CP.h=hsv.h;CP.s=hsv.s;CP.v=hsv.v;
-    drawHueCanvas();drawSvCanvas();
     onCatColorPick(val);
   }
 }
@@ -2595,8 +2492,8 @@ function buildCatEditEmojiGrid(){
   document.getElementById('cat-edit-emoji-grid').innerHTML=ALL_ICON_IDS.map(iid=>{
     const ic=CAT_ICONS[iid];
     const isSel=iid===UI.catEditSelEmoji;
-    return `<button class="isb${isSel?' sel':''}" onclick="pickCatEditEmoji('${iid}')" title="${iid}" style="${isSel?'border-color:'+ic.color:''}">
-      <div class="isb-inner">
+    return `<button class="isb${isSel?' sel':''}" onclick="pickCatEditEmoji('${iid}')" title="${iid}">
+      <div class="isb-inner" style="${isSel?`border-color:${ic.color};border-width:2px`:''}">
         <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
       </div>
     </button>`;

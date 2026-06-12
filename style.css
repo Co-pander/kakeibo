@@ -363,7 +363,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .isb{width:100%;max-width:72px;aspect-ratio:1;border-radius:var(--r4);border:2px solid transparent;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.1s;padding:1px}
 .isb .isb-inner{width:100%;height:100%;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center}
 .isb .isb-inner svg{width:65%;height:65%}
-.isb.sel{border-color:var(--pri);background:transparent}
+/* 選択時は内側の枠線（アイコン色・inline指定）のみ表示。外枠は出さない */
+.isb.sel{border-color:transparent;background:transparent}
 .pay-kinds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
 .pk-btn{padding:10px 6px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);cursor:pointer;font-family:var(--font);text-align:center;font-size:12px;font-weight:600;color:var(--text-sub);transition:all 0.12s;display:flex;flex-direction:column;align-items:center;gap:3px}
 .pk-btn .pk-icon{font-size:18px}
