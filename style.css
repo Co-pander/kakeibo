@@ -37,6 +37,8 @@ body.locked .app,.locked .fab,.locked .user-drawer{filter:blur(8px);pointer-even
   /* 数字表示用：丸ゴシック系（参考アプリ風）。iOSはSF Rounded、他は近い丸文字にフォールバック */
   --font-num:ui-rounded,'SF Pro Rounded','Hiragino Maru Gothic ProN','Arial Rounded MT Bold','M PLUS Rounded 1c',var(--font);
   --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
+  /* OSのライト/ダークに合わせてフォーム部品（select・日付等）のネイティブUIを描画させる */
+  color-scheme:light dark;
 }
 @media(prefers-color-scheme:dark){
   :root{
@@ -52,8 +54,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .app{max-width:430px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
 
 /* ===== ナビゲーション（トップバー内） ===== */
-.nav-btn{transition:all 0.12s;opacity:0.75}
-.nav-btn.active{opacity:1;background:rgba(255,255,255,0.35)!important}
+.nav-btn{transition:all 0.12s;opacity:1}
+.nav-btn.active{background:rgba(255,255,255,0.35)!important}
+/* 明るいテーマ色でも白アイコンが沈まないよう、薄い影で輪郭を出す（線の太さは不変） */
+.nav-btn svg{filter:drop-shadow(0 1px 1.5px rgba(0,0,0,0.28))}
 
 /* ===== 長押しメニュー ===== */
 .ctx-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center;animation:oFade 0.15s}
@@ -359,7 +363,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .isb{width:100%;max-width:72px;aspect-ratio:1;border-radius:var(--r4);border:2px solid transparent;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.1s;padding:1px}
 .isb .isb-inner{width:100%;height:100%;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center}
 .isb .isb-inner svg{width:65%;height:65%}
-.isb.sel{border-color:var(--pri);background:var(--pri-l)}
+.isb.sel{border-color:var(--pri);background:transparent}
 .pay-kinds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
 .pk-btn{padding:10px 6px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);cursor:pointer;font-family:var(--font);text-align:center;font-size:12px;font-weight:600;color:var(--text-sub);transition:all 0.12s;display:flex;flex-direction:column;align-items:center;gap:3px}
 .pk-btn .pk-icon{font-size:18px}

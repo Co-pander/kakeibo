@@ -334,11 +334,11 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
           <div>
             <div class="field-lbl" style="font-size:11px;margin-bottom:4px">ユーザー</div>
-            <select id="f-dest-user" onchange="onDestUserChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);font-family:var(--font);font-size:13px"></select>
+            <select id="f-dest-user" onchange="onDestUserChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px"></select>
           </div>
           <div>
             <div class="field-lbl" style="font-size:11px;margin-bottom:4px">帳簿</div>
-            <select id="f-dest-ledger" onchange="onDestLedgerChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);font-family:var(--font);font-size:13px"></select>
+            <select id="f-dest-ledger" onchange="onDestLedgerChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px"></select>
           </div>
         </div>
       </div>
@@ -419,7 +419,7 @@
       <div id="cat-ledger-sel" style="display:none;margin-bottom:10px">
         <div class="field-lbl" style="font-size:11px;margin-bottom:4px">編集する帳簿</div>
         <select id="cat-ledger-select" onchange="setCatMgrLedger(this.value)"
-          style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);font-family:var(--font);font-size:13px"></select>
+          style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px"></select>
       </div>
       <div class="cat-type-tabs">
         <button class="cat-type-tab active" id="cat-tab-exp" onclick="setCatTab('expense')">🔴 支出費目</button>
@@ -700,7 +700,7 @@
       <div class="mgr-item" id="auto-lock-row" style="display:none">
         <span class="mgr-icon">⏱️</span>
         <div style="flex:1;font-size:14px;font-weight:600">自動ロック</div>
-        <select id="auto-lock-sel" onchange="saveAutoLock()" style="padding:6px 10px;border-radius:var(--r8);border:1px solid var(--border);background:var(--bg);font-size:13px;font-family:var(--font);color:var(--text-primary)">
+        <select id="auto-lock-sel" onchange="saveAutoLock()" style="padding:6px 10px;border-radius:var(--r8);border:1px solid var(--border);background:var(--bg);font-size:13px;font-family:var(--font);color:var(--text)">
           <option value="0">即時</option>
           <option value="60">1分後</option>
           <option value="300">5分後</option>

@@ -389,14 +389,34 @@ function getTheme(themeId){return THEMES.find(t=>t.id===(themeId||DEFAULT_THEME)
 /* =========================================================
    テーマ適用
 ========================================================= */
+// HEX2色をratio:(1-ratio)で混合（ダークモード用の淡色生成）
+function _mixHex(c1,c2,ratio){
+  const a=c1.replace('#',''),b=c2.replace('#','');
+  const f=i=>Math.round(parseInt(a.substr(i,2),16)*ratio+parseInt(b.substr(i,2),16)*(1-ratio)).toString(16).padStart(2,'0');
+  return '#'+f(0)+f(2)+f(4);
+}
+const _darkMq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+let _lastThemeId=null;
 function applyTheme(themeId){
+  _lastThemeId=themeId;
   const t=getTheme(themeId);
   const r=document.documentElement.style;
   r.setProperty('--pri',t.pri);
   r.setProperty('--pri-d',t.prid);
-  r.setProperty('--pri-l',t.pril);
-  r.setProperty('--pri-ll',t.prill);
+  if(_darkMq&&_darkMq.matches){
+    // ダークモード：ライト用の淡色HEXで上書きすると白浮きするため、
+    // テーマ色を暗背景(#121820)に溶かした色を生成して使う
+    r.setProperty('--pri-l',_mixHex(t.pri,'#121820',0.22));
+    r.setProperty('--pri-ll',_mixHex(t.pri,'#121820',0.13));
+  }else{
+    r.setProperty('--pri-l',t.pril);
+    r.setProperty('--pri-ll',t.prill);
+  }
   document.getElementById('meta-theme').setAttribute('content',t.pri);
+}
+// OSのライト/ダーク切り替え時にテーマ淡色を再計算
+if(_darkMq&&_darkMq.addEventListener){
+  _darkMq.addEventListener('change',()=>{if(_lastThemeId!==null)applyTheme(_lastThemeId);});
 }
 
 // ユーザーカラー（トップバー用）
@@ -2575,8 +2595,8 @@ function buildCatEditEmojiGrid(){
   document.getElementById('cat-edit-emoji-grid').innerHTML=ALL_ICON_IDS.map(iid=>{
     const ic=CAT_ICONS[iid];
     const isSel=iid===UI.catEditSelEmoji;
-    return `<button class="isb${isSel?' sel':''}" onclick="pickCatEditEmoji('${iid}')" title="${iid}">
-      <div class="isb-inner" style="${isSel?'border-color:'+ic.color:''}">
+    return `<button class="isb${isSel?' sel':''}" onclick="pickCatEditEmoji('${iid}')" title="${iid}" style="${isSel?'border-color:'+ic.color:''}">
+      <div class="isb-inner">
         <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
       </div>
     </button>`;
@@ -2605,7 +2625,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.0.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.0.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
