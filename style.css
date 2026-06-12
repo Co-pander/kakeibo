@@ -34,6 +34,8 @@ body.locked .app,.locked .fab,.locked .user-drawer{filter:blur(8px);pointer-even
   --shadow:0 1px 4px rgba(0,0,0,0.06),0 0 1px rgba(0,0,0,0.04);
   --r4:4px;--r8:8px;--r12:12px;--r16:16px;--r24:24px;
   --font:'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
+  /* 数字表示用：丸ゴシック系（参考アプリ風）。iOSはSF Rounded、他は近い丸文字にフォールバック */
+  --font-num:ui-rounded,'SF Pro Rounded','Hiragino Maru Gothic ProN','Arial Rounded MT Bold','M PLUS Rounded 1c',var(--font);
   --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
 }
 @media(prefers-color-scheme:dark){
@@ -416,3 +418,27 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .hint{font-size:11px;color:var(--text-hint);line-height:1.7;padding:8px 12px;background:var(--bg);border-radius:var(--r8);margin-top:8px}
 .hidden{display:none!important}
 .sec-divider{height:1px;background:var(--border-l);margin:4px 0}
+
+/* ===== 数字フォント・日別集計バー（2026-06 追加） ===== */
+.tx-amount,.day-amt,.sum-val,.cal-info-balance,.cal-info-inc,.cal-info-exp,.tdh-bal,.tdh-inout,.donut-center-val,.cat-sum-amt,.amount-wrap input{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.cal-info-inc{font-size:11px;font-weight:700;color:#3B82C4;white-space:nowrap}
+.cal-info-exp{font-size:11px;font-weight:700;color:var(--red);white-space:nowrap}
+.tdh-inout{display:inline-flex;gap:8px;white-space:nowrap}
+.tdh-inc{color:#3B82C4;font-weight:700}
+.tdh-exp{color:var(--red);font-weight:700}
+/* メモ履歴チップ：長押し削除のため文字選択・OSメニューを抑止 */
+.memo-hist-chip{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+/* ===== 日別集計バー：参考アプリ風レイアウト調整 ===== */
+.cal-info-bar{padding:10px 14px;min-height:42px}
+.cal-info-left{gap:10px}
+.cal-info-date{font-size:13px;font-weight:600;color:var(--text)}
+.cal-info-inc{font-size:13px;font-weight:600}
+.cal-info-exp{font-size:13px;font-weight:600}
+.cal-info-balance{font-size:14px;font-weight:700;color:var(--text)}
+/* 明細内の日付ヘッダーも同じトーンに統一 */
+.tx-date-header{font-size:12px;font-weight:600;color:var(--text);letter-spacing:0;padding:12px 16px 6px}
+.tdh-inout{gap:10px}
+.tdh-inc,.tdh-exp{font-weight:600}
+.tdh-bal{font-size:12px;font-weight:700}
+.tdh-line{background:transparent}

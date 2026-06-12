@@ -135,6 +135,8 @@
     <div class="cal-info-bar" id="cal-info-bar">
       <div class="cal-info-left">
         <span class="cal-info-date" id="cal-info-date"></span>
+        <span class="cal-info-inc hidden" id="cal-info-inc"></span>
+        <span class="cal-info-exp hidden" id="cal-info-exp"></span>
         <span class="cal-info-badge hidden" id="cal-info-badge">無支出日 ☑</span>
       </div>
       <span class="cal-info-balance" id="cal-info-balance"></span>
@@ -315,6 +317,18 @@
         <button class="tt-btn" id="tb-exp" onclick="setType('expense')">🔴 支出</button>
       </div>
       <div class="field">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+          <div>
+            <div class="field-lbl">日付</div>
+            <input type="date" id="f-date">
+          </div>
+          <div class="field" style="margin:0">
+            <div class="field-lbl">帳簿</div>
+            <select id="f-ledger"></select>
+          </div>
+        </div>
+      </div>
+      <div class="field">
         <div class="field-lbl">金額</div>
         <div class="amount-wrap"><span class="amount-yen">¥</span><input type="number" id="f-amount" inputmode="numeric" placeholder="0"></div>
       </div>
@@ -348,14 +362,6 @@
         <div class="field-lbl">メモ</div>
         <input type="text" id="f-memo2" placeholder="例）セール品、ポイント利用">
         <div class="memo-hist" id="f-memo2-hist"></div>
-      </div>
-      <div class="field">
-        <div class="field-lbl">日付</div>
-        <input type="date" id="f-date">
-      </div>
-      <div class="field">
-        <div class="field-lbl">帳簿</div>
-        <select id="f-ledger"></select>
       </div>
       <div id="f-pay-section">
         <div class="field-lbl" style="margin-bottom:8px">💳 支払い方法</div>

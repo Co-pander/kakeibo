@@ -645,6 +645,17 @@ function renderCalendar(){
 }
 function selDay(d){UI.selDay=UI.selDay===d?null:d;renderCalendar();renderTxArea();renderCalInfoBar();}
 
+// 集計バー左側の「収入 x,xxx 支出 x,xxx」表示（0の項目は非表示）
+function _setCalInfoInOut(dayInc,dayExp){
+  const incEl=document.getElementById('cal-info-inc');
+  const expEl=document.getElementById('cal-info-exp');
+  if(!incEl||!expEl)return;
+  if(dayInc>0){incEl.textContent=`収入 ${fmtN(dayInc)}`;incEl.classList.remove('hidden');}
+  else incEl.classList.add('hidden');
+  if(dayExp>0){expEl.textContent=`支出 ${fmtN(dayExp)}`;expEl.classList.remove('hidden');}
+  else expEl.classList.add('hidden');
+}
+
 function renderCalInfoBar(){
   const dateEl=document.getElementById('cal-info-date');
   const badgeEl=document.getElementById('cal-info-badge');
@@ -679,10 +690,13 @@ function renderCalInfoBar(){
     const inc=allUpToDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     const exp=allUpToDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
     const bal=inc-exp;
-    balEl.textContent=`残高 ${fmt(bal)}`;
-    balEl.style.color=bal>=0?'var(--pri)':'var(--red)';
-    // 選択日に取引あるが支出0 → 無支出バッジ表示
+    balEl.textContent=`残高 ${(bal<0?'-':'')+fmt(bal)}`;
+    balEl.style.color=bal>=0?'var(--text)':'var(--red)';
+    // その日の収入・支出を左側に表示
+    const dayInc=allOnDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     const dayExp=allOnDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    _setCalInfoInOut(dayInc,dayExp);
+    // 選択日に取引あるが支出0 → 無支出バッジ表示
     if(dayExp===0){badgeEl.classList.remove('hidden');}else{badgeEl.classList.add('hidden');}
     return;
   }
@@ -697,21 +711,43 @@ function renderCalInfoBar(){
   const inc=txsUpToDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const exp=txsUpToDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const bal=inc-exp;
-  balEl.textContent=`残高 ${fmt(bal)}`;
-  balEl.style.color=bal>=0?'var(--pri)':'var(--red)';
+  balEl.textContent=`残高 ${(bal<0?'-':'')+fmt(bal)}`;
+  balEl.style.color=bal>=0?'var(--text-sub)':'var(--red)';
   dateEl.closest('.cal-info-bar')?.classList.remove('hidden');
 
-  // 無支出日判定（選択日の支出が0）
-  const dayExp=u.transactions.filter(t=>{
-    if(t.ledger!==UI.activeLedger||t.type!=='expense')return false;
+  // その日の収入・支出（左側表示と無支出日判定に使用）
+  const onDay=u.transactions.filter(t=>{
+    if(t.ledger!==UI.activeLedger)return false;
     const td=new Date(t.date);
     return td.getFullYear()===yr&&td.getMonth()===mo&&parseInt(t.date.split('-')[2])===d;
-  }).reduce((s,t)=>s+t.amount,0);
+  });
+  const dayInc=onDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const dayExp=onDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  _setCalInfoInOut(dayInc,dayExp);
   if(dayExp===0){
     badgeEl.classList.remove('hidden');
   } else {
     badgeEl.classList.add('hidden');
   }
+}
+
+// 月初からその日までの累計残高（モード・帳簿に従う）
+function balanceThrough(dateStr){
+  const[y,m,dd]=dateStr.split('-').map(Number);
+  const inRange=t=>{const td=new Date(t.date);return td.getFullYear()===y&&td.getMonth()===m-1&&parseInt(t.date.split('-')[2],10)<=dd;};
+  let txs=[];
+  if(UI.isMainMode){
+    DB.users.forEach(usr=>{txs.push(...usr.transactions.filter(inRange));});
+  }else{
+    txs=activeUser().transactions.filter(t=>t.ledger===UI.activeLedger&&inRange(t));
+  }
+  return txs.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+}
+// 日付グループの集計ヘッダー：左=その日の収入・支出、右=その日までの累計残高
+function dateHeaderHTML(label,di,de,dateStr){
+  const bal=balanceThrough(dateStr);
+  const balCol=bal>=0?'var(--text)':'var(--red)';
+  return `<div class="tx-date-header"><span>${label}</span><span class="tdh-inout">${di?`<span class="tdh-inc">収入 ${fmtN(di)}</span>`:''}${de?`<span class="tdh-exp">支出 ${fmtN(de)}</span>`:''}</span><span class="tdh-line"></span><span class="tdh-bal" style="color:${balCol}">残高 ${(bal<0?'-':'')+fmt(bal)}</span></div>`;
 }
 
 function renderTxArea(){
@@ -748,10 +784,10 @@ function renderTxArea(){
     const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
     const di=list.filter(t=>t.type==='income'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
     const de=list.filter(t=>t.type==='expense'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
-    const bal=di-de;
-    const balColor=bal>=0?'#3B82C4':'var(--red)';
-    const balStr=`残高 <span style="color:${balColor};font-weight:700">${bal>=0?'+':''}${fmt(bal)}</span>`;
-    return `<div class="tx-date-header"><span>${label}</span><span class="tdh-line"></span><span class="tdh-bal">${balStr}</span></div>
+    // カレンダー下の集計バーに表示中の日付はヘッダーを省略（重複防止）
+    const barDay=UI.selDay||new Date().getDate();
+    const header=parseInt(dt.split('-')[2],10)===barDay?'':dateHeaderHTML(label,di,de,dt);
+    return `${header}
     <div class="tx-list">${list.map(t=>t._isBilling?billingHTML(t):txHTML(t)).join('')}</div>`;
   }).join('');
 }
@@ -798,22 +834,19 @@ function renderMainUserList(){
     const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
     const totalInc=entries.reduce((s,e)=>s+e.inc,0);
     const totalExp=entries.reduce((s,e)=>s+e.exp,0);
-    const bal=totalInc-totalExp;
-    const balColor=bal>=0?'#3B82C4':'var(--red)';
-    const balStr=`残高 <span style="color:${balColor};font-weight:700">${bal>=0?'+':''}${fmt(bal)}</span>`;
 
     const rows=entries.map(e=>{
       const ut=getTheme(e.theme);
       const pri=ut.g1||ut.pri;
       const av=renderAvatarSVG(e.avatar, pri, 38, ut.g2||null);
-      const incPart=e.inc>0?`<span style="color:var(--inc);font-size:12px;font-weight:700">+${fmt(e.inc)}</span>`:'';
-      const expPart=e.exp>0?`<span style="color:var(--red);font-size:12px;font-weight:700">-${fmt(e.exp)}</span>`:'';
+      const incPart=e.inc>0?`<span style="color:var(--inc);font-size:12px;font-weight:700">${fmt(e.inc)}</span>`:'';
+      const expPart=e.exp>0?`<span style="color:var(--red);font-size:12px;font-weight:700">${fmt(e.exp)}</span>`:'';
       const amounts=[incPart,expPart].filter(Boolean).join('<span style="color:var(--border-l);margin:0 3px">|</span>');
       return `<div class="tx-item tx-item-tap" style="padding:10px 14px;gap:10px;align-items:center"
         onclick="switchToUserLedgerOnDate('${e.userId}','${e.ledgerId}','${e.date}')">
         <div style="flex:none">${av}</div>
         <div style="flex:1;min-width:0;overflow:hidden">
-          <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.userName}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.userName)}</div>
           <div style="font-size:11px;color:var(--text-sub);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.ledgerName)}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:none">${amounts||`<span style="color:var(--text-hint);font-size:11px">-</span>`}</div>
@@ -821,7 +854,7 @@ function renderMainUserList(){
       </div>`;
     }).join('');
 
-    return `<div class="tx-date-header"><span>${label}</span><span class="tdh-line"></span><span class="tdh-bal">${balStr}</span></div>
+    return `${parseInt(dt.split('-')[2],10)===(UI.selDay||new Date().getDate())?'':dateHeaderHTML(label,totalInc,totalExp,dt)}
     <div class="tx-list">${rows}</div>`;
   }).join('');
 }
@@ -932,7 +965,7 @@ function billingHTML(e){
       </div>
     </div>
     <div class="tx-right">
-      <div class="tx-amount exp" style="opacity:0.6">-${fmt(e.amount)}</div>
+      <div class="tx-amount exp" style="opacity:0.6">${fmt(e.amount)}</div>
     </div>
   </div>`;
 }
@@ -963,7 +996,7 @@ function txHTML(t){
       <div class="tx-meta"><span class="tx-cat">${esc(t.emojiName||'')}</span>${isI?'':payBadge(t)}${destBadge}</div>
     </div>
     <div class="tx-right">
-      <div class="tx-amount ${isI?'inc':'exp'}">${isI?'+':'-'}${fmt(t.amount)}</div>
+      <div class="tx-amount ${isI?'inc':'exp'}">${fmt(t.amount)}</div>
     </div>
   </div>`;
 }
@@ -1263,6 +1296,9 @@ function deleteUser(){
 ========================================================= */
 function openAddModal(){
   document.getElementById('add-overlay').classList.remove('hidden');
+  // 前回のスクロール位置を引き継がず、必ず先頭から表示
+  const _sheet=document.querySelector('#add-overlay .sheet');
+  if(_sheet)_sheet.scrollTop=0;
   setType('expense');
   document.getElementById('f-amount').value='';
   document.getElementById('f-memo').value='';
@@ -1894,6 +1930,8 @@ function openTxEdit(id){
   // 支払い方法（オーナーユーザーの支払い先を参照）
   setTxEditKindUI(t.type,t.payKind||'cash',t.payeeId,u);
   document.getElementById('tx-edit-overlay').classList.remove('hidden');
+  const _sheet=document.querySelector('#tx-edit-overlay .sheet');
+  if(_sheet)_sheet.scrollTop=0;
 }
 function closeTxEdit(){document.getElementById('tx-edit-overlay').classList.add('hidden');}
 
@@ -1990,14 +2028,42 @@ function renderMemoHistory(containerId, field, inputId){
   if(!arr.length){el.innerHTML='';el.style.display='none';return;}
   el.style.display='flex';
   el.innerHTML=arr.map(v=>{
-    return `<button type="button" class="memo-hist-chip" onclick="applyMemoHistory('${inputId}','${escAttr(escJs(v))}')">${esc(v)}</button>`;
+    return `<button type="button" class="memo-hist-chip" data-field="${field}" data-container="${containerId}" data-input="${inputId}" data-word="${esc(v)}" onclick="applyMemoHistory('${inputId}','${escAttr(escJs(v))}')">${esc(v)}</button>`;
   }).join('');
 }
 
 function applyMemoHistory(inputId, value){
+  // 長押し削除の直後はタップ適用を無効化
+  if(_memoLP.fired){_memoLP.fired=false;return;}
   const inp=document.getElementById(inputId);
   if(inp){inp.value=value;inp.focus();}
 }
+
+// --- メモ・内訳履歴チップ：長押しで個別削除 ---
+const _memoLP={timer:null,fired:false};
+function _memoChipDown(e){
+  const chip=e.target.closest('.memo-hist-chip');
+  if(!chip)return;
+  _memoLP.fired=false;
+  clearTimeout(_memoLP.timer);
+  _memoLP.timer=setTimeout(()=>{
+    _memoLP.fired=true;
+    const word=chip.dataset.word, field=chip.dataset.field;
+    if(confirm(`「${word}」を履歴から削除しますか？`)){
+      DB.memoHistory[field]=(DB.memoHistory[field]||[]).filter(w=>w!==word);
+      save();
+      renderMemoHistory(chip.dataset.container,field,chip.dataset.input);
+    }
+  },550);
+}
+function _memoChipCancel(){clearTimeout(_memoLP.timer);}
+document.addEventListener('touchstart',_memoChipDown,{passive:true});
+document.addEventListener('touchend',_memoChipCancel);
+document.addEventListener('touchmove',_memoChipCancel,{passive:true});
+document.addEventListener('mousedown',_memoChipDown);
+document.addEventListener('mouseup',_memoChipCancel);
+// 長押し時にOS標準のコンテキストメニューを出さない
+document.addEventListener('contextmenu',e=>{if(e.target.closest('.memo-hist-chip'))e.preventDefault();});
 
 function delTxFromEdit(){
   if(!confirm('この取引を削除しますか？'))return;
@@ -2532,7 +2598,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.0.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.0.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
