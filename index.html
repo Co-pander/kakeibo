@@ -326,7 +326,7 @@
       </div>
       <div class="field">
         <div class="field-lbl">金額</div>
-        <div class="amount-wrap"><span class="amount-yen">¥</span><input type="number" id="f-amount" inputmode="numeric" placeholder="0"></div>
+        <div class="amount-wrap"><span class="amount-yen">¥</span><input type="text" id="f-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
       </div>
       <!-- メインユーザー専用：保存先選択 -->
       <div id="f-save-dest" class="hidden">
@@ -509,7 +509,7 @@
       </div>
       <div class="field">
         <div class="field-lbl">金額</div>
-        <div class="amount-wrap"><span class="amount-yen">¥</span><input type="number" id="te-amount" inputmode="numeric" placeholder="0"></div>
+        <div class="amount-wrap"><span class="amount-yen">¥</span><input type="text" id="te-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
       </div>
       <div class="field">
         <div class="field-lbl" style="display:flex;align-items:center;justify-content:space-between">

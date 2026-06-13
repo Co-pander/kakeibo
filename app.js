@@ -462,6 +462,15 @@ function fmt(n){return '¥'+Math.abs(n).toLocaleString('ja-JP')}
 function fmtS(n){return n>=10000?'¥'+(n/10000).toFixed(1)+'万':'¥'+n.toLocaleString('ja-JP')}
 // カレンダー用：数字のみカンマ区切り（¥なし・単位なし）
 function fmtN(n){return Math.abs(n).toLocaleString('ja-JP')}
+// 金額入力欄：入力中にカンマ区切りで整形（数字以外は除去）
+function formatAmountInput(el){
+  const raw=el.value.replace(/[^\d]/g,'');
+  el.value=raw?parseInt(raw,10).toLocaleString('ja-JP'):'';
+}
+// カンマ付き入力値を数値に戻す
+function parseAmountInput(id){
+  return parseInt((document.getElementById(id)?.value||'').replace(/[^\d]/g,''),10)||0;
+}
 
 /* =========================================================
    レンダリング
@@ -709,7 +718,7 @@ function renderCalInfoBar(){
     dateEl.closest('.cal-info-bar')?.classList.remove('hidden');
     const inc=allUpToDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     const exp=allUpToDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-    const bal=inc-exp;
+    const bal=inc-exp+carryoverBefore(yr,mo);
     balEl.textContent=`残高 ${(bal<0?'-':'')+fmt(bal)}`;
     balEl.style.color=bal>=0?'var(--text)':'var(--red)';
     // その日の収入・支出を左側に表示
@@ -730,7 +739,7 @@ function renderCalInfoBar(){
   });
   const inc=txsUpToDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const exp=txsUpToDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  const bal=inc-exp;
+  const bal=inc-exp+carryoverBefore(yr,mo);
   balEl.textContent=`残高 ${(bal<0?'-':'')+fmt(bal)}`;
   balEl.style.color=bal>=0?'var(--text-sub)':'var(--red)';
   dateEl.closest('.cal-info-bar')?.classList.remove('hidden');
@@ -751,7 +760,26 @@ function renderCalInfoBar(){
   }
 }
 
-// 月初からその日までの累計残高（モード・帳簿に従う）
+// 前月までの繰り越し残高。帳簿の「前月の残高を繰り越す」設定(carry)が有効な場合のみ計上、無効なら0
+function carryoverBefore(yr,mo){
+  const firstStr=`${yr}-${String(mo+1).padStart(2,'0')}-01`;
+  const sum=txs=>txs.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+  if(UI.isMainMode){
+    // No.0モード：carry有効な帳簿の取引のみ全ユーザー横断で集計
+    let total=0;
+    DB.users.forEach(usr=>{
+      const ids=new Set((usr.ledgers||[]).filter(l=>l.carry).map(l=>l.id));
+      if(ids.size)total+=sum(usr.transactions.filter(t=>ids.has(t.ledger)&&t.date<firstStr));
+    });
+    return total;
+  }
+  const u=activeUser();
+  const l=u.ledgers.find(x=>x.id===UI.activeLedger);
+  if(!l||!l.carry)return 0;
+  return sum(u.transactions.filter(t=>t.ledger===UI.activeLedger&&t.date<firstStr));
+}
+
+// 月初からその日までの累計残高（モード・帳簿に従う。繰り越し設定があれば前月分も含む）
 function balanceThrough(dateStr){
   const[y,m,dd]=dateStr.split('-').map(Number);
   const inRange=t=>{const td=new Date(t.date);return td.getFullYear()===y&&td.getMonth()===m-1&&parseInt(t.date.split('-')[2],10)<=dd;};
@@ -761,7 +789,7 @@ function balanceThrough(dateStr){
   }else{
     txs=activeUser().transactions.filter(t=>t.ledger===UI.activeLedger&&inRange(t));
   }
-  return txs.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+  return txs.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0)+carryoverBefore(y,m-1);
 }
 // 日付グループの集計ヘッダー：左=その日の収入・支出、右=その日までの累計残高
 function dateHeaderHTML(label,di,de,dateStr){
@@ -1460,7 +1488,7 @@ function pickPayee(id){
   const el=document.getElementById('py-'+id);if(el)el.classList.add('sel');
 }
 function addTx(){
-  const amount=parseInt(document.getElementById('f-amount').value)||0;
+  const amount=parseAmountInput('f-amount');
   if(!amount){alert('金額を入力してください');return;}
   const iconId=UI.selEmoji||'other';
   const emojiName=UI.selEmojiName||(UI.txType==='income'?'収入':'支出');
@@ -1514,8 +1542,10 @@ function renderLedgerUI(){
   const el=document.getElementById('ledger-ui');
   el.innerHTML='';
   u.ledgers.forEach(l=>{
+    const wrap=document.createElement('div');
+    wrap.style.cssText='border-bottom:1px solid var(--border-l)';
     const row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border-l)';
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 0 4px';
 
     // アイコン
     const icon=document.createElement('span');
@@ -1562,8 +1592,25 @@ function renderLedgerUI(){
     delBtn.style.cssText='background:none;border:none;cursor:pointer;font-size:20px;padding:8px;flex:none;color:var(--text-hint);min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center';
     delBtn.addEventListener('click',()=>delLedger(l.id));
     row.appendChild(delBtn);
+    wrap.appendChild(row);
 
-    el.appendChild(row);
+    // 前月繰り越しオプション（帳簿ごと）
+    const carryRow=document.createElement('label');
+    carryRow.style.cssText='display:flex;align-items:center;gap:7px;padding:2px 0 10px 32px;cursor:pointer;font-size:12px;color:var(--text-sub);user-select:none';
+    const cb=document.createElement('input');
+    cb.type='checkbox';
+    cb.checked=!!l.carry;
+    cb.style.cssText='width:16px;height:16px;accent-color:var(--pri);margin:0;flex:none';
+    cb.addEventListener('change',()=>{
+      l.carry=cb.checked;
+      save();renderAll();
+      showToast(cb.checked?`📒 ${l.name}：前月の残高を繰り越します`:`📒 ${l.name}：繰り越しをオフにしました`);
+    });
+    carryRow.appendChild(cb);
+    carryRow.appendChild(document.createTextNode('前月の残高を繰り越す'));
+    wrap.appendChild(carryRow);
+
+    el.appendChild(wrap);
   });
 }
 
@@ -1944,7 +1991,7 @@ function openTxEdit(id){
   document.getElementById('te-tb-inc').className='tt-btn'+(t.type==='income'?' a-inc':'');
   document.getElementById('te-tb-exp').className='tt-btn'+(t.type==='expense'?' a-exp':'');
   // 金額・メモ・日付
-  document.getElementById('te-amount').value=t.amount;
+  document.getElementById('te-amount').value=Number(t.amount).toLocaleString('ja-JP');
   document.getElementById('te-memo').value=t.memo;
   document.getElementById('te-memo2').value=t.memo2||'';
   renderMemoHistory('te-memo-hist','memo','te-memo');
@@ -2007,7 +2054,7 @@ function pickTxEditPayee(id){
   const el=document.getElementById('te-py-'+id);if(el)el.classList.add('sel');
 }
 function saveTxEdit(){
-  const amount=parseInt(document.getElementById('te-amount').value)||0;
+  const amount=parseAmountInput('te-amount');
   if(!amount){alert('金額を入力してください');return;}
   const memo=document.getElementById('te-memo').value;
   const memo2=document.getElementById('te-memo2').value||'';
@@ -2522,7 +2569,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.0.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.1.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
