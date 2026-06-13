@@ -57,18 +57,11 @@ function themesInDisplayOrder(){
 const USER_AVATARS=[{id:'person',label:'ひと'}];
 const AVATARS=USER_AVATARS.map(a=>a.id);
 
-function toBase64Safe(str){
-  try{const b=new TextEncoder().encode(str);let s='';b.forEach(x=>s+=String.fromCharCode(x));return btoa(s);}
-  catch(e){return btoa(unescape(encodeURIComponent(str)));}
-}
 function escAttr(s){return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 // HTML出力用エスケープ（XSS防止）：ユーザー入力（メモ・名前等）をHTMLに埋め込む際は必ず通す
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 // インラインonclick内のJS文字列リテラル用エスケープ（escAttrと併用する）
 function escJs(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,'\\n');}
-function svgToImg(svgInner,w,h){
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 28 28" width="${w}" height="${h}" fill="none" style="display:block">${svgInner}</svg>`;
-}
 
 // ユーザーアバター：背景=ユーザーカラーの円、中に白抜きの星
 function renderAvatarSVG(avatarId, bgColor, size=40, gradEnd=null){
@@ -266,30 +259,6 @@ function svgColored(svg, color){
     .replace(/stroke="#fff"/g, `stroke="${color}"`)
     .replace(/fill="#fff"/g, `fill="${color}"`);
 }
-function catIconDiv(iconId, size=44, customColor=null){
-  const ic=CAT_ICONS[iconId]||CAT_ICONS['other'];
-  const color=customColor||ic.color;
-  const fs=Math.round(size*0.65);
-  return `<div style="width:${size}px;height:${size}px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
-    <svg viewBox="-1 -1 26 26" width="${fs}" height="${fs}" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
-  </div>`;
-}
-
-// 旧svgToImg互換（インラインSVG返却）
-function svgToImg(svgInner, w, h){
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 26 26" width="${w}" height="${h}" fill="none" style="display:block">${svgInner}</svg>`;
-}
-
-function iconHTML(iconId, size='lg', customColor=null){
-  const ic=CAT_ICONS[iconId]||CAT_ICONS['other'];
-  const color=customColor||ic.color;
-  const sz=size==='lg'?44:size==='md'?32:24;
-  const fs=size==='lg'?30:size==='md'?22:17;
-  return `<div class="cat-icon-wrap" style="width:${sz}px;height:${sz}px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;border-radius:10px">
-    <svg viewBox="-1 -1 26 26" width="${fs}" height="${fs}" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
-  </div>`;
-}
-
 // 後方互換: 旧データ(emoji)→iconIdに変換
 const EMOJI_TO_ICON={'💰':'salary','📈':'invest','🎁':'gift_in','🏠':'housing','💼':'side','🎊':'other_in','🏦':'bank','🎓':'scholar','💵':'other_in','🛒':'food','🚃':'transit','👗':'clothes','💊':'medical','📚':'edu','🎮':'leisure','💡':'util','📱':'phone','🍽️':'eating','✈️':'travel','🐾':'pet','💇':'beauty','🔧':'repair','🏋️':'fitness','🚗':'car','🍺':'social'};
 function resolveIconId(cat){
@@ -297,24 +266,6 @@ function resolveIconId(cat){
   if(cat.e&&EMOJI_TO_ICON[cat.e])return EMOJI_TO_ICON[cat.e];
   return 'other';
 }
-// 取引のemoji/emojiNameからアイコンを解決
-function txIconHTML(t){
-  const id=t.iconId||(t.e&&EMOJI_TO_ICON[t.e])||(t.emoji&&EMOJI_TO_ICON[t.emoji])||'other';
-  // 取引の帳簿→全帳簿の順でカスタムカラーを探す
-  const u=activeUser();
-  let cat=null;
-  const ledgersToSearch=t.ledger
-    ?[u.ledgers.find(l=>l.id===t.ledger),...u.ledgers.filter(l=>l.id!==t.ledger)]
-    :u.ledgers;
-  for(const l of ledgersToSearch){
-    if(!l||!l.customCats)continue;
-    const allCats=[...(l.customCats.income||[]),...(l.customCats.expense||[])];
-    cat=allCats.find(c=>resolveIconId(c)===id&&c.color);
-    if(cat)break;
-  }
-  return iconHTML(id,'lg', cat?.color||null);
-}
-const CHART_COLORS=['#2EBD8F','#3B82C4','#E07B2E','#9B59B6','#E74C3C','#1ABC9C','#F39C12','#2980B9'];
 const PAY_META={
   cash:{icon:'💴',label:'現金',cls:'pb-cash',chipCls:'cash',barcol:'#E07B2E'},
   bank:{icon:'🏦',label:'銀行',cls:'pb-bank',chipCls:'bank',barcol:'#3B82C4'},
@@ -348,7 +299,6 @@ let UI={
   txType:'expense',
   selEmoji:null,selEmojiName:null,
   selKind:null,selPayeeId:null,
-  chartMode:'cat',
   editingUserId:null,
   selAvatarIdx:0,
   selThemeId:'green',
@@ -1159,12 +1109,6 @@ function _chartRows(items,total){
     </div>`;
   }).join('');
 }
-function setChart(m){
-  // タブ統合により未使用（互換のため残置）
-  UI.chartMode=m;
-  renderChart();
-}
-
 function changeMonth(d){
   UI.month+=d;
   if(UI.month<0){UI.month=11;UI.year--;}
@@ -1831,7 +1775,6 @@ function delPayee(k,id){
 // エクスポート対象の帳簿ID集合
 let exportSelLedgers = new Set(); // 'all' or ledgerId set
 
-function _openSettingsLegacy_removed(){}
 function closeSettings(){document.getElementById('settings-overlay').classList.add('hidden');}
 
 function buildExportLedgerList(){
@@ -2594,7 +2537,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.1.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.1.3';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
