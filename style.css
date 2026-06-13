@@ -93,13 +93,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tab-page.active{display:block}
 
 /* ===== カレンダー下 日付・残高バー ===== */
-.cal-info-bar{display:flex;flex-direction:column;gap:3px;padding:8px 14px;background:var(--bg-card);border-bottom:1px solid var(--border)}
+.cal-info-bar{display:flex;flex-direction:column;background:var(--bg-card);border-bottom:1px solid var(--border)}
 .cal-info-row{display:flex;align-items:center;gap:8px}
 .cal-info-main{display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap}
-.cal-info-label{font-size:11px;font-weight:700;color:var(--text-hint)}
+/* 1行目：選択日までの累計（2行目と同じ大きさ） */
+.cal-row-cum{padding:8px 14px 4px}
+.cal-info-balance{font-size:12px;font-weight:700;color:var(--text);margin-left:auto;white-space:nowrap}
+/* 2行目：その日（タップで明細の遡り展開を切替・行を少し広く） */
+.cal-row-day{padding:7px 14px;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.cal-row-day:active{background:var(--bg)}
+.cal-expand-tri{font-size:10px;color:var(--pri);flex:none;width:12px;text-align:center;transition:transform 0.15s}
 .cal-info-date{font-size:13px;font-weight:600;color:var(--text)}
 .cal-info-badge{font-size:11px;font-weight:600;color:var(--pri);background:var(--pri-l);padding:2px 8px;border-radius:20px;border:1px solid var(--pri)}
-.cal-info-balance{font-size:13px;font-weight:700;color:var(--text);margin-left:auto;white-space:nowrap}
 .cal-info-day-bal{font-size:12px;font-weight:700;color:var(--text-sub);margin-left:auto;white-space:nowrap}
 .cal-fab{position:absolute;bottom:10px;right:10px;width:44px;height:44px;border-radius:50%;background:var(--pri);color:#fff;border:none;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,0.2);z-index:5;font-family:var(--font);transition:transform 0.1s,background 0.3s;line-height:1}
 .cal-fab:active{transform:scale(0.92)}
@@ -169,6 +174,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .ud-user-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;padding:12px}
 .ud-user-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r12);border:1.5px solid var(--border);background:var(--bg);cursor:pointer;transition:all 0.12s;position:relative}
 .ud-user-item.active{border-color:var(--pri);background:var(--pri-l)}
+/* 長押しスライド中、指の下のユーザーを強調 */
+.ud-user-item.slide-hover{border-color:var(--pri);background:var(--pri-l);transform:scale(1.03);box-shadow:0 2px 10px rgba(0,0,0,0.12)}
 .ud-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
 .ud-uinfo{flex:1;min-width:0}
 .ud-uname{font-size:14px;font-weight:700}
@@ -425,8 +432,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tx-amount,.day-amt,.sum-val,.cal-info-balance,.cal-info-day-bal,.cal-info-inc,.cal-info-exp,.tdh-bal,.tdh-inout,.donut-center-val,.cat-sum-amt,.amount-wrap input{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .cal-info-inc{font-size:12px;font-weight:700;color:#3B82C4;white-space:nowrap}
 .cal-info-exp{font-size:12px;font-weight:700;color:var(--red);white-space:nowrap}
-.tdh-toggle{cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-.tdh-hint{font-size:10px;font-weight:700;color:var(--pri);margin-left:4px;white-space:nowrap;flex:none}
 .tdh-inout{display:inline-flex;gap:8px;white-space:nowrap}
 .tdh-inc{color:#3B82C4;font-weight:700}
 .tdh-exp{color:var(--red);font-weight:700}

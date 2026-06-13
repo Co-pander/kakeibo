@@ -131,18 +131,18 @@
       <button class="cal-fab" onclick="openAddModal()" id="cal-fab">＋</button>
     </div>
 
-    <!-- カレンダー下の集計バー（1行目=選択日までの累計／2行目=その日） -->
+    <!-- カレンダー下の集計バー（1行目=選択日までの累計／2行目=その日。日付行タップで明細の遡り展開を切替） -->
     <div class="cal-info-bar" id="cal-info-bar">
-      <div class="cal-info-row">
+      <div class="cal-info-row cal-row-cum">
         <div class="cal-info-main">
-          <span class="cal-info-label">累計</span>
           <span class="cal-info-inc" id="cal-cum-inc"></span>
           <span class="cal-info-exp" id="cal-cum-exp"></span>
         </div>
         <span class="cal-info-balance" id="cal-cum-bal"></span>
       </div>
-      <div class="cal-info-row">
+      <div class="cal-info-row cal-row-day" id="cal-day-row" onclick="toggleExpandList()">
         <div class="cal-info-main">
+          <span class="cal-expand-tri" id="cal-expand-tri">▶</span>
           <span class="cal-info-date" id="cal-info-date"></span>
           <span class="cal-info-inc hidden" id="cal-day-inc"></span>
           <span class="cal-info-exp hidden" id="cal-day-exp"></span>

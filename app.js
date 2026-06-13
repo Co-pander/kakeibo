@@ -706,6 +706,17 @@ function renderCalInfoBar(){
   // 無支出日バッジ（その日の支出が0）
   const badge=document.getElementById('cal-info-badge');
   if(dayExp===0){badge.classList.remove('hidden');}else{badge.classList.add('hidden');}
+
+  // 日付行の展開トグル（三角）。折りたたみ可能なとき(=focus日あり)のみ表示
+  _updateExpandTri();
+}
+
+// 展開トグルの三角を現在の状態に合わせて更新（▶=折りたたみ / ▼=展開）。月全体表示中は非表示
+function _updateExpandTri(){
+  const tri=document.getElementById('cal-expand-tri');
+  if(!tri)return;
+  if(listFocusDay()==null){tri.style.visibility='hidden';}
+  else{tri.style.visibility='visible';tri.textContent=UI.expandList?'▼':'▶';}
 }
 
 // 前月までの繰り越し残高。帳簿の「前月の残高を繰り越す」設定(carry)が有効な場合のみ計上、無効なら0
@@ -750,10 +761,12 @@ function dayInListFocus(dateStr){
   const dd=parseInt(dateStr.split('-')[2],10);
   return UI.expandList?dd<=fd:dd===fd;
 }
-// 日付見出しダブルタップ：その日だけ ⇄ その日まで遡って表示 を切替
+// 集計バーの日付行タップ：その日だけ ⇄ その日まで遡って表示 を切替
 function toggleExpandList(){
+  if(listFocusDay()==null)return; // 月全体表示中（他月・未選択）は切替不要
   UI.expandList=!UI.expandList;
   renderTxArea();
+  _updateExpandTri();
 }
 
 function renderTxArea(){
@@ -763,6 +776,8 @@ function renderTxArea(){
     return;
   }
   const fd=listFocusDay();
+  // focus日が決まっていて折りたたみ中は、その日だけ表示で日付見出しを省略（集計バーが日付を兼ねる）
+  const showHeaders=(fd==null||UI.expandList);
 
   let txs=filtered().filter(t=>dayInListFocus(t.date));
   let shownBilling=genBillingEntries(u).filter(e=>dayInListFocus(e.date));
@@ -773,17 +788,9 @@ function renderTxArea(){
   if(UI.payFilter==='income')shownBilling=[];
 
   const el=document.getElementById('tx-area');
-  const hint=UI.expandList?'▴ その日だけ':'▾ さかのぼる';
 
   if(!txs.length&&!shownBilling.length){
-    // focus日が空でも見出しは出し、ダブルタップで遡れるようにする
-    if(fd!=null){
-      const dateStr=`${UI.year}-${String(UI.month+1).padStart(2,'0')}-${String(fd).padStart(2,'0')}`;
-      const label=`${UI.month+1}月${fd}日（${['日','月','火','水','木','金','土'][new Date(dateStr).getDay()]}）`;
-      el.innerHTML=`${dateHeaderHTML(label,0,0,dateStr,true,hint)}<div class="empty-msg"><span>${UI.expandList?'記録された取引はありません':'この日の取引はありません'}</span></div>`;
-    } else {
-      el.innerHTML=`<div class="empty-msg"><span>記録された取引はありません</span></div>`;
-    }
+    el.innerHTML=`<div class="empty-msg"><span>${fd!=null&&!UI.expandList?'この日の取引はありません':'記録された取引はありません'}</span></div>`;
     return;
   }
 
@@ -797,9 +804,7 @@ function renderTxArea(){
     const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
     const di=list.filter(t=>t.type==='income'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
     const de=list.filter(t=>t.type==='expense'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
-    // focus日の見出しにだけ操作ヒントを表示。全見出しがダブルタップ切替対象
-    const isFocus=(fd!=null&&parseInt(ds[2],10)===fd);
-    const header=dateHeaderHTML(label,di,de,dt,fd!=null,isFocus?hint:'');
+    const header=showHeaders?dateHeaderHTML(label,di,de,dt,false,''):'';
     return `${header}
     <div class="tx-list">${list.map(t=>t._isBilling?billingHTML(t):txHTML(t)).join('')}</div>`;
   }).join('');
@@ -2534,7 +2539,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.2.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.3.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3256,20 +3261,54 @@ if(_nb)_nb.classList.add('active');
 if(secState.pinHash){
   showPinScreen('unlock');
 }
-// トップバーのユーザーは「長押し」でユーザー切替を開く（誤タップ防止）
+// トップバーのユーザー：長押しでユーザー切替を開き、指を離さずスライドして選択（誤タップ防止）
 (function bindUserLongPress(){
   const el=document.getElementById('topbar-user');
   if(!el)return;
-  let timer=null, fired=false;
-  const start=()=>{fired=false;clearTimeout(timer);timer=setTimeout(()=>{fired=true;openUserDrawer();},500);};
-  const cancel=()=>clearTimeout(timer);
-  el.addEventListener('touchstart',start,{passive:true});
-  el.addEventListener('touchend',cancel);
-  el.addEventListener('touchmove',cancel,{passive:true});
-  el.addEventListener('mousedown',start);
-  el.addEventListener('mouseup',cancel);
-  el.addEventListener('mouseleave',cancel);
-  // 長押し時にOS標準メニューや誤クリックを抑止
+  let timer=null, sliding=false, sx=0, sy=0;
+  // 指の位置にあるユーザー項目をハイライトして返す
+  const highlightAt=(x,y)=>{
+    const target=document.elementFromPoint(x,y);
+    const item=target?target.closest('.ud-user-item'):null;
+    document.querySelectorAll('.ud-user-item').forEach(i=>i.classList.toggle('slide-hover',i===item));
+    return item;
+  };
+  const clearHover=()=>document.querySelectorAll('.ud-user-item').forEach(i=>i.classList.remove('slide-hover'));
+
+  el.addEventListener('touchstart',e=>{
+    sliding=false;
+    const t=e.touches[0]; sx=t.clientX; sy=t.clientY;
+    clearTimeout(timer);
+    timer=setTimeout(()=>{sliding=true;openUserDrawer();},500);
+  },{passive:true});
+  el.addEventListener('touchmove',e=>{
+    const t=e.touches[0];
+    if(!sliding){
+      // 長押し成立前に大きく動いたらスクロール等とみなしキャンセル
+      if(Math.hypot(t.clientX-sx,t.clientY-sy)>10)clearTimeout(timer);
+      return;
+    }
+    highlightAt(t.clientX,t.clientY);
+    e.preventDefault();   // スライド中のスクロールを抑止
+  },{passive:false});
+  el.addEventListener('touchend',e=>{
+    clearTimeout(timer);
+    if(sliding){
+      const t=e.changedTouches[0];
+      const item=highlightAt(t.clientX,t.clientY);
+      clearHover();
+      if(item)item.click();   // スライド先のユーザーを選択（switchUser/switchToMainModeがドロワーを閉じる）
+      sliding=false;
+      e.preventDefault();
+    }
+  });
+  el.addEventListener('touchcancel',()=>{clearTimeout(timer);clearHover();sliding=false;});
+
+  // デスクトップ（マウス）は長押しで開くだけ
+  let mTimer=null;
+  el.addEventListener('mousedown',()=>{clearTimeout(mTimer);mTimer=setTimeout(openUserDrawer,500);});
+  el.addEventListener('mouseup',()=>clearTimeout(mTimer));
+  el.addEventListener('mouseleave',()=>clearTimeout(mTimer));
   el.addEventListener('contextmenu',e=>e.preventDefault());
   el.style.cursor='pointer';
 })();
