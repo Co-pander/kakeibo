@@ -25,8 +25,33 @@ const THEMES=[
   {id:'teal',     name:'ティール',   g1:'#20C8B4',g2:'#60DED0',pri:'#14B8A6',prid:'#0D9488',pril:'#E0FBF8',prill:'#EDFCFA',icon:'🦋'},
   {id:'indigo',   name:'インディゴ', g1:'#7476F4',g2:'#A8A8F8',pri:'#6366F1',prid:'#4F46E5',pril:'#EBEBFF',prill:'#F3F4FF',icon:'🌌'},
   {id:'amber',    name:'アンバー',   g1:'#FCAB18',g2:'#FCCC60',pri:'#F59E0B',prid:'#D97706',pril:'#FEF6D8',prill:'#FFFAEC',icon:'🌟'},
+  /* ── ピンク〜赤系（淡→濃の5色グラデーション用に追加） ── */
+  {id:'sakura',   name:'さくら',     g1:'#F6B8D2',g2:'#FBDBE8',pri:'#F2A6C6',prid:'#E283AC',pril:'#FEF0F6',prill:'#FFF8FB',icon:'🌷'},
+  {id:'raspberry',name:'ラズベリー', g1:'#E85A85',g2:'#F195B3',pri:'#DB3B6E',prid:'#BC2856',pril:'#FCE8EF',prill:'#FEF3F7',icon:'🍓'},
+  {id:'red',      name:'レッド',     g1:'#E85C5C',g2:'#F29494',pri:'#D42B36',prid:'#B91C24',pril:'#FCEAEA',prill:'#FEF4F4',icon:'❤️'},
 ];
 const DEFAULT_THEME='green';
+
+// スワッチ表示順：色相環順（赤→橙→黄→緑→青緑→水→青→藍→紫→赤紫→ピンク）、
+// 同系色は淡い色を左に。THEMES配列自体は変更しない（保存済みIDへの影響なし）
+const THEME_DISPLAY_ORDER=[
+  'coral','peach','orange',   // 赤橙系（淡→濃）
+  'butter','amber',           // 黄系
+  'sage','green',             // 緑系
+  'mint','teal',              // 青緑系
+  'aqua',                     // 水色系
+  'powder','sky','blue',      // 青系（淡→濃）
+  'lavender','indigo',        // 藍・菫系
+  'lilac','purple',           // 紫系
+  'mauve',                    // 赤紫系
+  'sakura','rose','pink','raspberry','red'  // ピンク〜赤系（淡→濃の5色）
+];
+function themesInDisplayOrder(){
+  const ordered=THEME_DISPLAY_ORDER.map(id=>THEMES.find(t=>t.id===id)).filter(Boolean);
+  // 将来テーマを追加した場合、順序リスト未登録のものは末尾に表示
+  THEMES.forEach(t=>{if(!THEME_DISPLAY_ORDER.includes(t.id))ordered.push(t);});
+  return ordered;
+}
 
 /* ---- ユーザーアバター（CSS div方式・全環境対応） ---- */
 const USER_AVATARS=[{id:'person',label:'ひと'}];
@@ -1309,7 +1334,7 @@ function pickAvatar(i){UI.selAvatarIdx=0;buildAvatarPicker();}
 
 function buildThemePicker(prefix){
   const gridId=prefix+'-theme-grid';
-  document.getElementById(gridId).innerHTML=THEMES.map(t=>
+  document.getElementById(gridId).innerHTML=themesInDisplayOrder().map(t=>
     `<div class="theme-swatch${t.id===UI.selThemeId?' active':''}"
       style="background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid})"
       onclick="pickTheme('${t.id}','${prefix}')" title="${t.name}">
@@ -1662,7 +1687,7 @@ function renderLedgerColorUI(){
         <div class="theme-swatch${!l.theme?' active':''}" style="background:var(--border);width:36px;height:36px" onclick="setLedgerTheme('${l.id}',null)" title="ユーザー設定に従う">
           <span style="font-size:12px">自動</span><div class="check">✓</div>
         </div>
-        ${THEMES.map(t=>`<div class="theme-swatch${l.theme===t.id?' active':''}" style="background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid});width:36px;height:36px" onclick="setLedgerTheme('${l.id}','${t.id}')" title="${t.name}">
+        ${themesInDisplayOrder().map(t=>`<div class="theme-swatch${l.theme===t.id?' active':''}" style="background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid});width:36px;height:36px" onclick="setLedgerTheme('${l.id}','${t.id}')" title="${t.name}">
           <span style="font-size:12px">${t.icon}</span><div class="check">✓</div>
         </div>`).join('')}
       </div>
@@ -2569,7 +2594,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.1.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.1.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
