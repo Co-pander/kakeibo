@@ -93,11 +93,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tab-page.active{display:block}
 
 /* ===== カレンダー下 日付・残高バー ===== */
-.cal-info-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--bg-card);border-bottom:1px solid var(--border);min-height:34px}
-.cal-info-left{display:flex;align-items:center;gap:8px}
-.cal-info-date{font-size:12px;font-weight:600;color:var(--text-sub)}
+.cal-info-bar{display:flex;flex-direction:column;gap:3px;padding:8px 14px;background:var(--bg-card);border-bottom:1px solid var(--border)}
+.cal-info-row{display:flex;align-items:center;gap:8px}
+.cal-info-main{display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap}
+.cal-info-label{font-size:11px;font-weight:700;color:var(--text-hint)}
+.cal-info-date{font-size:13px;font-weight:600;color:var(--text)}
 .cal-info-badge{font-size:11px;font-weight:600;color:var(--pri);background:var(--pri-l);padding:2px 8px;border-radius:20px;border:1px solid var(--pri)}
-.cal-info-balance{font-size:12px;font-weight:700;color:var(--text-sub)}
+.cal-info-balance{font-size:13px;font-weight:700;color:var(--text);margin-left:auto;white-space:nowrap}
+.cal-info-day-bal{font-size:12px;font-weight:700;color:var(--text-sub);margin-left:auto;white-space:nowrap}
 .cal-fab{position:absolute;bottom:10px;right:10px;width:44px;height:44px;border-radius:50%;background:var(--pri);color:#fff;border:none;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,0.2);z-index:5;font-family:var(--font);transition:transform 0.1s,background 0.3s;line-height:1}
 .cal-fab:active{transform:scale(0.92)}
 
@@ -222,9 +225,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .cal-day{border-radius:var(--r8);min-height:56px;display:flex;flex-direction:column;align-items:center;padding:4px 2px;cursor:pointer;transition:background 0.1s}
 .cal-day:active{background:var(--border-l)}
 .cal-day.other .day-n{color:var(--text-hint)}
-.cal-day.today .day-n{background:var(--pri);color:#fff;border-radius:50%}
 .cal-day.selected{background:var(--pri-ll);outline:2px solid var(--pri);outline-offset:-2px}
-.cal-day.sun .day-n{color:#E05252}.cal-day.sat .day-n{color:var(--blue)}
+.cal-day.sun .day-n{color:#E05252}.cal-day.sat .day-n{color:#2F80D8}
+/* 数字色の優先順: 曜日色 < 選択日(標準色) < 今日(白丸)。青テーマで土曜が同化するのを防ぐ */
+.cal-day.selected .day-n{color:var(--text)}
+.cal-day.today .day-n{background:var(--pri);color:#fff;border-radius:50%}
 .day-n{font-size:12px;font-weight:600;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin-bottom:2px}
 .day-amounts{display:flex;flex-direction:column;align-items:center;gap:0;width:100%}
 .day-amt{font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38px;line-height:1.4;text-align:center}
@@ -417,22 +422,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .sec-divider{height:1px;background:var(--border-l);margin:4px 0}
 
 /* ===== 数字フォント・日別集計バー（2026-06 追加） ===== */
-.tx-amount,.day-amt,.sum-val,.cal-info-balance,.cal-info-inc,.cal-info-exp,.tdh-bal,.tdh-inout,.donut-center-val,.cat-sum-amt,.amount-wrap input{font-family:var(--font-num);font-variant-numeric:tabular-nums}
-.cal-info-inc{font-size:11px;font-weight:700;color:#3B82C4;white-space:nowrap}
-.cal-info-exp{font-size:11px;font-weight:700;color:var(--red);white-space:nowrap}
+.tx-amount,.day-amt,.sum-val,.cal-info-balance,.cal-info-day-bal,.cal-info-inc,.cal-info-exp,.tdh-bal,.tdh-inout,.donut-center-val,.cat-sum-amt,.amount-wrap input{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.cal-info-inc{font-size:12px;font-weight:700;color:#3B82C4;white-space:nowrap}
+.cal-info-exp{font-size:12px;font-weight:700;color:var(--red);white-space:nowrap}
+.tdh-toggle{cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.tdh-hint{font-size:10px;font-weight:700;color:var(--pri);margin-left:4px;white-space:nowrap;flex:none}
 .tdh-inout{display:inline-flex;gap:8px;white-space:nowrap}
 .tdh-inc{color:#3B82C4;font-weight:700}
 .tdh-exp{color:var(--red);font-weight:700}
 /* メモ履歴チップ：長押し削除のため文字選択・OSメニューを抑止 */
 .memo-hist-chip{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 
-/* ===== 日別集計バー：参考アプリ風レイアウト調整 ===== */
-.cal-info-bar{padding:10px 14px;min-height:42px}
-.cal-info-left{gap:10px}
-.cal-info-date{font-size:13px;font-weight:600;color:var(--text)}
-.cal-info-inc{font-size:13px;font-weight:600}
-.cal-info-exp{font-size:13px;font-weight:600}
-.cal-info-balance{font-size:14px;font-weight:700;color:var(--text)}
 /* 明細内の日付ヘッダーも同じトーンに統一 */
 .tx-date-header{font-size:12px;font-weight:600;color:var(--text);letter-spacing:0;padding:12px 16px 6px}
 .tdh-inout{gap:10px}

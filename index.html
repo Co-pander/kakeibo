@@ -68,7 +68,7 @@
 <div class="app">
   <!-- ===== トップバー（全タブ共通） ===== -->
   <div class="topbar" id="topbar">
-    <div class="topbar-user" onclick="openUserDrawer()">
+    <div class="topbar-user" id="topbar-user">
       <div id="ua-avatar" style="flex:none"></div>
       <div class="user-info">
         <div class="user-name" id="ua-name">ユーザー</div>
@@ -131,15 +131,25 @@
       <button class="cal-fab" onclick="openAddModal()" id="cal-fab">＋</button>
     </div>
 
-    <!-- カレンダー下の日付・残高バー -->
+    <!-- カレンダー下の集計バー（1行目=選択日までの累計／2行目=その日） -->
     <div class="cal-info-bar" id="cal-info-bar">
-      <div class="cal-info-left">
-        <span class="cal-info-date" id="cal-info-date"></span>
-        <span class="cal-info-inc hidden" id="cal-info-inc"></span>
-        <span class="cal-info-exp hidden" id="cal-info-exp"></span>
-        <span class="cal-info-badge hidden" id="cal-info-badge">無支出日 ☑</span>
+      <div class="cal-info-row">
+        <div class="cal-info-main">
+          <span class="cal-info-label">累計</span>
+          <span class="cal-info-inc" id="cal-cum-inc"></span>
+          <span class="cal-info-exp" id="cal-cum-exp"></span>
+        </div>
+        <span class="cal-info-balance" id="cal-cum-bal"></span>
       </div>
-      <span class="cal-info-balance" id="cal-info-balance"></span>
+      <div class="cal-info-row">
+        <div class="cal-info-main">
+          <span class="cal-info-date" id="cal-info-date"></span>
+          <span class="cal-info-inc hidden" id="cal-day-inc"></span>
+          <span class="cal-info-exp hidden" id="cal-day-exp"></span>
+          <span class="cal-info-badge hidden" id="cal-info-badge">無支出日 ☑</span>
+        </div>
+        <span class="cal-info-day-bal" id="cal-day-bal"></span>
+      </div>
     </div>
 
     <div class="tx-section"><div id="tx-area"></div></div>
@@ -670,7 +680,19 @@
       <div class="mgr-item" id="main-user-name-row">
         <span class="mgr-icon">✏️</span>
         <div style="flex:1;font-size:14px;font-weight:600">No.0の名前</div>
-        <input id="main-user-name-inp" type="text" style="width:100px;padding:5px 8px;border-radius:var(--r8);border:1px solid var(--border);font-family:var(--font);font-size:13px;text-align:right" onchange="saveMainUserName()">
+        <input id="main-user-name-inp" type="text" style="width:100px;padding:5px 8px;border-radius:var(--r8);border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;text-align:right" onchange="saveMainUserName()">
+      </div>
+      <div class="mgr-item" id="main-user-startup-row">
+        <span class="mgr-icon">🚀</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">起動時にNo.0を開く</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px">アプリを開いた最初の画面をNo.0（管理画面）にします</div>
+        </div>
+        <label style="position:relative;width:44px;height:24px;flex:none;cursor:pointer">
+          <input type="checkbox" id="setting-startup-main" onchange="toggleStartupMain()" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="sms-track" style="position:absolute;inset:0;border-radius:12px;background:var(--border);transition:all 0.2s;display:block"></span>
+          <span id="sms-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span>
+        </label>
       </div>
     </div>
     <div class="mgr-section">

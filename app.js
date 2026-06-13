@@ -295,6 +295,7 @@ let UI={
   month:new Date().getMonth(),
   activeLedger:'l1',
   selDay:null,
+  expandList:false,   // 明細を「その日まで遡って」展開中か（日付見出しダブルタップで切替）
   payFilter:'all',
   txType:'expense',
   selEmoji:null,selEmojiName:null,
@@ -329,6 +330,7 @@ function load(){
   }
   // migration（tryの外で必ず実行）
   if(!DB.mainUser)DB.mainUser={enabled:true,name:'マスター',theme:'indigo'};
+  if(DB.mainUser.startupMain===undefined)DB.mainUser.startupMain=false;
   if(!DB.memoHistory)DB.memoHistory={memo:[],memo2:[]};
   if(!DB.memoHistory.memo)DB.memoHistory.memo=[];
   if(!DB.memoHistory.memo2)DB.memoHistory.memo2=[];
@@ -647,92 +649,63 @@ function renderCalendar(){
   }
   document.getElementById('cal-grid').innerHTML=h;
 }
-function selDay(d){UI.selDay=UI.selDay===d?null:d;renderCalendar();renderTxArea();renderCalInfoBar();}
-
-// 集計バー左側の「収入 x,xxx 支出 x,xxx」表示（0の項目は非表示）
-function _setCalInfoInOut(dayInc,dayExp){
-  const incEl=document.getElementById('cal-info-inc');
-  const expEl=document.getElementById('cal-info-exp');
-  if(!incEl||!expEl)return;
-  if(dayInc>0){incEl.textContent=`収入 ${fmtN(dayInc)}`;incEl.classList.remove('hidden');}
-  else incEl.classList.add('hidden');
-  if(dayExp>0){expEl.textContent=`支出 ${fmtN(dayExp)}`;expEl.classList.remove('hidden');}
-  else expEl.classList.add('hidden');
-}
+function selDay(d){UI.selDay=UI.selDay===d?null:d;UI.expandList=false;renderCalendar();renderTxArea();renderCalInfoBar();}
 
 function renderCalInfoBar(){
   const dateEl=document.getElementById('cal-info-date');
-  const badgeEl=document.getElementById('cal-info-badge');
-  const balEl=document.getElementById('cal-info-balance');
   if(!dateEl)return;
-
+  const bar=dateEl.closest('.cal-info-bar');
   const yr=UI.year, mo=UI.month;
   const d=UI.selDay||new Date().getDate();
   const dows=['日','月','火','水','木','金','土'];
-  const dow=dows[new Date(yr,mo,d).getDay()];
-  dateEl.textContent=`${mo+1}月${d}日（${dow}）`;
+  const dateLabel=`${mo+1}月${d}日（${dows[new Date(yr,mo,d).getDay()]}）`;
 
+  // 選択日までの累計(upToDay)と当日(onDay)の取引を収集
+  let upToDay=[], onDay=[];
   if(UI.isMainMode){
-    // No.0モード：全ユーザー・全帳簿を集計
-    const allUpToDay=[];
-    const allOnDay=[];
-    DB.users.forEach(usr=>{
-      usr.transactions.forEach(t=>{
-        const td=new Date(t.date);
-        if(td.getFullYear()!==yr||td.getMonth()!==mo)return;
-        const dd=parseInt(t.date.split('-')[2]);
-        if(dd<=d)allUpToDay.push(t);
-        if(dd===d)allOnDay.push(t);
-      });
-    });
-    // 取引が1件もない日はinfo bar自体を非表示（他ユーザーと同じ空状態）
-    if(!allOnDay.length){
-      dateEl.closest('.cal-info-bar')?.classList.add('hidden');
-      return;
-    }
-    dateEl.closest('.cal-info-bar')?.classList.remove('hidden');
-    const inc=allUpToDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-    const exp=allUpToDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-    const bal=inc-exp+carryoverBefore(yr,mo);
-    balEl.textContent=`残高 ${(bal<0?'-':'')+fmt(bal)}`;
-    balEl.style.color=bal>=0?'var(--text)':'var(--red)';
-    // その日の収入・支出を左側に表示
-    const dayInc=allOnDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-    const dayExp=allOnDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-    _setCalInfoInOut(dayInc,dayExp);
-    // 選択日に取引あるが支出0 → 無支出バッジ表示
-    if(dayExp===0){badgeEl.classList.remove('hidden');}else{badgeEl.classList.add('hidden');}
-    return;
-  }
-
-  // 通常モード：月初から選択日までの収支累計（残高）
-  const u=activeUser();
-  const txsUpToDay=u.transactions.filter(t=>{
-    if(t.ledger!==UI.activeLedger)return false;
-    const td=new Date(t.date);
-    return td.getFullYear()===yr&&td.getMonth()===mo&&parseInt(t.date.split('-')[2])<=d;
-  });
-  const inc=txsUpToDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const exp=txsUpToDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  const bal=inc-exp+carryoverBefore(yr,mo);
-  balEl.textContent=`残高 ${(bal<0?'-':'')+fmt(bal)}`;
-  balEl.style.color=bal>=0?'var(--text-sub)':'var(--red)';
-  dateEl.closest('.cal-info-bar')?.classList.remove('hidden');
-
-  // その日の収入・支出（左側表示と無支出日判定に使用）
-  const onDay=u.transactions.filter(t=>{
-    if(t.ledger!==UI.activeLedger)return false;
-    const td=new Date(t.date);
-    return td.getFullYear()===yr&&td.getMonth()===mo&&parseInt(t.date.split('-')[2])===d;
-  });
-  const dayInc=onDay.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const dayExp=onDay.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  _setCalInfoInOut(dayInc,dayExp);
-  if(dayExp===0){
-    badgeEl.classList.remove('hidden');
+    DB.users.forEach(usr=>usr.transactions.forEach(t=>{
+      const td=new Date(t.date);
+      if(td.getFullYear()!==yr||td.getMonth()!==mo)return;
+      const dd=parseInt(t.date.split('-')[2],10);
+      if(dd<=d)upToDay.push(t);
+      if(dd===d)onDay.push(t);
+    }));
+    // No.0モードで当日に取引がなければバー非表示
+    if(!onDay.length){bar?.classList.add('hidden');return;}
   } else {
-    badgeEl.classList.add('hidden');
+    const u=activeUser();
+    const inMonth=t=>{const td=new Date(t.date);return t.ledger===UI.activeLedger&&td.getFullYear()===yr&&td.getMonth()===mo;};
+    upToDay=u.transactions.filter(t=>inMonth(t)&&parseInt(t.date.split('-')[2],10)<=d);
+    onDay=u.transactions.filter(t=>inMonth(t)&&parseInt(t.date.split('-')[2],10)===d);
   }
+  bar?.classList.remove('hidden');
+
+  const sumInc=a=>a.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const sumExp=a=>a.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const cumInc=sumInc(upToDay), cumExp=sumExp(upToDay);
+  const cumBal=cumInc-cumExp+carryoverBefore(yr,mo);
+  const dayInc=sumInc(onDay), dayExp=sumExp(onDay);
+  const dayBal=dayInc-dayExp;
+
+  // 1行目：選択日までの累計（収入・支出・残高）
+  document.getElementById('cal-cum-inc').textContent=`収入 ${fmtN(cumInc)}`;
+  document.getElementById('cal-cum-exp').textContent=`支出 ${fmtN(cumExp)}`;
+  const cumBalEl=document.getElementById('cal-cum-bal');
+  cumBalEl.textContent=`残高 ${(cumBal<0?'-':'')+fmt(cumBal)}`;
+  cumBalEl.style.color=cumBal<0?'var(--red)':'var(--text)';
+
+  // 2行目：その日（収入・支出・残高）。0の項目は非表示
+  dateEl.textContent=dateLabel;
+  const dInc=document.getElementById('cal-day-inc'), dExp=document.getElementById('cal-day-exp');
+  if(dayInc>0){dInc.textContent=`収入 ${fmtN(dayInc)}`;dInc.classList.remove('hidden');}else dInc.classList.add('hidden');
+  if(dayExp>0){dExp.textContent=`支出 ${fmtN(dayExp)}`;dExp.classList.remove('hidden');}else dExp.classList.add('hidden');
+  const dayBalEl=document.getElementById('cal-day-bal');
+  dayBalEl.textContent=`残高 ${(dayBal<0?'-':'')+fmt(dayBal)}`;
+  dayBalEl.style.color=dayBal<0?'var(--red)':'var(--text-sub)';
+
+  // 無支出日バッジ（その日の支出が0）
+  const badge=document.getElementById('cal-info-badge');
+  if(dayExp===0){badge.classList.remove('hidden');}else{badge.classList.add('hidden');}
 }
 
 // 前月までの繰り越し残高。帳簿の「前月の残高を繰り越す」設定(carry)が有効な場合のみ計上、無効なら0
@@ -754,23 +727,33 @@ function carryoverBefore(yr,mo){
   return sum(u.transactions.filter(t=>t.ledger===UI.activeLedger&&t.date<firstStr));
 }
 
-// 月初からその日までの累計残高（モード・帳簿に従う。繰り越し設定があれば前月分も含む）
-function balanceThrough(dateStr){
-  const[y,m,dd]=dateStr.split('-').map(Number);
-  const inRange=t=>{const td=new Date(t.date);return td.getFullYear()===y&&td.getMonth()===m-1&&parseInt(t.date.split('-')[2],10)<=dd;};
-  let txs=[];
-  if(UI.isMainMode){
-    DB.users.forEach(usr=>{txs.push(...usr.transactions.filter(inRange));});
-  }else{
-    txs=activeUser().transactions.filter(t=>t.ledger===UI.activeLedger&&inRange(t));
-  }
-  return txs.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0)+carryoverBefore(y,m-1);
+// 日付グループの見出し：日付＋その日の収入・支出（残高は集計バー2行目に集約）
+// toggleable: ダブルタップで「その日だけ ⇄ その日まで遡る」を切替できる見出し
+// hint: 見出しに出す操作ヒント（例: さかのぼる/その日だけ）
+function dateHeaderHTML(label,di,de,dateStr,toggleable,hint){
+  const cls='tx-date-header'+(toggleable?' tdh-toggle':'');
+  const dbl=toggleable?' ondblclick="toggleExpandList()"':'';
+  const hintHtml=hint?`<span class="tdh-hint">${hint}</span>`:'';
+  return `<div class="${cls}"${dbl}><span>${label}</span>${hintHtml}<span class="tdh-line"></span><span class="tdh-inout">${di?`<span class="tdh-inc">収入 ${fmtN(di)}</span>`:''}${de?`<span class="tdh-exp">支出 ${fmtN(de)}</span>`:''}</span></div>`;
 }
-// 日付グループの集計ヘッダー：左=その日の収入・支出、右=その日までの累計残高
-function dateHeaderHTML(label,di,de,dateStr){
-  const bal=balanceThrough(dateStr);
-  const balCol=bal>=0?'var(--text)':'var(--red)';
-  return `<div class="tx-date-header"><span>${label}</span><span class="tdh-inout">${di?`<span class="tdh-inc">収入 ${fmtN(di)}</span>`:''}${de?`<span class="tdh-exp">支出 ${fmtN(de)}</span>`:''}</span><span class="tdh-line"></span><span class="tdh-bal" style="color:${balCol}">残高 ${(bal<0?'-':'')+fmt(bal)}</span></div>`;
+
+// 明細の表示基準日（選択日 or 当月なら今日。他月で未選択なら null=月全体表示）
+function listFocusDay(){
+  const n=new Date();
+  const isCur=n.getFullYear()===UI.year&&n.getMonth()===UI.month;
+  return UI.selDay||(isCur?n.getDate():null);
+}
+// この日付を明細に表示するか（focus日だけ／遡って全部／月全体）
+function dayInListFocus(dateStr){
+  const fd=listFocusDay();
+  if(fd==null)return true;
+  const dd=parseInt(dateStr.split('-')[2],10);
+  return UI.expandList?dd<=fd:dd===fd;
+}
+// 日付見出しダブルタップ：その日だけ ⇄ その日まで遡って表示 を切替
+function toggleExpandList(){
+  UI.expandList=!UI.expandList;
+  renderTxArea();
 }
 
 function renderTxArea(){
@@ -779,13 +762,10 @@ function renderTxArea(){
     renderMainUserList();
     return;
   }
+  const fd=listFocusDay();
 
-  let txs=filtered();
-  if(UI.selDay)txs=txs.filter(t=>parseInt(t.date.split('-')[2])===UI.selDay);
-
-  const billingEntries=genBillingEntries(u);
-  let shownBilling=billingEntries;
-  if(UI.selDay)shownBilling=billingEntries.filter(e=>parseInt(e.date.split('-')[2])===UI.selDay);
+  let txs=filtered().filter(t=>dayInListFocus(t.date));
+  let shownBilling=genBillingEntries(u).filter(e=>dayInListFocus(e.date));
   if(UI.payFilter!=='all'&&UI.payFilter!=='income'){
     const[fk,fid]=UI.payFilter.split(':');
     shownBilling=shownBilling.filter(e=>e.payKind===fk&&e.payeeId===fid);
@@ -793,8 +773,18 @@ function renderTxArea(){
   if(UI.payFilter==='income')shownBilling=[];
 
   const el=document.getElementById('tx-area');
+  const hint=UI.expandList?'▴ その日だけ':'▾ さかのぼる';
+
   if(!txs.length&&!shownBilling.length){
-    el.innerHTML=`<div class="empty-msg"><span>記録された取引はありません</span></div>`;return;
+    // focus日が空でも見出しは出し、ダブルタップで遡れるようにする
+    if(fd!=null){
+      const dateStr=`${UI.year}-${String(UI.month+1).padStart(2,'0')}-${String(fd).padStart(2,'0')}`;
+      const label=`${UI.month+1}月${fd}日（${['日','月','火','水','木','金','土'][new Date(dateStr).getDay()]}）`;
+      el.innerHTML=`${dateHeaderHTML(label,0,0,dateStr,true,hint)}<div class="empty-msg"><span>${UI.expandList?'記録された取引はありません':'この日の取引はありません'}</span></div>`;
+    } else {
+      el.innerHTML=`<div class="empty-msg"><span>記録された取引はありません</span></div>`;
+    }
+    return;
   }
 
   const allItems=[...txs.map(t=>({...t,_isBilling:false})),...shownBilling.map(e=>({...e,_isBilling:true}))];
@@ -807,9 +797,9 @@ function renderTxArea(){
     const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
     const di=list.filter(t=>t.type==='income'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
     const de=list.filter(t=>t.type==='expense'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
-    // カレンダー下の集計バーに表示中の日付はヘッダーを省略（重複防止）
-    const barDay=UI.selDay||new Date().getDate();
-    const header=parseInt(dt.split('-')[2],10)===barDay?'':dateHeaderHTML(label,di,de,dt);
+    // focus日の見出しにだけ操作ヒントを表示。全見出しがダブルタップ切替対象
+    const isFocus=(fd!=null&&parseInt(ds[2],10)===fd);
+    const header=dateHeaderHTML(label,di,de,dt,fd!=null,isFocus?hint:'');
     return `${header}
     <div class="tx-list">${list.map(t=>t._isBilling?billingHTML(t):txHTML(t)).join('')}</div>`;
   }).join('');
@@ -826,7 +816,7 @@ function renderMainUserList(){
     usr.transactions.forEach(t=>{
       const td=new Date(t.date);
       if(td.getFullYear()!==yr||td.getMonth()!==mo)return;
-      if(UI.selDay&&parseInt(t.date.split('-')[2])!==UI.selDay)return;
+      // No.0は折りたたみ・日選択に関係なく、常にその月の全履歴を表示
       if(UI.payFilter==='income'&&t.type!=='income')return;
       if(UI.payFilter==='expense'&&t.type!=='expense')return;
       const lid=t.ledger||usr.ledgers[0]?.id||'';
@@ -848,7 +838,8 @@ function renderMainUserList(){
 
   const dates=Object.keys(dateMap).sort((a,b)=>b.localeCompare(a));
   if(!dates.length){
-    el.innerHTML=`<div class="empty-msg"><span>記録された取引はありません</span></div>`;return;
+    el.innerHTML=`<div class="empty-msg"><span>記録された取引はありません</span></div>`;
+    return;
   }
 
   el.innerHTML=dates.map(dt=>{
@@ -877,7 +868,7 @@ function renderMainUserList(){
       </div>`;
     }).join('');
 
-    return `${parseInt(dt.split('-')[2],10)===(UI.selDay||new Date().getDate())?'':dateHeaderHTML(label,totalInc,totalExp,dt)}
+    return `${dateHeaderHTML(label,totalInc,totalExp,dt,false,'')}
     <div class="tx-list">${rows}</div>`;
   }).join('');
 }
@@ -1113,9 +1104,9 @@ function changeMonth(d){
   UI.month+=d;
   if(UI.month<0){UI.month=11;UI.year--;}
   if(UI.month>11){UI.month=0;UI.year++;}
-  UI.selDay=null;UI.payFilter='all';renderAll();
+  UI.selDay=null;UI.expandList=false;UI.payFilter='all';renderAll();
 }
-function goToday(){const n=new Date();UI.year=n.getFullYear();UI.month=n.getMonth();UI.selDay=null;UI.payFilter='all';renderAll();}
+function goToday(){const n=new Date();UI.year=n.getFullYear();UI.month=n.getMonth();UI.selDay=null;UI.expandList=false;UI.payFilter='all';renderAll();}
 
 // ── カレンダー左右スワイプ ──
 let calTouchX=null, calTouchY=null;
@@ -1386,7 +1377,7 @@ function onDestLedgerChange(){
 }
 
 function setType(t){
-  UI.txType=t;UI.selEmoji=null;UI.selEmojiName=null;UI.selKind=null;UI.selPayeeId=null;
+  UI.txType=t;UI.selEmoji=null;UI.selEmojiName=null;UI.selKind='cash';UI.selPayeeId=null;
   document.getElementById('tb-inc').className='tt-btn'+(t==='income'?' a-inc':'');
   document.getElementById('tb-exp').className='tt-btn'+(t==='expense'?' a-exp':'');
   // isMainMode時は保存先ユーザーのカテゴリで構築
@@ -1406,7 +1397,10 @@ function setType(t){
     buildCatGrid('cat-grid',t,null,null,'pickCat');
   }
   document.getElementById('f-pay-section').style.display=t==='expense'?'block':'none';
-  ['pk-cash','pk-bank','pk-card'].forEach(id=>document.getElementById(id).className='pk-btn');
+  // 支払い方法はデフォルトで現金を選択状態（枠表示）に統一
+  document.getElementById('pk-cash').className='pk-btn sel-cash';
+  document.getElementById('pk-bank').className='pk-btn';
+  document.getElementById('pk-card').className='pk-btn';
   document.getElementById('f-payee-wrap').classList.add('hidden');
 }
 function buildCatGrid(gridId,type,selIconId,selName,pickFn){
@@ -1493,6 +1487,9 @@ function addTx(){
   targetUser.transactions.push(tx);
   pushMemoHistory('memo', document.getElementById('f-memo').value);
   pushMemoHistory('memo2', document.getElementById('f-memo2').value);
+  // 追加した取引が明細に見えるよう、その日付にフォーカスを合わせる
+  const[ay,am,ad]=date.split('-').map(Number);
+  UI.year=ay;UI.month=am-1;UI.selDay=ad;UI.expandList=false;
   save();closeAddModal();renderAll();
 }
 
@@ -2537,7 +2534,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.1.3';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.2.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2603,6 +2600,16 @@ function updateMainUserSettingUI(){
   if(thumb)thumb.style.left=en?'23px':'3px';
   if(nameInp)nameInp.value=DB.mainUser.name||'マスター';
   if(nameRow)nameRow.style.display=en?'flex':'none';
+  // 起動時No.0トグル（メインユーザー有効時のみ表示）
+  const startupRow=document.getElementById('main-user-startup-row');
+  const sChk=document.getElementById('setting-startup-main');
+  const sTrack=document.getElementById('sms-track');
+  const sThumb=document.getElementById('sms-thumb');
+  if(startupRow)startupRow.style.display=en?'flex':'none';
+  const su=!!DB.mainUser.startupMain;
+  if(sChk)sChk.checked=su;
+  if(sTrack)sTrack.style.background=su?'var(--pri)':'var(--border)';
+  if(sThumb)sThumb.style.left=su?'23px':'3px';
 }
 
 function toggleMainUser(){
@@ -2614,6 +2621,12 @@ function toggleMainUser(){
     renderAll();
   }
   save();updateMainUserSettingUI();renderUserList();
+}
+
+function toggleStartupMain(){
+  const chk=document.getElementById('setting-startup-main');
+  DB.mainUser.startupMain=chk?.checked||false;
+  save();updateMainUserSettingUI();
 }
 
 function saveMainUserName(){
@@ -3229,6 +3242,10 @@ function confirmDateSel(){
 ========================================================= */
 loadSecCfg();
 load();
+// 起動時にNo.0（管理画面）を開く設定（メインユーザー有効＋2人以上のときのみ）
+if(DB.mainUser.enabled && DB.mainUser.startupMain && DB.users.length>=2){
+  UI.isMainMode=true;
+}
 renderAll();
 updateSecurityUI();
 checkVersion();
@@ -3239,6 +3256,24 @@ if(_nb)_nb.classList.add('active');
 if(secState.pinHash){
   showPinScreen('unlock');
 }
+// トップバーのユーザーは「長押し」でユーザー切替を開く（誤タップ防止）
+(function bindUserLongPress(){
+  const el=document.getElementById('topbar-user');
+  if(!el)return;
+  let timer=null, fired=false;
+  const start=()=>{fired=false;clearTimeout(timer);timer=setTimeout(()=>{fired=true;openUserDrawer();},500);};
+  const cancel=()=>clearTimeout(timer);
+  el.addEventListener('touchstart',start,{passive:true});
+  el.addEventListener('touchend',cancel);
+  el.addEventListener('touchmove',cancel,{passive:true});
+  el.addEventListener('mousedown',start);
+  el.addEventListener('mouseup',cancel);
+  el.addEventListener('mouseleave',cancel);
+  // 長押し時にOS標準メニューや誤クリックを抑止
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  el.style.cursor='pointer';
+})();
+
 // Service Worker登録（オフライン対応・ホーム画面アプリ化）
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
