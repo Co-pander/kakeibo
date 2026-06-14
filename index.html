@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3.4.0">
 <title>家計簿</title>
 </head>
 <body>
@@ -678,7 +678,7 @@
         </label>
       </div>
       <div class="mgr-item" id="main-user-name-row">
-        <span class="mgr-icon">✏️</span>
+        <span class="mgr-icon" style="display:inline-block;transform:scaleX(-1)">✏️</span>
         <div style="flex:1;font-size:14px;font-weight:600">No.0の名前</div>
         <input id="main-user-name-inp" type="text" style="width:100px;padding:5px 8px;border-radius:var(--r8);border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;text-align:right" onchange="saveMainUserName()">
       </div>
@@ -759,6 +759,6 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="app.js?v=3.4.0"></script>
 </body>
 </html>

@@ -1010,8 +1010,10 @@ function txHTML(t){
     onclick="openTxEdit('${t.id}')">
     ${iconEl}
     <div class="tx-info">
-      <div class="tx-name">${esc(t.memo||t.emojiName||'')}</div>
-      ${t.memo2?`<div style="font-size:11px;color:var(--text-hint);margin-top:1px">${esc(t.memo2)}</div>`:''}
+      <div class="tx-name-row">
+        <span class="tx-name">${esc(t.memo||t.emojiName||'')}</span>
+        ${t.memo2?`<span class="tx-memo2">${esc(t.memo2)}</span>`:''}
+      </div>
       <div class="tx-meta"><span class="tx-cat">${esc(t.emojiName||'')}</span>${isI?'':payBadge(t)}${destBadge}</div>
     </div>
     <div class="tx-right">
@@ -2539,7 +2541,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.3.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.4.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){

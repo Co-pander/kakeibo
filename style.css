@@ -255,6 +255,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tx-icon.inc-bg{background:var(--pri-l)}.tx-icon.exp-bg{background:var(--red-l)}
 .tx-info{flex:1;min-width:0}
 .tx-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 内訳(tx-name)とメモ(tx-memo2)を横並び。メモは内訳の右に左揃えで表示 */
+.tx-name-row{display:flex;align-items:baseline;gap:8px;min-width:0}
+.tx-name-row .tx-name{flex:0 1 auto;min-width:0}
+.tx-memo2{flex:1 1 auto;min-width:0;font-size:11px;color:var(--text-hint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
 .tx-meta{display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap}
 .tx-cat{font-size:11px;color:var(--text-sub)}
 .pay-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:1px 6px;border-radius:20px}
