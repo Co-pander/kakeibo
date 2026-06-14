@@ -739,13 +739,8 @@ function carryoverBefore(yr,mo){
 }
 
 // 日付グループの見出し：日付＋その日の収入・支出（残高は集計バー2行目に集約）
-// toggleable: ダブルタップで「その日だけ ⇄ その日まで遡る」を切替できる見出し
-// hint: 見出しに出す操作ヒント（例: さかのぼる/その日だけ）
-function dateHeaderHTML(label,di,de,dateStr,toggleable,hint){
-  const cls='tx-date-header'+(toggleable?' tdh-toggle':'');
-  const dbl=toggleable?' ondblclick="toggleExpandList()"':'';
-  const hintHtml=hint?`<span class="tdh-hint">${hint}</span>`:'';
-  return `<div class="${cls}"${dbl}><span>${label}</span>${hintHtml}<span class="tdh-line"></span><span class="tdh-inout">${di?`<span class="tdh-inc">収入 ${fmtN(di)}</span>`:''}${de?`<span class="tdh-exp">支出 ${fmtN(de)}</span>`:''}</span></div>`;
+function dateHeaderHTML(label,di,de){
+  return `<div class="tx-date-header"><span>${label}</span><span class="tdh-line"></span><span class="tdh-inout">${di?`<span class="tdh-inc">収入 ${fmtN(di)}</span>`:''}${de?`<span class="tdh-exp">支出 ${fmtN(de)}</span>`:''}</span></div>`;
 }
 
 // 明細の表示基準日（選択日 or 当月なら今日。他月で未選択なら null=月全体表示）
@@ -804,7 +799,7 @@ function renderTxArea(){
     const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
     const di=list.filter(t=>t.type==='income'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
     const de=list.filter(t=>t.type==='expense'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
-    const header=showHeaders?dateHeaderHTML(label,di,de,dt,false,''):'';
+    const header=showHeaders?dateHeaderHTML(label,di,de):'';
     return `${header}
     <div class="tx-list">${list.map(t=>t._isBilling?billingHTML(t):txHTML(t)).join('')}</div>`;
   }).join('');
@@ -873,7 +868,7 @@ function renderMainUserList(){
       </div>`;
     }).join('');
 
-    return `${dateHeaderHTML(label,totalInc,totalExp,dt,false,'')}
+    return `${dateHeaderHTML(label,totalInc,totalExp)}
     <div class="tx-list">${rows}</div>`;
   }).join('');
 }
@@ -2541,7 +2536,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.4.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.4.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
