@@ -886,30 +886,6 @@ function renderMainUserList(){
   }).join('');
 }
 
-// No.0モード用txHTML：取引オーナーを一時的にactiveにしてtxHTMLを呼び、
-// アイテム全体のタップ → 該当ユーザー・日付に遷移、ユーザー名＋帳簿名バッジを付加
-function txHTMLMainMode(t){
-  const savedId=DB.activeUser;
-  DB.activeUser=t._ownerId||savedId;
-  let html=txHTML(t);
-  DB.activeUser=savedId;
-  if(DB.users.length<2)return html;
-  const owner=DB.users.find(u=>u.id===t._ownerId);
-  if(!owner)return html;
-  const ut=getTheme(owner.theme||'green');
-  const pri=ut.g1||ut.pri;
-  const ledgerId=t.ledger||owner.ledgers[0]?.id||'';
-  const ledgerName=owner.ledgers.find(l=>l.id===ledgerId)?.name||'';
-  const badgeLabel=ledgerName?`${esc(owner.name)}｜${esc(ledgerName)}`:`${esc(owner.name)}`;
-  // アイテム全体のonclickを編集→ユーザー遷移に変更
-  html=html.replace(
-    `onclick="openTxEdit('${t.id}')"`,
-    `onclick="switchToUserLedgerOnDate('${owner.id}','${ledgerId}','${t.date}')"`
-  );
-  // ユーザー名＋帳簿バッジをtx-metaの先頭に追加
-  const badge=`<span class="tx-owner-badge" style="background:${pri}22;color:${pri}">${badgeLabel}</span>`;
-  return html.replace('<div class="tx-meta">', `<div class="tx-meta">${badge}`);
-}
 
 // メインユーザーから特定ユーザー・帳簿に切り替え（日付指定なし）
 function switchToUserLedger(userId,ledgerId){
@@ -2566,7 +2542,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.6.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.6.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
