@@ -2566,7 +2566,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.6.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.6.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2654,11 +2654,7 @@ function buildMainThemePicker(){
   if(!grid)return;
   const cur=DB.mainUser.theme||'indigo';
   grid.innerHTML=themesInDisplayOrder().map(t=>
-    `<div class="theme-swatch${t.id===cur?' active':''}" style="background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid})" onclick="pickMainTheme('${t.id}')" title="${t.name}">
-      <span style="font-size:14px">${t.icon}</span>
-      <span class="ts-name">${t.name}</span>
-      <div class="check">✓</div>
-    </div>`
+    `<div class="theme-swatch-sm${t.id===cur?' active':''}" style="background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid})" onclick="pickMainTheme('${t.id}')" title="${t.name}"><div class="check">✓</div></div>`
   ).join('');
 }
 function pickMainTheme(id){
@@ -3003,7 +2999,7 @@ function switchTab(tab){
 ========================================================= */
 let barMode='both';
 let catGraphType='expense';
-let barSelMonth=null; // null=当月
+let gSelY=null, gSelM=null; // グラフタブで選択中の月（ホームの表示月には影響しない）
 
 function setBarMode(m){
   barMode=m;
@@ -3020,6 +3016,8 @@ function setCatGraphType(t){
 }
 
 function renderGraphTab(){
+  // タブを開くたびにホームの表示月へ同期（以降のバータップはホームに影響しない）
+  gSelY=UI.year; gSelM=UI.month;
   renderBarChart();
   renderDonutAndList();
 }
@@ -3027,37 +3025,32 @@ function renderGraphTab(){
 /* ---- 月次棒グラフ ---- */
 function renderBarChart(){
   const u=activeUser();
+  const yr=(gSelY??UI.year);
   const now=new Date();
-  // 過去12ヶ月分のデータを収集
-  const months=[];
-  for(let i=11;i>=0;i--){
-    let y=now.getFullYear(),m=now.getMonth()-i;
-    while(m<0){m+=12;y--;}
-    months.push({y,m});
-  }
-  const data=months.map(({y,m})=>{
-    // 請求ベース：収入は取引日、支出はeffectiveExpDate（カードは請求月）で各月に計上
-    const mk=`${y}-${String(m+1).padStart(2,'0')}`;
+  // 表示年の1月〜12月（請求ベース：収入=取引日、支出=effectiveExpDate）
+  const data=[];
+  for(let m=0;m<12;m++){
+    const mk=`${yr}-${String(m+1).padStart(2,'0')}`;
     let inc=0,exp=0;
     u.transactions.forEach(t=>{
       if(t.ledger!==UI.activeLedger)return;
       if(t.type==='income'){if(t.date.startsWith(mk))inc+=t.amount;}
       else if(effectiveExpDate(t,u).startsWith(mk))exp+=t.amount;
     });
-    return {y,m,inc,exp,label:`${m+1}月`};
-  });
+    data.push({y:yr,m,inc,exp,label:`${m+1}`});
+  }
 
   const maxVal=Math.max(...data.map(d=>Math.max(barMode!=='exp'?d.inc:0,barMode!=='inc'?d.exp:0)),1);
   const maxH=110;
 
   const el=document.getElementById('bar-chart');
-  el.innerHTML=data.map((d,i)=>{
-    const isCur=d.y===UI.year&&d.m===UI.month;
-    const isSelMonth=barSelMonth===i;
+  el.innerHTML=data.map(d=>{
+    const isToday=d.y===now.getFullYear()&&d.m===now.getMonth();
+    const isSel=d.y===gSelY&&d.m===gSelM;
     const incH=barMode!=='exp'?Math.max(Math.round(d.inc/maxVal*maxH),d.inc?2:0):0;
     const expH=barMode!=='inc'?Math.max(Math.round(d.exp/maxVal*maxH),d.exp?2:0):0;
-    const cls='bar-group'+(isCur?' cur':'')+(isSelMonth?' sel':'');
-    return `<div class="${cls}" onclick="selectBarMonth(${i},${d.y},${d.m})">
+    const cls='bar-group'+(isToday?' cur':'')+(isSel?' sel':'');
+    return `<div class="${cls}" onclick="selectBarMonth(${d.y},${d.m})">
       <div class="bar-cols">
         ${barMode!=='exp'?`<div class="bar-col inc-col" style="height:${incH}px"></div>`:''}
         ${barMode!=='inc'?`<div class="bar-col exp-col" style="height:${expH}px"></div>`:''}
@@ -3066,25 +3059,23 @@ function renderBarChart(){
     </div>`;
   }).join('');
 
-  // 選択月サマリー更新
   updateBarSummary(data);
 }
 
-function selectBarMonth(idx,y,m){
-  // タップした月に切り替え
-  UI.year=y;UI.month=m;UI.selDay=null;UI.payFilter='all';
-  renderAll();
+// 棒グラフのタップ：グラフタブ内の選択月（ドーナツ表示）だけ変更し、ホームには影響しない
+function selectBarMonth(y,m){
+  gSelY=y;gSelM=m;
   renderBarChart();
   renderDonutAndList();
 }
 
 function updateBarSummary(data){
-  const cur=data.find(d=>d.y===UI.year&&d.m===UI.month)||data[data.length-1];
+  const cur=data.find(d=>d.y===gSelY&&d.m===gSelM)||data[data.length-1];
   const lbl=document.getElementById('bar-sel-label');
   if(lbl&&cur){
     const bal=cur.inc-cur.exp;
     const sign=bal>=0?'+':'';
-    lbl.innerHTML=`<span style="color:#3B82C4">収入 ${fmt(cur.inc)}</span>　<span style="color:var(--red)">支出 ${fmt(cur.exp)}</span>　<span style="color:${bal>=0?'var(--pri)':'var(--red)'}">残高 ${sign}${fmt(bal)}</span>`;
+    lbl.innerHTML=`<span style="font-weight:700;color:var(--text)">${cur.m+1}月</span>　<span style="color:#3B82C4">収入 ${fmt(cur.inc)}</span>　<span style="color:var(--red)">支出 ${fmt(cur.exp)}</span>　<span style="color:${bal>=0?'var(--pri)':'var(--red)'}">残高 ${sign}${fmt(bal)}</span>`;
   }
 }
 
@@ -3093,8 +3084,9 @@ const DONUT_COLORS=['#2EBD8F','#3B82C4','#E07B2E','#AB47BC','#EF5350','#26C6DA',
 
 function renderDonutAndList(){
   const u=activeUser();
-  const mk=`${UI.year}-${String(UI.month+1).padStart(2,'0')}`;
-  // 請求ベース：支出はeffectiveExpDate（カードは請求月）、収入は取引日で当月分を抽出
+  const yy=(gSelY??UI.year), mm=(gSelM??UI.month);
+  const mk=`${yy}-${String(mm+1).padStart(2,'0')}`;
+  // 請求ベース：支出はeffectiveExpDate（カードは請求月）、収入は取引日で選択月分を抽出
   const txs=u.transactions.filter(t=>{
     if(t.ledger!==UI.activeLedger||t.type!==catGraphType)return false;
     return catGraphType==='income'?t.date.startsWith(mk):effectiveExpDate(t,u).startsWith(mk);

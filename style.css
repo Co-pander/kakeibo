@@ -404,6 +404,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .theme-swatch.active{border-color:var(--text);box-shadow:0 0 0 2px var(--bg-card),0 0 0 4px var(--text)}
 .theme-swatch .check{position:absolute;bottom:3px;right:3px;width:14px;height:14px;background:rgba(255,255,255,0.9);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;display:none}
 .theme-swatch.active .check{display:flex}
+/* No.0カラー：コンパクトなスワッチ（名前なし・約半分のサイズ） */
+.theme-grid-compact{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-top:8px}
+.theme-swatch-sm{width:100%;aspect-ratio:1;border-radius:8px;cursor:pointer;border:2px solid transparent;position:relative;transition:all 0.12s}
+.theme-swatch-sm.active{border-color:var(--text);box-shadow:0 0 0 2px var(--bg-card),0 0 0 3px var(--text)}
+.theme-swatch-sm .check{position:absolute;bottom:1px;right:1px;width:11px;height:11px;background:rgba(255,255,255,0.9);border-radius:50%;align-items:center;justify-content:center;font-size:8px;color:#333;display:none}
+.theme-swatch-sm.active .check{display:flex}
 
 /* クレジット請求（薄字表示） */
 .credit-tag{font-size:9px;font-weight:600;padding:1px 5px;border-radius:10px;background:var(--red-l);color:var(--red);flex:none}
