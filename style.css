@@ -406,9 +406,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .theme-swatch.active .check{display:flex}
 
 /* クレジット請求（薄字表示） */
-.tx-item.credit-billing{opacity:0.5;border-style:dashed}
-.tx-item.credit-billing .tx-amount{color:var(--red)}
 .credit-tag{font-size:9px;font-weight:600;padding:1px 5px;border-radius:10px;background:var(--red-l);color:var(--red);flex:none}
+/* カード利用（請求前・予定）は薄字で表示 */
+.tx-item.tx-card-use{opacity:0.55}
 /* 支払い管理アイテム */
 .pay-mgr-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-l)}
 .pay-mgr-info{flex:1;min-width:0}

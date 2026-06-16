@@ -519,32 +519,23 @@ function renderSummary(){
   document.getElementById('month-label').textContent=`${UI.year}年${UI.month+1}月`;
 
   let inc=0,exp=0,cashAmt=0,cardAmt=0,bankAmt=0;
-
-  if(UI.isMainMode){
-    // 全ユーザー・全帳簿合算
-    DB.users.forEach(usr=>{
-      usr.transactions.forEach(t=>{
-        const td=new Date(t.date);
-        if(td.getFullYear()!==UI.year||td.getMonth()!==UI.month)return;
-        if(t.type==='income')inc+=t.amount;
-        else{
-          exp+=t.amount;
-          if(!t.payKind||t.payKind==='cash')cashAmt+=t.amount;
-          else if(t.payKind==='card')cardAmt+=t.amount;
-          else if(t.payKind==='bank')bankAmt+=t.amount;
-        }
-      });
+  // 請求ベース集計：カードは請求月で計上（利用月は計上しない）。現金・銀行は取引日で計上。
+  const mk=`${UI.year}-${String(UI.month+1).padStart(2,'0')}`;
+  const tally=(usr,txs)=>{
+    txs.forEach(t=>{
+      if(t.type==='income'){ if(t.date.startsWith(mk))inc+=t.amount; return; }
+      const ed=effectiveExpDate(t,usr);
+      if(!ed.startsWith(mk))return;
+      exp+=t.amount;
+      if(t.payKind==='card')cardAmt+=t.amount;
+      else if(t.payKind==='bank')bankAmt+=t.amount;
+      else cashAmt+=t.amount;
     });
+  };
+  if(UI.isMainMode){
+    DB.users.forEach(usr=>tally(usr,usr.transactions));
   } else {
-    const txs=monthTxs();
-    inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-    const expTx=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-    const billing=genBillingEntries(u).reduce((s,e)=>s+e.amount,0);
-    exp=expTx+billing;
-    const expOnly=txs.filter(t=>t.type==='expense');
-    cashAmt=expOnly.filter(t=>!t.payKind||t.payKind==='cash').reduce((s,t)=>s+t.amount,0);
-    cardAmt=expOnly.filter(t=>t.payKind==='card').reduce((s,t)=>s+t.amount,0);
-    bankAmt=expOnly.filter(t=>t.payKind==='bank').reduce((s,t)=>s+t.amount,0);
+    tally(u,u.transactions.filter(t=>t.ledger===UI.activeLedger));
   }
 
   const bal=inc-exp;
@@ -563,6 +554,7 @@ function renderPayMini(){
   if(UI.isMainMode){el.innerHTML='';return;}  // No.0モードでは非表示
   const u=activeUser();
   const txs=monthTxs().filter(t=>t.type==='expense');
+  const billing=genBillingEntries(u);   // 請求ベース：カードは当月請求額
   const cashA=txs.filter(t=>!t.payKind||t.payKind==='cash').reduce((s,t)=>s+t.amount,0);
   let h=`<div class="pm-chip cash${UI.payFilter==='cash'?' active-f':''}" onclick="togglePF('cash')">💴 ${fmtS(cashA)}</div>`;
   u.payees.bank.forEach(b=>{
@@ -571,7 +563,7 @@ function renderPayMini(){
     h+=`<div class="pm-chip bank${UI.payFilter===k?' active-f':''}" onclick="togglePF('${k}')">🏦 ${esc(b.name)} ${fmtS(a)}</div>`;
   });
   u.payees.card.forEach(c=>{
-    const a=txs.filter(t=>t.payKind==='card'&&t.payeeId===c.id).reduce((s,t)=>s+t.amount,0);
+    const a=billing.filter(e=>e.payeeId===c.id).reduce((s,e)=>s+e.amount,0);
     const k=`card:${c.id}`;
     h+=`<div class="pm-chip card${UI.payFilter===k?' active-f':''}" onclick="togglePF('${k}')">💳 ${esc(c.name)} ${fmtS(a)}</div>`;
   });
@@ -608,24 +600,34 @@ function renderCalendar(){
   const today=new Date();
   const dm={};
 
-  if(UI.isMainMode){
-    // メインユーザー：全ユーザー・全帳簿を合算
-    DB.users.forEach(usr=>{
-      usr.transactions.forEach(t=>{
-        const td=new Date(t.date);
-        if(td.getFullYear()!==yr||td.getMonth()!==mo)return;
-        const d=parseInt(t.date.split('-')[2]);
-        dm[d]=dm[d]||{inc:0,exp:0,crd:0};
-        dm[d][t.type==='income'?'inc':'exp']+=t.amount;
-      });
+  // 請求ベース表示：現金/銀行=取引日に通常字、カード利用=取引日に薄字、カード請求=請求日に通常字
+  const cell=d=>(dm[d]=dm[d]||{inc:0,exp:0,use:0});
+  const addMonthTxs=(usr,txs)=>{
+    txs.forEach(t=>{
+      const td=new Date(t.date);
+      if(td.getFullYear()!==yr||td.getMonth()!==mo)return;
+      const d=td.getDate();
+      if(t.type==='income')cell(d).inc+=t.amount;
+      else if(t.payKind==='card')cell(d).use+=t.amount;   // カード利用＝薄字
+      else cell(d).exp+=t.amount;                          // 現金・銀行＝通常
     });
-  } else {
-    const txs=filtered();
-    txs.forEach(t=>{const d=parseInt(t.date.split('-')[2]);dm[d]=dm[d]||{inc:0,exp:0,crd:0};dm[d][t.type==='income'?'inc':'exp']+=t.amount;});
-    genBillingEntries(u).forEach(e=>{
+  };
+  const addBilling=(usr,filterCb)=>{
+    genBillingEntries(usr).forEach(e=>{
+      if(filterCb&&!filterCb(e))return;
       const d=parseInt(e.date.split('-')[2]);
-      dm[d]=dm[d]||{inc:0,exp:0,crd:0};
-      dm[d].crd+=e.amount;
+      cell(d).exp+=e.amount;                               // カード請求＝通常
+    });
+  };
+  if(UI.isMainMode){
+    DB.users.forEach(usr=>{addMonthTxs(usr,usr.transactions);addBilling(usr);});
+  } else {
+    addMonthTxs(u,filtered());
+    addBilling(u,e=>{
+      if(UI.payFilter==='all')return true;
+      if(UI.payFilter==='income'||UI.payFilter==='cash')return false;
+      const[k,id]=UI.payFilter.split(':');
+      return k==='card'&&id===e.payeeId;
     });
   }
 
@@ -643,7 +645,7 @@ function renderCalendar(){
       <div class="day-amounts">
         ${v.inc?`<div class="day-amt inc">${fmtN(v.inc)}</div>`:''}
         ${v.exp?`<div class="day-amt exp">${fmtN(v.exp)}</div>`:''}
-        ${v.crd?`<div class="day-amt crd">${fmtN(v.crd)}</div>`:''}
+        ${v.use?`<div class="day-amt crd">${fmtN(v.use)}</div>`:''}
       </div>
     </div>`;
   }
@@ -660,31 +662,34 @@ function renderCalInfoBar(){
   const dows=['日','月','火','水','木','金','土'];
   const dateLabel=`${mo+1}月${d}日（${dows[new Date(yr,mo,d).getDay()]}）`;
 
-  // 選択日までの累計(upToDay)と当日(onDay)の取引を収集
-  let upToDay=[], onDay=[];
+  // 請求ベースで集計：収入は取引日、支出はeffectiveExpDate（カードは請求日）でその月に計上
+  let cumInc=0,cumExp=0,dayInc=0,dayExp=0;
+  const flow=(usr,txs)=>{
+    txs.forEach(t=>{
+      if(t.type==='income'){
+        const td=new Date(t.date);
+        if(td.getFullYear()!==yr||td.getMonth()!==mo)return;
+        const dd=td.getDate();
+        if(dd<=d)cumInc+=t.amount; if(dd===d)dayInc+=t.amount;
+      } else {
+        const ed=effectiveExpDate(t,usr);
+        const[ey,em,edd]=ed.split('-').map(Number);
+        if(ey!==yr||em-1!==mo)return;
+        if(edd<=d)cumExp+=t.amount; if(edd===d)dayExp+=t.amount;
+      }
+    });
+  };
   if(UI.isMainMode){
-    DB.users.forEach(usr=>usr.transactions.forEach(t=>{
-      const td=new Date(t.date);
-      if(td.getFullYear()!==yr||td.getMonth()!==mo)return;
-      const dd=parseInt(t.date.split('-')[2],10);
-      if(dd<=d)upToDay.push(t);
-      if(dd===d)onDay.push(t);
-    }));
-    // No.0モードで当日に取引がなければバー非表示
-    if(!onDay.length){bar?.classList.add('hidden');return;}
+    DB.users.forEach(usr=>flow(usr,usr.transactions));
+    // No.0モードで当日に動きがなければバー非表示
+    if(dayInc===0&&dayExp===0){bar?.classList.add('hidden');return;}
   } else {
     const u=activeUser();
-    const inMonth=t=>{const td=new Date(t.date);return t.ledger===UI.activeLedger&&td.getFullYear()===yr&&td.getMonth()===mo;};
-    upToDay=u.transactions.filter(t=>inMonth(t)&&parseInt(t.date.split('-')[2],10)<=d);
-    onDay=u.transactions.filter(t=>inMonth(t)&&parseInt(t.date.split('-')[2],10)===d);
+    flow(u,u.transactions.filter(t=>t.ledger===UI.activeLedger));
   }
   bar?.classList.remove('hidden');
 
-  const sumInc=a=>a.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const sumExp=a=>a.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-  const cumInc=sumInc(upToDay), cumExp=sumExp(upToDay);
   const cumBal=cumInc-cumExp+carryoverBefore(yr,mo);
-  const dayInc=sumInc(onDay), dayExp=sumExp(onDay);
   const dayBal=dayInc-dayExp;
 
   // 1行目：選択日までの累計（収入・支出・残高）
@@ -722,20 +727,28 @@ function _updateExpandTri(){
 // 前月までの繰り越し残高。帳簿の「前月の残高を繰り越す」設定(carry)が有効な場合のみ計上、無効なら0
 function carryoverBefore(yr,mo){
   const firstStr=`${yr}-${String(mo+1).padStart(2,'0')}-01`;
-  const sum=txs=>txs.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+  // 請求ベース：収入は取引日、支出はeffectiveExpDate（カードは請求日）が当月より前なら計上
+  const sumBefore=(usr,txs)=>{
+    let s=0;
+    txs.forEach(t=>{
+      if(t.type==='income'){if(t.date<firstStr)s+=t.amount;}
+      else if(effectiveExpDate(t,usr)<firstStr)s-=t.amount;
+    });
+    return s;
+  };
   if(UI.isMainMode){
     // No.0モード：carry有効な帳簿の取引のみ全ユーザー横断で集計
     let total=0;
     DB.users.forEach(usr=>{
       const ids=new Set((usr.ledgers||[]).filter(l=>l.carry).map(l=>l.id));
-      if(ids.size)total+=sum(usr.transactions.filter(t=>ids.has(t.ledger)&&t.date<firstStr));
+      if(ids.size)total+=sumBefore(usr,usr.transactions.filter(t=>ids.has(t.ledger)));
     });
     return total;
   }
   const u=activeUser();
   const l=u.ledgers.find(x=>x.id===UI.activeLedger);
   if(!l||!l.carry)return 0;
-  return sum(u.transactions.filter(t=>t.ledger===UI.activeLedger&&t.date<firstStr));
+  return sumBefore(u,u.transactions.filter(t=>t.ledger===UI.activeLedger));
 }
 
 // 日付グループの見出し：日付＋その日の収入・支出（残高は集計バー2行目に集約）
@@ -923,63 +936,65 @@ function switchToUserLedgerOnDate(userId,ledgerId,dateStr){
 
 
 // クレジット請求エントリを生成
-function genBillingEntries(u){
-  const entries=[];
-  const yr=UI.year,mo=UI.month;
-  u.payees.card.forEach(card=>{
-    if(!card.billingDay||!card.closeDay)return;
-    // 何月の利用分が今月請求されるか逆算
-    // 今月(yr,mo)が請求月 → 利用月 = mo - billingMonth
-    const usedMo=mo-card.billingMonth;
-    const usedYr=usedMo<0?yr-1:yr;
-    const usedMoNorm=((usedMo%12)+12)%12;
+// 取引が実際に支払われる日（＝お金が動く日）。カードは請求日、それ以外は取引日。
+// カードに締め日/請求日の設定がなければ取引日（即時扱い）。
+function effectiveExpDate(t, u){
+  if(t.type!=='expense'||t.payKind!=='card')return t.date;
+  const card=(u.payees.card||[]).find(c=>c.id===t.payeeId);
+  if(!card||!card.closeDay||!card.billingDay)return t.date;
+  const d=new Date(t.date);
+  let cy=d.getFullYear(), cm=d.getMonth();
+  const closeDay=card.closeDay===31?new Date(cy,cm+1,0).getDate():card.closeDay;
+  // 締め日を過ぎた利用は翌サイクル（翌月利用扱い）
+  if(d.getDate()>closeDay){cm++;if(cm>11){cm=0;cy++;}}
+  // 請求月 = 利用サイクル月 + billingMonth（翌月=1, 翌々月=2）
+  let bm=cm+(card.billingMonth||1), by=cy;
+  by+=Math.floor(bm/12); bm=((bm%12)+12)%12;
+  const lastDay=new Date(by,bm+1,0).getDate();
+  const bday=card.billingDay===31?lastDay:Math.min(card.billingDay,lastDay);
+  return `${by}-${String(bm+1).padStart(2,'0')}-${String(bday).padStart(2,'0')}`;
+}
 
-    // 利用月の締め日以前のカード取引を集計
-    const closeDay=card.closeDay===31?new Date(usedYr,usedMoNorm+1,0).getDate():card.closeDay;
-    const txs=u.transactions.filter(t=>{
-      if(t.payKind!=='card'||t.payeeId!==card.id||t.type!=='expense')return false;
-      const d=new Date(t.date);
-      if(d.getFullYear()!==usedYr||d.getMonth()!==usedMoNorm)return false;
-      return d.getDate()<=closeDay;
-    });
-    if(!txs.length)return;
-    const total=txs.reduce((s,t)=>s+t.amount,0);
-
-    // 請求日
-    const lastDay=new Date(yr,mo+1,0).getDate();
-    const bday=card.billingDay===31?lastDay:Math.min(card.billingDay,lastDay);
-    const dateStr=`${yr}-${String(mo+1).padStart(2,'0')}-${String(bday).padStart(2,'0')}`;
-
-    entries.push({
-      id:`billing-${card.id}-${yr}-${mo}`,
-      date:dateStr,
-      type:'expense',
-      amount:total,
-      payKind:'card',
-      payeeId:card.id,
-      cardName:card.name,
-      usedMoLabel:`${usedYr}年${usedMoNorm+1}月利用分`,
-      _isBilling:true
-    });
+// 指定月(yr,mo)に請求される、カードごとの請求エントリ（effectiveExpDate基準で統一）
+function genBillingEntries(u, yr=UI.year, mo=UI.month){
+  const groups={};
+  u.transactions.forEach(t=>{
+    if(t.type!=='expense'||t.payKind!=='card')return;
+    const card=(u.payees.card||[]).find(c=>c.id===t.payeeId);
+    if(!card||!card.closeDay||!card.billingDay)return;
+    const ed=effectiveExpDate(t,u);
+    const[ey,em]=ed.split('-').map(Number);
+    if(ey!==yr||em-1!==mo)return;
+    const g=groups[card.id]||(groups[card.id]={card,total:0,date:ed,months:new Set()});
+    g.total+=t.amount;
+    const ud=t.date.split('-'); g.months.add(`${ud[0]}-${ud[1]}`);
   });
-  return entries;
+  return Object.values(groups).map(g=>{
+    const ms=[...g.months].sort();
+    const f=k=>{const[y,m]=k.split('-');return`${parseInt(y)}年${parseInt(m)}月`;};
+    const label=ms.length<=1?`${f(ms[0]||`${yr}-${mo+1}`)}利用分`
+      :`${f(ms[0])}〜${parseInt(ms[ms.length-1].split('-')[1])}月利用分`;
+    return {id:`billing-${g.card.id}-${yr}-${mo}`, date:g.date, type:'expense', amount:g.total,
+      payKind:'card', payeeId:g.card.id, cardName:g.card.name, usedMoLabel:label, _isBilling:true};
+  });
 }
 
 // クレジット請求の薄字HTML
 function billingHTML(e){
   const u=activeUser();
   const cardName=u.payees.card.find(c=>c.id===e.payeeId)?.name||e.cardName||'カード';
-  return `<div class="tx-item credit-billing">
+  // 請求ベース：カード請求は実際の支払い＝通常字で表示
+  return `<div class="tx-item">
     <div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none;font-size:20px">💳</div>
     <div class="tx-info">
-      <div class="tx-name" style="color:var(--text-sub)">クレジット請求</div>
+      <div class="tx-name">クレジット請求</div>
       <div class="tx-meta">
         <span class="tx-cat">${esc(cardName)}</span>
         <span class="credit-tag">${e.usedMoLabel}</span>
       </div>
     </div>
     <div class="tx-right">
-      <div class="tx-amount exp" style="opacity:0.6">${fmt(e.amount)}</div>
+      <div class="tx-amount exp">${fmt(e.amount)}</div>
     </div>
   </div>`;
 }
@@ -1000,7 +1015,7 @@ function txHTML(t){
     if(ledgerName)destBadge=`<span style="font-size:10px;color:var(--text-hint);background:var(--bg);border-radius:10px;padding:1px 6px;border:1px solid var(--border-l)">${esc(ledgerName)}</span>`;
   }
 
-  return `<div class="tx-item tx-item-tap tx-lp"
+  return `<div class="tx-item tx-item-tap tx-lp${!isI&&t.payKind==='card'?' tx-card-use':''}"
     data-txid="${t.id}"
     onclick="openTxEdit('${t.id}')">
     ${iconEl}
@@ -1030,58 +1045,70 @@ function delTx(id){
 }
 
 function renderChart(){
-  let txs;
-  if(UI.isMainMode){
-    txs=[];
-    DB.users.forEach(usr=>{
-      usr.transactions.forEach(t=>{
-        const td=new Date(t.date);
-        if(t.type==='expense'&&td.getFullYear()===UI.year&&td.getMonth()===UI.month)txs.push(t);
-      });
-    });
-  } else {
-    txs=monthTxs().filter(t=>t.type==='expense');
-  }
-  const total=txs.reduce((s,t)=>s+t.amount,0);
-  const el=document.getElementById('chart-body');
-  if(!total){el.innerHTML=`<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px">支出データなし</div>`;return;}
+  const mk=`${UI.year}-${String(UI.month+1).padStart(2,'0')}`;
+  // 請求ベース：当月にお金が出る支出（現金/銀行=取引日、カード=請求月）を effExp に集める
+  // 当月のカード利用（薄字・参考）は cardUse に集める
+  const effExp=[]; const cardUse={};
+  const scan=(usr,txs)=>txs.forEach(t=>{
+    if(t.type!=='expense')return;
+    if(t.payKind==='card'&&t.date.startsWith(mk)){
+      const c=(usr.payees.card||[]).find(x=>x.id===t.payeeId);
+      const k=t.payeeId||'card';
+      (cardUse[k]=cardUse[k]||{name:c?c.name:'カード',amt:0}).amt+=t.amount;
+    }
+    if(effectiveExpDate(t,usr).startsWith(mk))effExp.push({t,usr});
+  });
+  if(UI.isMainMode)DB.users.forEach(u=>scan(u,u.transactions));
+  else scan(activeUser(),activeUser().transactions.filter(t=>t.ledger===UI.activeLedger));
 
-  // 支払い別：全ユーザーの payees を横断して集計
+  const total=effExp.reduce((s,x)=>s+x.t.amount,0);
+  const el=document.getElementById('chart-body');
+  if(!total&&!Object.keys(cardUse).length){el.innerHTML=`<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px">支出データなし</div>`;return;}
+
+  // ── 支払別（通常＝請求ベースで計上） ──
   const payItems=[];
-  const usersToScan=UI.isMainMode?DB.users:[activeUser()];
-  const seenPayees=new Set();
-  const ca=txs.filter(x=>!x.payKind||x.payKind==='cash').reduce((s,x)=>s+x.amount,0);
-  if(ca>0)payItems.push({iconId:null,label:'現金',amt:ca,color:'#E07B2E',emoji:'💴'});
-  usersToScan.forEach(u=>{
-    u.payees.bank.forEach(b=>{
-      if(seenPayees.has(b.id))return; seenPayees.add(b.id);
-      const a=txs.filter(x=>x.payKind==='bank'&&x.payeeId===b.id).reduce((s,x)=>s+x.amount,0);
-      if(a>0)payItems.push({iconId:null,label:b.name,amt:a,color:'#3B82C4',emoji:'🏦'});
-    });
-    u.payees.card.forEach(c=>{
-      if(seenPayees.has(c.id))return; seenPayees.add(c.id);
-      const a=txs.filter(x=>x.payKind==='card'&&x.payeeId===c.id).reduce((s,x)=>s+x.amount,0);
-      if(a>0)payItems.push({iconId:null,label:c.name,amt:a,color:'#E05252',emoji:'💳'});
-    });
+  const cash=effExp.filter(x=>!x.t.payKind||x.t.payKind==='cash').reduce((s,x)=>s+x.t.amount,0);
+  if(cash>0)payItems.push({label:'現金',amt:cash,color:'#E07B2E',emoji:'💴'});
+  const bankMap={};
+  effExp.filter(x=>x.t.payKind==='bank').forEach(x=>{
+    const c=(x.usr.payees.bank||[]).find(b=>b.id===x.t.payeeId);
+    const k=x.t.payeeId||'bank';(bankMap[k]=bankMap[k]||{name:c?c.name:'銀行',amt:0}).amt+=x.t.amount;
+  });
+  Object.values(bankMap).forEach(b=>{if(b.amt>0)payItems.push({label:b.name,amt:b.amt,color:'#3B82C4',emoji:'🏦'});});
+  // カード請求（通常字）：請求ベースで当月計上されたカード取引をカード別に集計、利用月をラベル表示
+  const cardBill={};
+  effExp.filter(x=>x.t.payKind==='card').forEach(x=>{
+    const c=(x.usr.payees.card||[]).find(cc=>cc.id===x.t.payeeId);
+    const k=x.t.payeeId||'card';
+    const g=cardBill[k]||(cardBill[k]={name:c?c.name:'カード',amt:0,months:new Set()});
+    g.amt+=x.t.amount; g.months.add(x.t.date.slice(0,7));
+  });
+  Object.values(cardBill).forEach(g=>{
+    const ms=[...g.months].sort();
+    const lbl=ms.length<=1?`${g.name}（${ms[0]?parseInt(ms[0].split('-')[1]):UI.month+1}月利用分）`
+      :`${g.name}（${parseInt(ms[0].split('-')[1])}〜${parseInt(ms[ms.length-1].split('-')[1])}月利用分）`;
+    payItems.push({label:lbl,amt:g.amt,color:'#E05252',emoji:'💳'});
   });
   payItems.sort((a,b)=>b.amt-a.amt);
+  // カード利用（今月・薄字・参考＝合計には含めない）
+  const useItems=Object.values(cardUse).filter(c=>c.amt>0)
+    .map(c=>({label:`${c.name}（今月利用）`,amt:c.amt,color:'#E05252',emoji:'💳',faint:true,noPct:true}));
 
-  // カテゴリ別
+  // ── カテゴリ別（請求ベース） ──
   const map={};
-  txs.forEach(x=>{
-    const iid=x.iconId||resolveIconId({id:x.iconId,e:x.emoji})||'other';
-    map[iid]=map[iid]||{n:x.emojiName||x.memo||iid,amt:0};
-    map[iid].amt+=x.amount;
+  effExp.forEach(({t})=>{
+    const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
+    map[iid]=map[iid]||{n:t.emojiName||t.memo||iid,amt:0};
+    map[iid].amt+=t.amount;
   });
   const catItems=Object.entries(map).sort((a,b)=>b[1].amt-a[1].amt).slice(0,8).map(([iid,v])=>{
     const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
     return {iconId:iid,label:v.n,amt:v.amt,color:ic.color,svg:ic.svg,emoji:ic.emoji||'💰'};
   });
 
-  // 支払別 → カテゴリ別 の順で縦に並べる
   let h='';
-  if(payItems.length)h+=`<div class="chart-sub">支払別</div>${_chartRows(payItems,total)}`;
-  if(catItems.length)h+=`<div class="chart-sub"${payItems.length?' style="margin-top:12px"':''}>カテゴリ別</div>${_chartRows(catItems,total)}`;
+  if(payItems.length||useItems.length)h+=`<div class="chart-sub">支払別</div>${_chartRows(payItems,total)}${_chartRows(useItems,total)}`;
+  if(catItems.length)h+=`<div class="chart-sub" style="margin-top:12px">カテゴリ別</div>${_chartRows(catItems,total)}`;
   el.innerHTML=h;
 }
 function _chartRows(items,total){
@@ -1091,14 +1118,17 @@ function _chartRows(items,total){
            <svg viewBox="-2 -2 28 28" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(CAT_ICONS[v.iconId]?.svg||'',v.color)}</svg>
          </div>`
       : `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none;font-size:14px">${v.emoji||'💳'}</div>`;
-    return `<div class="chart-row">
+    const pct=total?Math.round(v.amt/total*100):0;
+    const bar=v.noPct?`<div class="chart-bar-bg"></div>`
+      :`<div class="chart-bar-bg"><div class="chart-bar" style="width:${pct}%;background:${v.color}"></div></div>`;
+    const right=v.noPct
+      ?`<div style="font-size:12px;font-weight:700;color:var(--text-sub)">${fmt(v.amt)}</div><div class="chart-pct">参考</div>`
+      :`<div style="font-size:12px;font-weight:700;color:var(--text)">${fmt(v.amt)}</div><div class="chart-pct">${pct}%</div>`;
+    return `<div class="chart-row"${v.faint?' style="opacity:0.55"':''}>
       ${iconEl}
       <div class="chart-lbl">${esc(v.label)}</div>
-      <div class="chart-bar-bg"><div class="chart-bar" style="width:${Math.round(v.amt/total*100)}%;background:${v.color}"></div></div>
-      <div style="text-align:right;flex:none;min-width:72px">
-        <div style="font-size:12px;font-weight:700;color:var(--text)">${fmt(v.amt)}</div>
-        <div class="chart-pct">${Math.round(v.amt/total*100)}%</div>
-      </div>
+      ${bar}
+      <div style="text-align:right;flex:none;min-width:72px">${right}</div>
     </div>`;
   }).join('');
 }
@@ -2536,7 +2566,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.4.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.6.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2612,6 +2642,31 @@ function updateMainUserSettingUI(){
   if(sChk)sChk.checked=su;
   if(sTrack)sTrack.style.background=su?'var(--pri)':'var(--border)';
   if(sThumb)sThumb.style.left=su?'23px':'3px';
+  // No.0のカラー選択（メインユーザー有効時のみ表示）
+  const colorRow=document.getElementById('main-user-color-row');
+  if(colorRow)colorRow.style.display=en?'block':'none';
+  if(en)buildMainThemePicker();
+}
+
+// No.0（管理ユーザー）のテーマカラー選択
+function buildMainThemePicker(){
+  const grid=document.getElementById('main-theme-grid');
+  if(!grid)return;
+  const cur=DB.mainUser.theme||'indigo';
+  grid.innerHTML=themesInDisplayOrder().map(t=>
+    `<div class="theme-swatch${t.id===cur?' active':''}" style="background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid})" onclick="pickMainTheme('${t.id}')" title="${t.name}">
+      <span style="font-size:14px">${t.icon}</span>
+      <span class="ts-name">${t.name}</span>
+      <div class="check">✓</div>
+    </div>`
+  ).join('');
+}
+function pickMainTheme(id){
+  DB.mainUser.theme=id;
+  save();
+  buildMainThemePicker();
+  // No.0表示中ならテーマを即反映
+  if(UI.isMainMode){applyTheme(id);renderTopbar();}
 }
 
 function toggleMainUser(){
@@ -2981,13 +3036,14 @@ function renderBarChart(){
     months.push({y,m});
   }
   const data=months.map(({y,m})=>{
-    const txs=u.transactions.filter(t=>{
-      if(t.ledger!==UI.activeLedger)return false;
-      const d=new Date(t.date);
-      return d.getFullYear()===y&&d.getMonth()===m;
+    // 請求ベース：収入は取引日、支出はeffectiveExpDate（カードは請求月）で各月に計上
+    const mk=`${y}-${String(m+1).padStart(2,'0')}`;
+    let inc=0,exp=0;
+    u.transactions.forEach(t=>{
+      if(t.ledger!==UI.activeLedger)return;
+      if(t.type==='income'){if(t.date.startsWith(mk))inc+=t.amount;}
+      else if(effectiveExpDate(t,u).startsWith(mk))exp+=t.amount;
     });
-    const inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-    const exp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
     return {y,m,inc,exp,label:`${m+1}月`};
   });
 
@@ -3037,9 +3093,11 @@ const DONUT_COLORS=['#2EBD8F','#3B82C4','#E07B2E','#AB47BC','#EF5350','#26C6DA',
 
 function renderDonutAndList(){
   const u=activeUser();
+  const mk=`${UI.year}-${String(UI.month+1).padStart(2,'0')}`;
+  // 請求ベース：支出はeffectiveExpDate（カードは請求月）、収入は取引日で当月分を抽出
   const txs=u.transactions.filter(t=>{
-    const d=new Date(t.date);
-    return t.ledger===UI.activeLedger&&d.getFullYear()===UI.year&&d.getMonth()===UI.month&&t.type===catGraphType;
+    if(t.ledger!==UI.activeLedger||t.type!==catGraphType)return false;
+    return catGraphType==='income'?t.date.startsWith(mk):effectiveExpDate(t,u).startsWith(mk);
   });
 
   const total=txs.reduce((s,t)=>s+t.amount,0);
@@ -3258,11 +3316,12 @@ if(_nb)_nb.classList.add('active');
 if(secState.pinHash){
   showPinScreen('unlock');
 }
-// トップバーのユーザー：長押しでユーザー切替を開き、指を離さずスライドして選択（誤タップ防止）
-(function bindUserLongPress(){
+// トップバーのユーザー切替：タップ／クリックで開く、または長押しのままスライドして選択
+// （タップ・長押しどちらでもOK。ヒット領域は星〜「ユーザー▼」の行全体）
+(function bindUserSwitch(){
   const el=document.getElementById('topbar-user');
   if(!el)return;
-  let timer=null, sliding=false, sx=0, sy=0;
+  let timer=null, sliding=false, sx=0, sy=0, suppressClick=false;
   // 指の位置にあるユーザー項目をハイライトして返す
   const highlightAt=(x,y)=>{
     const target=document.elementFromPoint(x,y);
@@ -3291,21 +3350,24 @@ if(secState.pinHash){
   el.addEventListener('touchend',e=>{
     clearTimeout(timer);
     if(sliding){
+      // 長押し→スライド：指の位置のユーザーを選択（ドロワーは開いたまま、その位置で確定）
       const t=e.changedTouches[0];
       const item=highlightAt(t.clientX,t.clientY);
       clearHover();
-      if(item)item.click();   // スライド先のユーザーを選択（switchUser/switchToMainModeがドロワーを閉じる）
+      if(item)item.click();   // switchUser/switchToMainModeがドロワーを閉じる
       sliding=false;
+      suppressClick=true;     // 長押し直後のゴーストクリックを無視
       e.preventDefault();
     }
+    // 短タップ（長押し未成立）の場合は後続のclickでドロワーを開く
   });
   el.addEventListener('touchcancel',()=>{clearTimeout(timer);clearHover();sliding=false;});
 
-  // デスクトップ（マウス）は長押しで開くだけ
-  let mTimer=null;
-  el.addEventListener('mousedown',()=>{clearTimeout(mTimer);mTimer=setTimeout(openUserDrawer,500);});
-  el.addEventListener('mouseup',()=>clearTimeout(mTimer));
-  el.addEventListener('mouseleave',()=>clearTimeout(mTimer));
+  // タップ／クリックでドロワーを開く（PC・モバイル共通）。長押しスライド直後のみ抑止
+  el.addEventListener('click',()=>{
+    if(suppressClick){suppressClick=false;return;}
+    openUserDrawer();
+  });
   el.addEventListener('contextmenu',e=>e.preventDefault());
   el.style.cursor='pointer';
 })();
