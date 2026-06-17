@@ -1066,7 +1066,7 @@ function payBreakdownFor(yr,mo,scope){
 
 // ホームの内訳グラフ（支払別＋カテゴリ別）
 function renderChart(){
-  const {effExp,total,payItems,useItems}=payBreakdownFor(UI.year,UI.month,scopeTxs('all'));
+  const {effExp,total,payItems,useItems}=payBreakdownFor(UI.year,UI.month,scopeTxs('all',UI.isMainMode?null:UI.activeLedger));
   const el=document.getElementById('chart-body');
   if(!total&&!useItems.length){el.innerHTML=`<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px">支出データなし</div>`;return;}
   const catItems=catBreakdownFromEff(effExp);
@@ -2560,7 +2560,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.8.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.9.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2985,6 +2985,9 @@ function switchTab(tab){
   if(page)page.classList.add('active');
   if(btn)btn.classList.add('active');
   if(tab==='graph')renderGraphTab();
+  // グラフタブでは上部の帳簿バーを隠す（グラフ内に帳簿チップがあるため二重表示を防ぐ）
+  const lb=document.getElementById('ledger-bar');
+  if(lb)lb.style.display=(tab==='graph')?'none':'';
 }
 
 /* =========================================================
@@ -2995,18 +2998,31 @@ let barMode='both';
 let catGraphType='expense';
 let gSelY=null, gSelM=null; // グラフタブで選択中の月（ホームの表示月には影響しない）
 let gUser='all'; // No.0モードでグラフ/予測に表示するユーザー（'all'=全体合算 or ユーザーid）
+let gLedger='all'; // グラフタブで表示中の帳簿（'all'=全帳簿 or 帳簿id）。単一ユーザーのときのみ有効
 
-// グラフ/予測の対象取引 [{t,usr}] を返す。
-// 通常モード: activeUserのactiveLedger。No.0モード: userFilter('all'=全員 or userId)の全帳簿。
-function scopeTxs(userFilter){
-  if(!UI.isMainMode){
-    const u=activeUser();
-    return u.transactions.filter(t=>t.ledger===UI.activeLedger).map(t=>({t,usr:u}));
-  }
-  const users=(userFilter&&userFilter!=='all')?DB.users.filter(u=>u.id===userFilter):DB.users;
+// 対象取引 [{t,usr}] を返す。userFilter: 'all'/userId（No.0のみ）。ledgerFilter: 帳簿id（指定時のみ絞り込み）
+function scopeTxs(userFilter, ledgerFilter){
+  let users;
+  if(!UI.isMainMode){ users=[activeUser()]; }
+  else { users=(userFilter&&userFilter!=='all')?DB.users.filter(u=>u.id===userFilter):DB.users; }
   const out=[];
-  users.forEach(u=>u.transactions.forEach(t=>out.push({t,usr:u})));
+  users.forEach(u=>u.transactions.forEach(t=>{
+    if(ledgerFilter && t.ledger!==ledgerFilter)return;
+    out.push({t,usr:u});
+  }));
   return out;
+}
+// グラフタブの対象取引（gUser＋gLedgerを反映）。帳簿フィルタは単一ユーザーのときだけ効く
+function graphScope(){
+  const single = !UI.isMainMode || (gUser!=='all');
+  const lf = (single && gLedger && gLedger!=='all') ? gLedger : null;
+  return scopeTxs(gUser, lf);
+}
+// 帳簿チップを出す対象ユーザー（通常=activeUser、No.0で特定ユーザー選択時=そのユーザー）。なければnull
+function ledgerScope(){
+  if(!UI.isMainMode)return activeUser();
+  if(gUser!=='all')return DB.users.find(x=>x.id===gUser)||null;
+  return null;
 }
 // No.0モードのユーザー選択チップ（全体＋各ユーザー）。通常モードや1人のときは空
 function graphUserChipsHTML(selectFn){
@@ -3034,7 +3050,10 @@ function setCatGraphType(t){
 function renderGraphTab(){
   // タブを開くたびにホームの表示月へ同期（以降の月◀▶・バータップはホームに影響しない）
   gSelY=UI.year; gSelM=UI.month;
+  // 帳簿の初期値：通常モードは現在の帳簿、No.0は全帳簿
+  gLedger = UI.isMainMode ? 'all' : UI.activeLedger;
   renderGraphUserChips();
+  renderGraphLedgerChips();
   renderGraphMonthLabel();
   renderBarChart();
   renderDonutAndList();
@@ -3049,7 +3068,27 @@ function renderGraphUserChips(){
 }
 function setGraphUser(id){
   gUser=id;
+  gLedger='all';            // ユーザーを変えたら帳簿は全帳簿に戻す
   renderGraphUserChips();
+  renderGraphLedgerChips();
+  renderBarChart();
+  renderDonutAndList();
+  renderPayBreakdown();
+}
+// グラフタブの帳簿選択チップ（対象ユーザーが帳簿2つ以上のときだけ表示）
+function renderGraphLedgerChips(){
+  const el=document.getElementById('graph-ledger-chips');
+  if(!el)return;
+  const u=ledgerScope();
+  const ledgers=u?(u.ledgers||[]):[];
+  if(ledgers.length<2){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='block';
+  const chip=(id,label)=>`<button class="guser-chip${gLedger===id?' active':''}" onclick="setGraphLedger('${esc(id)}')">📒 ${esc(label)}</button>`;
+  el.innerHTML=`<div class="guser-chips">${chip('all','全帳簿')}${ledgers.map(l=>chip(l.id,l.name)).join('')}</div>`;
+}
+function setGraphLedger(id){
+  gLedger=id;
+  renderGraphLedgerChips();
   renderBarChart();
   renderDonutAndList();
   renderPayBreakdown();
@@ -3080,7 +3119,7 @@ function renderPayBreakdown(){
   if(!el)return;
   if(catGraphType!=='expense'){if(sec)sec.style.display='none';el.innerHTML='';return;}
   if(sec)sec.style.display='';
-  const {total,payItems,useItems}=payBreakdownFor(gSelY??UI.year, gSelM??UI.month, scopeTxs(gUser));
+  const {total,payItems,useItems}=payBreakdownFor(gSelY??UI.year, gSelM??UI.month, graphScope());
   el.innerHTML=(payItems.length||useItems.length)
     ? _chartRows(payItems,total)+_chartRows(useItems,total)
     : `<div class="empty-msg" style="padding:8px"><span>支払いデータなし</span></div>`;
@@ -3090,7 +3129,7 @@ function renderPayBreakdown(){
 function renderBarChart(){
   const yr=(gSelY??UI.year);
   const now=new Date();
-  const scope=scopeTxs(gUser);
+  const scope=graphScope();
   // 表示年の1月〜12月（請求ベース：収入=取引日、支出=effectiveExpDate）
   const data=[];
   for(let m=0;m<12;m++){
@@ -3151,7 +3190,7 @@ function renderDonutAndList(){
   const yy=(gSelY??UI.year), mm=(gSelM??UI.month);
   const mk=`${yy}-${String(mm+1).padStart(2,'0')}`;
   // 請求ベース：支出はeffectiveExpDate（カードは請求月）、収入は取引日で選択月分を抽出
-  const txs=scopeTxs(gUser).filter(({t,usr})=>{
+  const txs=graphScope().filter(({t,usr})=>{
     if(t.type!==catGraphType)return false;
     return catGraphType==='income'?t.date.startsWith(mk):effectiveExpDate(t,usr).startsWith(mk);
   }).map(x=>x.t);

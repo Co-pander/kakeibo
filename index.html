@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.8.0">
+<link rel="stylesheet" href="style.css?v=3.9.1">
 <title>家計簿</title>
 </head>
 <body>
@@ -167,6 +167,8 @@
     <div class="graph-page">
       <!-- No.0モード：ユーザー選択チップ -->
       <div id="graph-user-chips" style="display:none"></div>
+      <!-- 帳簿選択チップ（帳簿が2つ以上のとき） -->
+      <div id="graph-ledger-chips" style="display:none"></div>
       <!-- 月次収支推移 -->
       <div class="graph-section">
         <div class="graph-section-head">
@@ -779,6 +781,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.8.0"></script>
+<script src="app.js?v=3.9.1"></script>
 </body>
 </html>
