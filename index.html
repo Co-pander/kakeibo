@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.6.2">
+<link rel="stylesheet" href="style.css?v=3.7.0">
 <title>家計簿</title>
 </head>
 <body>
@@ -182,11 +182,16 @@
         </div>
       </div>
 
-      <!-- 費目別集計 -->
-      <div class="graph-section">
-        <div class="graph-section-head">
-          <span class="graph-section-title">🗂️ 費目別集計</span>
-          <div class="graph-type-tabs">
+      <!-- 費目別集計（月◀▶ナビ＋支出/収入トグル → ドーナツ → 支払別 → カテゴリ一覧） -->
+      <div class="graph-section" id="graph-cat-section">
+        <div class="graph-month-nav">
+          <button class="mnav-btn" onclick="gChangeMonth(-1)">‹</button>
+          <div class="graph-month-center">
+            <span class="graph-month-label" id="graph-month-label"></span>
+            <span class="graph-month-range" id="graph-month-range"></span>
+          </div>
+          <button class="mnav-btn" onclick="gChangeMonth(1)">›</button>
+          <div class="graph-type-tabs" style="margin-left:auto">
             <button class="gtt-btn active" id="gcat-exp" onclick="setCatGraphType('expense')">支出</button>
             <button class="gtt-btn" id="gcat-inc" onclick="setCatGraphType('income')">収入</button>
           </div>
@@ -202,7 +207,13 @@
           </div>
           <div class="donut-legend" id="donut-legend"></div>
         </div>
-        <!-- 費目別リスト -->
+        <!-- 支払別（支出のみ） -->
+        <div id="graph-pay-section">
+          <div class="chart-sub" style="padding:8px 16px 2px">支払別</div>
+          <div id="graph-pay-breakdown"></div>
+        </div>
+        <!-- カテゴリ別リスト -->
+        <div class="chart-sub" style="padding:8px 16px 2px">カテゴリ別</div>
         <div class="cat-sum-list" id="cat-sum-list"></div>
       </div>
     </div>
@@ -766,6 +777,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.6.2"></script>
+<script src="app.js?v=3.7.0"></script>
 </body>
 </html>

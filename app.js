@@ -1020,10 +1020,10 @@ function delTx(id){
   u.transactions=u.transactions.filter(t=>t.id!==id);save();renderAll();
 }
 
-function renderChart(){
-  const mk=`${UI.year}-${String(UI.month+1).padStart(2,'0')}`;
-  // 請求ベース：当月にお金が出る支出（現金/銀行=取引日、カード=請求月）を effExp に集める
-  // 当月のカード利用（薄字・参考）は cardUse に集める
+// 指定月(yr,mo)の支払別内訳を請求ベースで集計。
+// 返り値: {effExp:[{t,usr}], total, payItems(通常字), useItems(カード今月利用=薄字参考)}
+function payBreakdownFor(yr,mo){
+  const mk=`${yr}-${String(mo+1).padStart(2,'0')}`;
   const effExp=[]; const cardUse={};
   const scan=(usr,txs)=>txs.forEach(t=>{
     if(t.type!=='expense')return;
@@ -1038,10 +1038,6 @@ function renderChart(){
   else scan(activeUser(),activeUser().transactions.filter(t=>t.ledger===UI.activeLedger));
 
   const total=effExp.reduce((s,x)=>s+x.t.amount,0);
-  const el=document.getElementById('chart-body');
-  if(!total&&!Object.keys(cardUse).length){el.innerHTML=`<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px">支出データなし</div>`;return;}
-
-  // ── 支払別（通常＝請求ベースで計上） ──
   const payItems=[];
   const cash=effExp.filter(x=>!x.t.payKind||x.t.payKind==='cash').reduce((s,x)=>s+x.t.amount,0);
   if(cash>0)payItems.push({label:'現金',amt:cash,color:'#E07B2E',emoji:'💴'});
@@ -1051,7 +1047,6 @@ function renderChart(){
     const k=x.t.payeeId||'bank';(bankMap[k]=bankMap[k]||{name:c?c.name:'銀行',amt:0}).amt+=x.t.amount;
   });
   Object.values(bankMap).forEach(b=>{if(b.amt>0)payItems.push({label:b.name,amt:b.amt,color:'#3B82C4',emoji:'🏦'});});
-  // カード請求（通常字）：請求ベースで当月計上されたカード取引をカード別に集計、利用月をラベル表示
   const cardBill={};
   effExp.filter(x=>x.t.payKind==='card').forEach(x=>{
     const c=(x.usr.payees.card||[]).find(cc=>cc.id===x.t.payeeId);
@@ -1061,31 +1056,39 @@ function renderChart(){
   });
   Object.values(cardBill).forEach(g=>{
     const ms=[...g.months].sort();
-    const lbl=ms.length<=1?`${g.name}（${ms[0]?parseInt(ms[0].split('-')[1]):UI.month+1}月利用分）`
+    const lbl=ms.length<=1?`${g.name}（${ms[0]?parseInt(ms[0].split('-')[1]):mo+1}月利用分）`
       :`${g.name}（${parseInt(ms[0].split('-')[1])}〜${parseInt(ms[ms.length-1].split('-')[1])}月利用分）`;
     payItems.push({label:lbl,amt:g.amt,color:'#E05252',emoji:'💳'});
   });
   payItems.sort((a,b)=>b.amt-a.amt);
-  // カード利用（今月・薄字・参考＝合計には含めない）
   const useItems=Object.values(cardUse).filter(c=>c.amt>0)
     .map(c=>({label:`${c.name}（今月利用）`,amt:c.amt,color:'#E05252',emoji:'💳',faint:true,noPct:true}));
+  return {effExp,total,payItems,useItems};
+}
 
-  // ── カテゴリ別（請求ベース） ──
+// ホームの内訳グラフ（支払別＋カテゴリ別）
+function renderChart(){
+  const {effExp,total,payItems,useItems}=payBreakdownFor(UI.year,UI.month);
+  const el=document.getElementById('chart-body');
+  if(!total&&!useItems.length){el.innerHTML=`<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px">支出データなし</div>`;return;}
+  const catItems=catBreakdownFromEff(effExp);
+  let h='';
+  if(payItems.length||useItems.length)h+=`<div class="chart-sub">支払別</div>${_chartRows(payItems,total)}${_chartRows(useItems,total)}`;
+  if(catItems.length)h+=`<div class="chart-sub" style="margin-top:12px">カテゴリ別</div>${_chartRows(catItems,total)}`;
+  el.innerHTML=h;
+}
+// effExpからカテゴリ別アイテムを生成
+function catBreakdownFromEff(effExp){
   const map={};
   effExp.forEach(({t})=>{
     const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
     map[iid]=map[iid]||{n:t.emojiName||t.memo||iid,amt:0};
     map[iid].amt+=t.amount;
   });
-  const catItems=Object.entries(map).sort((a,b)=>b[1].amt-a[1].amt).slice(0,8).map(([iid,v])=>{
+  return Object.entries(map).sort((a,b)=>b[1].amt-a[1].amt).slice(0,8).map(([iid,v])=>{
     const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
     return {iconId:iid,label:v.n,amt:v.amt,color:ic.color,svg:ic.svg,emoji:ic.emoji||'💰'};
   });
-
-  let h='';
-  if(payItems.length||useItems.length)h+=`<div class="chart-sub">支払別</div>${_chartRows(payItems,total)}${_chartRows(useItems,total)}`;
-  if(catItems.length)h+=`<div class="chart-sub" style="margin-top:12px">カテゴリ別</div>${_chartRows(catItems,total)}`;
-  el.innerHTML=h;
 }
 function _chartRows(items,total){
   return items.map(v=>{
@@ -2542,7 +2545,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.6.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.7.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2989,13 +2992,47 @@ function setCatGraphType(t){
   document.getElementById('gcat-exp').className='gtt-btn'+(t==='expense'?' active':'');
   document.getElementById('gcat-inc').className='gtt-btn'+(t==='income'?' active':'');
   renderDonutAndList();
+  renderPayBreakdown();
 }
 
 function renderGraphTab(){
-  // タブを開くたびにホームの表示月へ同期（以降のバータップはホームに影響しない）
+  // タブを開くたびにホームの表示月へ同期（以降の月◀▶・バータップはホームに影響しない）
   gSelY=UI.year; gSelM=UI.month;
+  renderGraphMonthLabel();
   renderBarChart();
   renderDonutAndList();
+  renderPayBreakdown();
+}
+
+// グラフタブの月◀▶ナビ（前月/翌月）。ホームの表示月(UI.year/month)は変えない
+function gChangeMonth(d){
+  let y=(gSelY??UI.year), m=(gSelM??UI.month)+d;
+  if(m<0){m=11;y--;} if(m>11){m=0;y++;}
+  gSelY=y;gSelM=m;
+  renderGraphMonthLabel();
+  renderBarChart();
+  renderDonutAndList();
+  renderPayBreakdown();
+}
+function renderGraphMonthLabel(){
+  const y=(gSelY??UI.year), m=(gSelM??UI.month);
+  const last=new Date(y,m+1,0).getDate();
+  const lbl=document.getElementById('graph-month-label');
+  const rng=document.getElementById('graph-month-range');
+  if(lbl)lbl.textContent=`${m+1}月`;
+  if(rng)rng.textContent=`${m+1}.1 - ${m+1}.${last}`;
+}
+// グラフタブの支払別（請求ベース）。支出のときだけ表示
+function renderPayBreakdown(){
+  const el=document.getElementById('graph-pay-breakdown');
+  const sec=document.getElementById('graph-pay-section');
+  if(!el)return;
+  if(catGraphType!=='expense'){if(sec)sec.style.display='none';el.innerHTML='';return;}
+  if(sec)sec.style.display='';
+  const {total,payItems,useItems}=payBreakdownFor(gSelY??UI.year, gSelM??UI.month);
+  el.innerHTML=(payItems.length||useItems.length)
+    ? _chartRows(payItems,total)+_chartRows(useItems,total)
+    : `<div class="empty-msg" style="padding:8px"><span>支払いデータなし</span></div>`;
 }
 
 /* ---- 月次棒グラフ ---- */
@@ -3038,11 +3075,13 @@ function renderBarChart(){
   updateBarSummary(data);
 }
 
-// 棒グラフのタップ：グラフタブ内の選択月（ドーナツ表示）だけ変更し、ホームには影響しない
+// 棒グラフのタップ：グラフタブ内の選択月（ドーナツ・支払別）だけ変更し、ホームには影響しない
 function selectBarMonth(y,m){
   gSelY=y;gSelM=m;
+  renderGraphMonthLabel();
   renderBarChart();
   renderDonutAndList();
+  renderPayBreakdown();
 }
 
 function updateBarSummary(data){
@@ -3338,6 +3377,24 @@ if(secState.pinHash){
   });
   el.addEventListener('contextmenu',e=>e.preventDefault());
   el.style.cursor='pointer';
+})();
+
+// グラフタブの費目セクションを左右スワイプで前月/翌月（ホームと同じ向き）
+(function bindGraphSwipe(){
+  const el=document.getElementById('graph-cat-section');
+  if(!el)return;
+  let sx=null, sy=null;
+  el.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1){sx=null;return;}
+    sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+  },{passive:true});
+  el.addEventListener('touchend',e=>{
+    if(sx===null)return;
+    const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+    sx=null;
+    if(Math.abs(dx)<50||Math.abs(dy)>Math.abs(dx))return;
+    gChangeMonth(dx<0?1:-1);  // 左スワイプ→翌月、右スワイプ→前月
+  });
 })();
 
 // Service Worker登録（オフライン対応・ホーム画面アプリ化）
