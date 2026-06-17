@@ -244,15 +244,6 @@ function getEXP_CATS(){
 
 // 費目アイコン：カラー丸 + SVGラインアイコン（インライン直接埋め込み）
 // 費目のカラーを取得（カスタム色 > デフォルト色）
-function catColorOf(catOrId){
-  if(typeof catOrId==='string'){
-    return CAT_ICONS[catOrId]?.color||'#8D8D8D';
-  }
-  if(catOrId?.color) return catOrId.color;
-  const id=resolveIconId(catOrId);
-  return CAT_ICONS[id]?.color||'#8D8D8D';
-}
-
 // SVGのwhiteストローク/fillをカラーに置換（ラインアートカラー化）
 function svgColored(svg, color){
   return svg
@@ -887,17 +878,6 @@ function renderMainUserList(){
 }
 
 
-// メインユーザーから特定ユーザー・帳簿に切り替え（日付指定なし）
-function switchToUserLedger(userId,ledgerId){
-  UI.isMainMode=false;
-  DB.activeUser=userId;
-  UI.activeLedger=ledgerId;
-  UI.selDay=null;UI.payFilter='all';
-  save();
-  applyTheme(activeUser().theme||DEFAULT_THEME);
-  renderAll();
-}
-
 // メインユーザーから特定ユーザー・帳簿・日付に遷移（明細タップ用）
 function switchToUserLedgerOnDate(userId,ledgerId,dateStr){
   UI.isMainMode=false;
@@ -1013,11 +993,6 @@ function payBadge(t){
   let name=k==='bank'?(u.payees.bank.find(x=>x.id===t.payeeId)||{name:m.label}).name
            :k==='card'?(u.payees.card.find(x=>x.id===t.payeeId)||{name:m.label}).name:m.label;
   return `<span class="pay-badge ${m.cls}">${m.icon} ${esc(name)}</span>`;
-}
-function delTx(id){
-  if(!confirm('この取引を削除しますか？'))return;
-  const u=findTxOwner(id);  // No.0モード対応
-  u.transactions=u.transactions.filter(t=>t.id!==id);save();renderAll();
 }
 
 // 指定月(yr,mo)の支払別内訳を請求ベースで集計。scope=[{t,usr}]の対象取引。
@@ -1274,7 +1249,6 @@ function buildAvatarPicker(){
       </div>
     </div>`;
 }
-function pickAvatar(i){UI.selAvatarIdx=0;buildAvatarPicker();}
 
 function buildThemePicker(prefix){
   const gridId=prefix+'-theme-grid';
@@ -2560,7 +2534,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.9.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.9.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2759,12 +2733,6 @@ function saveSecCfg(){
   }));
 }
 
-// --- 入力サニタイズ（XSS防止） ---
-function sanitize(str){
-  const d=document.createElement('div');
-  d.textContent=str;
-  return d.innerHTML;
-}
 
 // --- PINロック画面の表示制御 ---
 function showPinScreen(mode='unlock'){
