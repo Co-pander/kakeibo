@@ -1020,12 +1020,12 @@ function delTx(id){
   u.transactions=u.transactions.filter(t=>t.id!==id);save();renderAll();
 }
 
-// 指定月(yr,mo)の支払別内訳を請求ベースで集計。
+// 指定月(yr,mo)の支払別内訳を請求ベースで集計。scope=[{t,usr}]の対象取引。
 // 返り値: {effExp:[{t,usr}], total, payItems(通常字), useItems(カード今月利用=薄字参考)}
-function payBreakdownFor(yr,mo){
+function payBreakdownFor(yr,mo,scope){
   const mk=`${yr}-${String(mo+1).padStart(2,'0')}`;
   const effExp=[]; const cardUse={};
-  const scan=(usr,txs)=>txs.forEach(t=>{
+  (scope||scopeTxs('all')).forEach(({t,usr})=>{
     if(t.type!=='expense')return;
     if(t.payKind==='card'&&t.date.startsWith(mk)){
       const c=(usr.payees.card||[]).find(x=>x.id===t.payeeId);
@@ -1034,8 +1034,6 @@ function payBreakdownFor(yr,mo){
     }
     if(effectiveExpDate(t,usr).startsWith(mk))effExp.push({t,usr});
   });
-  if(UI.isMainMode)DB.users.forEach(u=>scan(u,u.transactions));
-  else scan(activeUser(),activeUser().transactions.filter(t=>t.ledger===UI.activeLedger));
 
   const total=effExp.reduce((s,x)=>s+x.t.amount,0);
   const payItems=[];
@@ -1068,7 +1066,7 @@ function payBreakdownFor(yr,mo){
 
 // ホームの内訳グラフ（支払別＋カテゴリ別）
 function renderChart(){
-  const {effExp,total,payItems,useItems}=payBreakdownFor(UI.year,UI.month);
+  const {effExp,total,payItems,useItems}=payBreakdownFor(UI.year,UI.month,scopeTxs('all'));
   const el=document.getElementById('chart-body');
   if(!total&&!useItems.length){el.innerHTML=`<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px">支出データなし</div>`;return;}
   const catItems=catBreakdownFromEff(effExp);
@@ -2495,21 +2493,38 @@ function _forecastCard(title, sub, fc, accent){
   </div>`;
 }
 
+const FC_PALETTE=['#5B9BD5','#FF7043','#66BB6A','#AB47BC','#26C6DA','#F5A623','#EC407A','#78909C'];
+// 1ユーザー分の予測HTML（総合＋帳簿別）
+function userForecastHTML(u){
+  let h=`<div style="font-size:12px;font-weight:700;color:var(--text-sub);margin:4px 0 8px">${esc(u.name)} の年間予測</div>`;
+  h+=_forecastCard('総合（全帳簿）', '帳簿すべての合算', _forecastFromTxs(u.transactions), 'var(--pri)');
+  u.ledgers.forEach((lg,i)=>{
+    h+=_forecastCard(lg.name, '帳簿別', _forecastFromTxs(u.transactions.filter(t=>t.ledger===lg.id)), FC_PALETTE[i%FC_PALETTE.length]);
+  });
+  return h;
+}
 function renderForecast(){
-  const u=activeUser();
   const body=document.getElementById('forecast-body');
   let html='';
-  const allFc=_forecastFromTxs(u.transactions);
-  html+=`<div style="font-size:12px;font-weight:700;color:var(--text-sub);margin:4px 0 8px">${esc(u.name)} の年間予測</div>`;
-  html+=_forecastCard('総合（全帳簿）', '帳簿すべての合算', allFc, 'var(--pri)');
-  const palette=['#5B9BD5','#FF7043','#66BB6A','#AB47BC','#26C6DA','#F5A623','#EC407A','#78909C'];
-  u.ledgers.forEach((lg,i)=>{
-    const txs=u.transactions.filter(t=>t.ledger===lg.id);
-    const fc=_forecastFromTxs(txs);
-    html+=_forecastCard(lg.name, '帳簿別', fc, palette[i%palette.length]);
-  });
+  if(UI.isMainMode&&DB.users.length>=2){
+    html+=graphUserChipsHTML('setForecastUser');
+    if(gUser!=='all'&&!DB.users.some(u=>u.id===gUser))gUser='all';
+    if(gUser==='all'){
+      const allTxs=[];DB.users.forEach(u=>allTxs.push(...u.transactions));
+      html+=`<div style="font-size:12px;font-weight:700;color:var(--text-sub);margin:4px 0 8px">全体の年間予測</div>`;
+      html+=_forecastCard('全体（全ユーザー合算）', '全ユーザー合算', _forecastFromTxs(allTxs), 'var(--pri)');
+      DB.users.forEach((u,i)=>{
+        html+=_forecastCard(u.name, 'ユーザー別', _forecastFromTxs(u.transactions), FC_PALETTE[i%FC_PALETTE.length]);
+      });
+    } else {
+      html+=userForecastHTML(DB.users.find(x=>x.id===gUser)||DB.users[0]);
+    }
+  } else {
+    html+=userForecastHTML(activeUser());
+  }
   body.innerHTML=html;
 }
+function setForecastUser(id){gUser=id;renderForecast();}
 
 function buildCatEditEmojiGrid(){
   document.getElementById('cat-edit-emoji-grid').innerHTML=ALL_ICON_IDS.map(iid=>{
@@ -2545,7 +2560,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.7.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.8.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2979,6 +2994,27 @@ function switchTab(tab){
 let barMode='both';
 let catGraphType='expense';
 let gSelY=null, gSelM=null; // グラフタブで選択中の月（ホームの表示月には影響しない）
+let gUser='all'; // No.0モードでグラフ/予測に表示するユーザー（'all'=全体合算 or ユーザーid）
+
+// グラフ/予測の対象取引 [{t,usr}] を返す。
+// 通常モード: activeUserのactiveLedger。No.0モード: userFilter('all'=全員 or userId)の全帳簿。
+function scopeTxs(userFilter){
+  if(!UI.isMainMode){
+    const u=activeUser();
+    return u.transactions.filter(t=>t.ledger===UI.activeLedger).map(t=>({t,usr:u}));
+  }
+  const users=(userFilter&&userFilter!=='all')?DB.users.filter(u=>u.id===userFilter):DB.users;
+  const out=[];
+  users.forEach(u=>u.transactions.forEach(t=>out.push({t,usr:u})));
+  return out;
+}
+// No.0モードのユーザー選択チップ（全体＋各ユーザー）。通常モードや1人のときは空
+function graphUserChipsHTML(selectFn){
+  if(!UI.isMainMode||DB.users.length<2)return '';
+  if(gUser!=='all'&&!DB.users.some(u=>u.id===gUser))gUser='all'; // 削除済みidの保険
+  const chip=(id,label)=>`<button class="guser-chip${gUser===id?' active':''}" onclick="${selectFn}('${esc(id)}')">${esc(label)}</button>`;
+  return `<div class="guser-chips">${chip('all','全体')}${DB.users.map(u=>chip(u.id,u.name)).join('')}</div>`;
+}
 
 function setBarMode(m){
   barMode=m;
@@ -2998,7 +3034,22 @@ function setCatGraphType(t){
 function renderGraphTab(){
   // タブを開くたびにホームの表示月へ同期（以降の月◀▶・バータップはホームに影響しない）
   gSelY=UI.year; gSelM=UI.month;
+  renderGraphUserChips();
   renderGraphMonthLabel();
+  renderBarChart();
+  renderDonutAndList();
+  renderPayBreakdown();
+}
+// No.0モード：グラフタブのユーザー選択チップ
+function renderGraphUserChips(){
+  const el=document.getElementById('graph-user-chips');
+  if(!el)return;
+  el.innerHTML=graphUserChipsHTML('setGraphUser');
+  el.style.display=(UI.isMainMode&&DB.users.length>=2)?'block':'none';
+}
+function setGraphUser(id){
+  gUser=id;
+  renderGraphUserChips();
   renderBarChart();
   renderDonutAndList();
   renderPayBreakdown();
@@ -3029,7 +3080,7 @@ function renderPayBreakdown(){
   if(!el)return;
   if(catGraphType!=='expense'){if(sec)sec.style.display='none';el.innerHTML='';return;}
   if(sec)sec.style.display='';
-  const {total,payItems,useItems}=payBreakdownFor(gSelY??UI.year, gSelM??UI.month);
+  const {total,payItems,useItems}=payBreakdownFor(gSelY??UI.year, gSelM??UI.month, scopeTxs(gUser));
   el.innerHTML=(payItems.length||useItems.length)
     ? _chartRows(payItems,total)+_chartRows(useItems,total)
     : `<div class="empty-msg" style="padding:8px"><span>支払いデータなし</span></div>`;
@@ -3037,18 +3088,17 @@ function renderPayBreakdown(){
 
 /* ---- 月次棒グラフ ---- */
 function renderBarChart(){
-  const u=activeUser();
   const yr=(gSelY??UI.year);
   const now=new Date();
+  const scope=scopeTxs(gUser);
   // 表示年の1月〜12月（請求ベース：収入=取引日、支出=effectiveExpDate）
   const data=[];
   for(let m=0;m<12;m++){
     const mk=`${yr}-${String(m+1).padStart(2,'0')}`;
     let inc=0,exp=0;
-    u.transactions.forEach(t=>{
-      if(t.ledger!==UI.activeLedger)return;
+    scope.forEach(({t,usr})=>{
       if(t.type==='income'){if(t.date.startsWith(mk))inc+=t.amount;}
-      else if(effectiveExpDate(t,u).startsWith(mk))exp+=t.amount;
+      else if(effectiveExpDate(t,usr).startsWith(mk))exp+=t.amount;
     });
     data.push({y:yr,m,inc,exp,label:`${m+1}`});
   }
@@ -3098,14 +3148,13 @@ function updateBarSummary(data){
 const DONUT_COLORS=['#2EBD8F','#3B82C4','#E07B2E','#AB47BC','#EF5350','#26C6DA','#F5A623','#66BB6A','#EC407A','#78909C'];
 
 function renderDonutAndList(){
-  const u=activeUser();
   const yy=(gSelY??UI.year), mm=(gSelM??UI.month);
   const mk=`${yy}-${String(mm+1).padStart(2,'0')}`;
   // 請求ベース：支出はeffectiveExpDate（カードは請求月）、収入は取引日で選択月分を抽出
-  const txs=u.transactions.filter(t=>{
-    if(t.ledger!==UI.activeLedger||t.type!==catGraphType)return false;
-    return catGraphType==='income'?t.date.startsWith(mk):effectiveExpDate(t,u).startsWith(mk);
-  });
+  const txs=scopeTxs(gUser).filter(({t,usr})=>{
+    if(t.type!==catGraphType)return false;
+    return catGraphType==='income'?t.date.startsWith(mk):effectiveExpDate(t,usr).startsWith(mk);
+  }).map(x=>x.t);
 
   const total=txs.reduce((s,t)=>s+t.amount,0);
   document.getElementById('donut-total').textContent=fmt(total);

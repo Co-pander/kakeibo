@@ -114,6 +114,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .graph-section{margin:10px 12px 0;background:var(--bg-card);border-radius:var(--r12);border:1px solid var(--border-l);overflow:hidden}
 .graph-section-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px}
 .graph-section-title{font-size:13px;font-weight:700;color:var(--text-sub)}
+/* No.0モード：グラフ/予測のユーザー選択チップ */
+.guser-chips{display:flex;gap:6px;overflow-x:auto;padding:10px 12px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.guser-chips::-webkit-scrollbar{display:none}
+.guser-chip{flex:none;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text-sub);font-family:var(--font);white-space:nowrap;transition:all 0.12s}
+.guser-chip.active{background:var(--pri);color:#fff;border-color:var(--pri)}
 /* グラフタブ：月◀▶ナビ */
 .graph-month-nav{display:flex;align-items:center;gap:4px;padding:8px 12px 6px}
 .graph-month-center{display:flex;flex-direction:column;align-items:center;line-height:1.15;min-width:58px}
