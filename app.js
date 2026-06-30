@@ -1850,12 +1850,21 @@ function doExportCSV(){
   const csv = bom + rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
 
-  // showSaveFilePicker 対応ブラウザはファイル保存先を選択させる
-  const d = new Date();
-  const fname = `家計簿_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.csv`;
+  // ファイル名に帳簿名＋日時を入れ、保存のたびに一意にする（上書き・重複ダイアログ防止）
+  const ledgerNames = u.ledgers.filter(l=>targetLedgerIds.includes(l.id)).map(l=>l.name);
+  const ledgerPart = ledgerNames.length===1 ? safeName(ledgerNames[0]) : `${ledgerNames.length}帳簿`;
+  const fname = `家計簿_${ledgerPart}_${nowStamp()}.csv`;
 
   saveFile(blob, fname, 'CSVファイル', {'text/csv':['.csv']}, `✅ ${allTx.length}件をエクスポートしました`);
 }
+
+// ファイル名用：YYYYMMDD_HHMMSS（保存のたびに一意になり上書き・重複ダイアログを防ぐ）
+function nowStamp(){
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+// ファイル名に使えない文字を除去
+function safeName(s){return String(s).replace(/[\\/:*?"<>|\n\r]/g,'_').trim().slice(0,30);}
 
 // ファイル保存ヘルパー：保存先選択API(showSaveFilePicker)を試し、未対応・失敗時は通常ダウンロードにフォールバック
 function downloadBlob(blob, fname){
@@ -1882,8 +1891,7 @@ function saveFile(blob, fname, desc, accept, doneMsg){
 function exportBackup(){
   const backup={app:'kakeibo', type:'full-backup', version:APP_VERSION, exportedAt:new Date().toISOString(), DB};
   const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
-  const d=new Date();
-  const fname=`家計簿バックアップ_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  const fname=`家計簿バックアップ_${nowStamp()}.json`;
   saveFile(blob, fname, 'バックアップファイル', {'application/json':['.json']}, '✅ バックアップを保存しました');
 }
 function importBackup(ev){
@@ -2566,7 +2574,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.10.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.10.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
