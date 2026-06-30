@@ -1854,46 +1854,37 @@ function doExportCSV(){
   const d = new Date();
   const fname = `家計簿_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.csv`;
 
+  saveFile(blob, fname, 'CSVファイル', {'text/csv':['.csv']}, `✅ ${allTx.length}件をエクスポートしました`);
+}
+
+// ファイル保存ヘルパー：保存先選択API(showSaveFilePicker)を試し、未対応・失敗時は通常ダウンロードにフォールバック
+function downloadBlob(blob, fname){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+function saveFile(blob, fname, desc, accept, doneMsg){
   if(window.showSaveFilePicker){
-    window.showSaveFilePicker({
-      suggestedName: fname,
-      types:[{description:'CSVファイル',accept:{'text/csv':['.csv']}}]
-    }).then(async fh=>{
-      const ws = await fh.createWritable();
-      await ws.write(blob);
-      await ws.close();
-      alert(`✅ ${allTx.length}件をエクスポートしました`);
-    }).catch(err=>{
-      if(err.name!=='AbortError') alert('エクスポートエラー: '+err.message);
-    });
-  } else {
-    // フォールバック：通常のダウンロード
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = fname;
-    a.click();
-    URL.revokeObjectURL(url);
-    alert(`✅ ${allTx.length}件をエクスポートしました`);
+    window.showSaveFilePicker({suggestedName:fname, types:[{description:desc, accept}]})
+      .then(async fh=>{const ws=await fh.createWritable(); await ws.write(blob); await ws.close(); if(doneMsg)alert(doneMsg);})
+      .catch(err=>{
+        if(err&&err.name==='AbortError')return;     // ユーザーがキャンセルしただけ
+        downloadBlob(blob, fname); if(doneMsg)alert(doneMsg);  // 非対応・内部エラー時は通常DLへ
+      });
+  }else{
+    downloadBlob(blob, fname); if(doneMsg)alert(doneMsg);
   }
 }
 
 // ===== まるごとバックアップ（全データをJSONで保存／復元） =====
 function exportBackup(){
   const backup={app:'kakeibo', type:'full-backup', version:APP_VERSION, exportedAt:new Date().toISOString(), DB};
-  const json=JSON.stringify(backup);
-  const blob=new Blob([json],{type:'application/json'});
+  const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
   const d=new Date();
   const fname=`家計簿バックアップ_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
-  if(window.showSaveFilePicker){
-    window.showSaveFilePicker({suggestedName:fname,types:[{description:'バックアップファイル',accept:{'application/json':['.json']}}]})
-      .then(async fh=>{const ws=await fh.createWritable();await ws.write(blob);await ws.close();alert('✅ バックアップを保存しました');})
-      .catch(err=>{if(err.name!=='AbortError')alert('保存エラー: '+err.message);});
-  }else{
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=fname;a.click();
-    URL.revokeObjectURL(url);
-    alert('✅ バックアップを保存しました');
-  }
+  saveFile(blob, fname, 'バックアップファイル', {'application/json':['.json']}, '✅ バックアップを保存しました');
 }
 function importBackup(ev){
   const file=ev.target.files[0];if(!file)return;
@@ -2575,7 +2566,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.10.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.10.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
