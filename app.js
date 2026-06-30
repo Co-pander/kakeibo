@@ -1877,6 +1877,47 @@ function doExportCSV(){
   }
 }
 
+// ===== まるごとバックアップ（全データをJSONで保存／復元） =====
+function exportBackup(){
+  const backup={app:'kakeibo', type:'full-backup', version:APP_VERSION, exportedAt:new Date().toISOString(), DB};
+  const json=JSON.stringify(backup);
+  const blob=new Blob([json],{type:'application/json'});
+  const d=new Date();
+  const fname=`家計簿バックアップ_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  if(window.showSaveFilePicker){
+    window.showSaveFilePicker({suggestedName:fname,types:[{description:'バックアップファイル',accept:{'application/json':['.json']}}]})
+      .then(async fh=>{const ws=await fh.createWritable();await ws.write(blob);await ws.close();alert('✅ バックアップを保存しました');})
+      .catch(err=>{if(err.name!=='AbortError')alert('保存エラー: '+err.message);});
+  }else{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=fname;a.click();
+    URL.revokeObjectURL(url);
+    alert('✅ バックアップを保存しました');
+  }
+}
+function importBackup(ev){
+  const file=ev.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const obj=JSON.parse(e.target.result);
+      const db=obj&&obj.DB;
+      if(!db||!Array.isArray(db.users)||!db.users.length){
+        alert('バックアップファイルの形式が正しくありません');ev.target.value='';return;
+      }
+      const userCount=db.users.length;
+      const txCount=db.users.reduce((s,u)=>s+((u.transactions||[]).length),0);
+      if(!confirm(`このバックアップ（ユーザー${userCount}人 / 取引${txCount}件）で現在のデータを上書き復元します。\n今の端末のデータは置き換わります。よろしいですか？`)){ev.target.value='';return;}
+      // localStorageへ書いてリロード → load()のマイグレーションを通して安全に初期化
+      const cur=new Date();
+      localStorage.setItem('kb-v5',JSON.stringify({DB:db,UIyear:cur.getFullYear(),UImonth:cur.getMonth(),activeUser:db.users[0].id}));
+      alert('✅ 復元しました。画面を更新します。');
+      location.reload();
+    }catch(err){alert('読み込みエラー：'+err.message);ev.target.value='';}
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
 function importCSV(ev){
   const file=ev.target.files[0];if(!file)return;
   const reader=new FileReader();
@@ -2534,7 +2575,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.9.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.10.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){

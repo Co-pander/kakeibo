@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.9.2">
+<link rel="stylesheet" href="style.css?v=3.10.0">
 <title>家計簿</title>
 </head>
 <body>
@@ -666,6 +666,14 @@
       <button class="sheet-close" onclick="closeSettings()">✕</button>
     </div>
     <div class="mgr-section">
+      <div class="mgr-stitle">💾 まるごとバックアップ・復元</div>
+      <p class="csv-note" style="margin-top:0;margin-bottom:10px">全ユーザー・帳簿・費目・支払い先・取引を1ファイルに保存します。機種変更や端末移行はこちらが確実です（設定もそのまま復元）。</p>
+      <button class="submit-btn" style="margin-top:0;font-size:14px" onclick="exportBackup()">💾 バックアップを保存（JSON）</button>
+      <button class="csv-btn" onclick="document.getElementById('backup-import').click()" style="width:100%;margin-top:8px">📥 バックアップから復元（上書き）</button>
+      <input type="file" id="backup-import" accept=".json,application/json" class="hidden" onchange="importBackup(event)">
+      <p class="csv-note" style="margin-top:8px">※復元すると今の端末のデータは置き換わります。先に「バックアップを保存」しておくと安心です。</p>
+    </div>
+    <div class="mgr-section">
       <div class="mgr-stitle">📤 CSVエクスポート</div>
       <div class="field-lbl" style="margin-bottom:8px">出力する帳簿を選択</div>
       <div id="export-ledger-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
@@ -781,6 +789,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.9.2"></script>
+<script src="app.js?v=3.10.0"></script>
 </body>
 </html>
