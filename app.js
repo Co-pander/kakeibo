@@ -1070,7 +1070,7 @@ function catBreakdownFromEff(effExp){
   });
   return Object.values(map).sort((a,b)=>b.amt-a.amt).slice(0,8).map(v=>{
     const ic=CAT_ICONS[v.iid]||CAT_ICONS['other'];
-    return {iconId:v.iid,label:v.n,amt:v.amt,color:ic.color,svg:ic.svg,emoji:ic.emoji||'💰'};
+    return {iconId:v.iid,label:v.n,amt:v.amt,color:catColorOf(v.n,v.iid),svg:ic.svg,emoji:ic.emoji||'💰'};
   });
 }
 function _chartRows(items,total){
@@ -2611,7 +2611,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.11.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.11.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3242,6 +3242,21 @@ function updateBarSummary(data){
 /* ---- ドーナツ＋費目別リスト ---- */
 const DONUT_COLORS=['#2EBD8F','#3B82C4','#E07B2E','#AB47BC','#EF5350','#26C6DA','#F5A623','#66BB6A','#EC407A','#78909C'];
 
+// 費目名から表示色を解決：帳簿のカスタム費目色 > アイコン標準色
+// （費目管理でカラーを変えると、ドーナツ・棒グラフ・アイコンが全て連動する）
+function catColorOf(name, iid){
+  const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
+  const users=UI.isMainMode?DB.users:[activeUser()];
+  for(const u of users)for(const l of (u.ledgers||[])){
+    const cc=l.customCats;if(!cc)continue;
+    for(const arr of [cc.expense||[],cc.income||[]]){
+      const c=arr.find(x=>x.n===name);
+      if(c)return c.color||ic.color;
+    }
+  }
+  return ic.color;
+}
+
 function renderDonutAndList(){
   const yy=(gSelY??UI.year), mm=(gSelM??UI.month);
   const mk=`${yy}-${String(mm+1).padStart(2,'0')}`;
@@ -3265,6 +3280,7 @@ function renderDonutAndList(){
     map[key].amt+=t.amount;
   });
   const items=Object.values(map).sort((a,b)=>b.amt-a.amt).slice(0,8);
+  items.forEach(v=>{v.color=catColorOf(v.name,v.iid);});  // カスタム費目色を反映
 
   // ドーナツ SVG
   renderDonut(items, total);
@@ -3273,7 +3289,7 @@ function renderDonutAndList(){
   const leg=document.getElementById('donut-legend');
   leg.innerHTML=items.slice(0,6).map((v,i)=>`
     <div class="legend-row">
-      <div class="legend-dot" style="background:${DONUT_COLORS[i%DONUT_COLORS.length]}"></div>
+      <div class="legend-dot" style="background:${v.color||DONUT_COLORS[i%DONUT_COLORS.length]}"></div>
       <span class="legend-name">${esc(v.name)}</span>
       <span class="legend-pct">${total?Math.round(v.amt/total*100):0}%</span>
     </div>`).join('');
@@ -3283,12 +3299,12 @@ function renderDonutAndList(){
   if(!items.length){list.innerHTML=`<div class="empty-msg" style="padding:12px">データなし</div>`;return;}
   list.innerHTML=items.map((v,i)=>`
     <div class="cat-sum-item" onclick="openCatDetail('${escAttr(escJs(v.name))}')" style="cursor:pointer">
-      <div style="width:32px;height:32px;border-radius:9px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
-        <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(v.svg||'',v.color)}</svg>
+      <div style="width:40px;height:40px;border-radius:11px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
+        <svg viewBox="-2 -2 28 28" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(v.svg||'',v.color)}</svg>
       </div>
       <div style="flex:1;min-width:0">
         <div class="cat-sum-name">${esc(v.name)}</div>
-        <div class="cat-sum-bar-bg"><div class="cat-sum-bar" style="width:${total?Math.round(v.amt/total*100):0}%;background:${DONUT_COLORS[i%DONUT_COLORS.length]}"></div></div>
+        <div class="cat-sum-bar-bg"><div class="cat-sum-bar" style="width:${total?Math.round(v.amt/total*100):0}%;background:${v.color||DONUT_COLORS[i%DONUT_COLORS.length]}"></div></div>
       </div>
       <div class="cat-sum-right">
         <div class="cat-sum-amt" style="color:${catGraphType==='expense'?'var(--red)':'var(--pri)'}">${fmt(v.amt)}</div>
@@ -3298,12 +3314,12 @@ function renderDonutAndList(){
     </div>`).join('');
 }
 
-/* ---- 費目タップ→明細（カレンダー＋一覧、タップで編集） ---- */
+/* ---- 費目タップ→明細（月別棒グラフ＋一覧、棒タップで月切替・明細タップで編集） ---- */
 let catDetailName=null;
+let cdSelY=null, cdSelM=null;   // モーダル内で選択中の月（棒グラフのタップで変わる）
 
-// グラフの費目別集計と同じ条件（選択月・スコープ・請求月ベース）で、指定費目の取引を抽出
-function catDetailTxs(){
-  const yy=(gSelY??UI.year), mm=(gSelM??UI.month);
+// グラフの費目別集計と同じ条件（スコープ・請求月ベース）で、指定費目の指定月の取引を抽出
+function catDetailTxs(yy,mm){
   const mk=`${yy}-${String(mm+1).padStart(2,'0')}`;
   return graphScope().filter(({t,usr})=>{
     if(t.type!==catGraphType)return false;
@@ -3313,12 +3329,28 @@ function catDetailTxs(){
   });
 }
 
+// 棒グラフの表示ウィンドウ（6ヶ月）：今日を含む直近6ヶ月に選択月が入っていればそれ、外れていれば選択月を右端に
+function cdWindow(){
+  const now=new Date();
+  const idx=(y,m)=>y*12+m;
+  let ey=now.getFullYear(), em=now.getMonth();
+  if(idx(cdSelY,cdSelM)>idx(ey,em)||idx(cdSelY,cdSelM)<idx(ey,em)-5){ey=cdSelY;em=cdSelM;}
+  const arr=[];
+  for(let i=5;i>=0;i--){const d=new Date(ey,em-i,1);arr.push({y:d.getFullYear(),m:d.getMonth()});}
+  return arr;
+}
+
 function openCatDetail(name){
   catDetailName=name;
+  cdSelY=(gSelY??UI.year); cdSelM=(gSelM??UI.month);
   renderCatDetail();
   document.getElementById('cat-detail-overlay').classList.remove('hidden');
   const sheet=document.querySelector('#cat-detail-overlay .sheet');
   if(sheet)sheet.scrollTop=0;
+}
+function cdSelectMonth(y,m){
+  cdSelY=y; cdSelM=m;
+  renderCatDetail();
 }
 function closeCatDetail(){
   document.getElementById('cat-detail-overlay').classList.add('hidden');
@@ -3337,55 +3369,70 @@ function refreshCatDetailIfOpen(){
 
 function renderCatDetail(){
   if(catDetailName===null)return;
-  const yy=(gSelY??UI.year), mm=(gSelM??UI.month);
-  const pairs=catDetailTxs();
+  // 月別合計（6ヶ月分）と選択月の取引
+  const months=cdWindow();
+  const monthData=months.map(({y,m})=>{
+    const p=catDetailTxs(y,m);
+    return {y,m,pairs:p,total:p.reduce((s,x)=>s+x.t.amount,0)};
+  });
+  const cur=monthData.find(d=>d.y===cdSelY&&d.m===cdSelM)||monthData[monthData.length-1];
+  const pairs=cur.pairs;
   const txs=pairs.map(x=>x.t);
-  const total=txs.reduce((s,t)=>s+t.amount,0);
+  const total=cur.total;
 
   // ヘッダ（アイコン＋費目名／対象月・件数／合計）
-  const iid=txs.length?(txs[0].iconId||resolveIconId({id:txs[0].iconId,e:txs[0].emoji})||'other'):'other';
+  const anyTx=monthData.flatMap(d=>d.pairs)[0]?.t;
+  const iid=anyTx?(anyTx.iconId||resolveIconId({id:anyTx.iconId,e:anyTx.emoji})||'other'):'other';
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
+  const catColor=catColorOf(catDetailName,iid);   // 費目色（カスタム色優先）でグラフ・アイコンを統一
   document.getElementById('cd-title').innerHTML=
     `<span style="display:inline-flex;align-items:center;gap:8px">
-      <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
+      <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,catColor)}</svg>
       ${esc(catDetailName)}
     </span>`;
-  document.getElementById('cd-sub').textContent=`${yy}年${mm+1}月・${txs.length}件`;
+  document.getElementById('cd-sub').textContent=`${cdSelY}年${cdSelM+1}月・${txs.length}件`;
   const totalEl=document.getElementById('cd-total');
   totalEl.textContent=fmt(total);
   totalEl.style.color=catGraphType==='expense'?'var(--red)':'var(--pri)';
 
-  // 発生日（支出のカードは請求日）ごとに集計・グループ化
-  const dayTotals={}, byDate={};
+  // 月別棒グラフ（タップで月切替）
+  const max=Math.max(...monthData.map(d=>d.total),1);
+  const BARMAX=88;
+  document.getElementById('cd-bars').innerHTML='<div class="cd-bars">'+monthData.map(d=>{
+    const h=d.total?Math.max(4,Math.round(d.total/max*BARMAX)):0;
+    const sel=d.y===cdSelY&&d.m===cdSelM;
+    const lbl=(d.m===0||d===monthData[0])?`${d.y}年${d.m+1}月`:`${d.m+1}月`;
+    return `<div class="cd-bar-col${sel?' sel':''}" onclick="cdSelectMonth(${d.y},${d.m})">
+      <span class="cd-bar-amt">${d.total?fmtN(d.total):''}</span>
+      <div class="cd-bar" style="height:${h}px;background:${catColor};opacity:${sel?1:0.45}"></div>
+      <span class="cd-bar-lbl">${lbl}</span>
+    </div>`;
+  }).join('')+'</div>';
+
+  // 発生日（支出のカードは請求日）ごとにグループ化
+  const byDate={};
   pairs.forEach(({t,usr})=>{
     const d=catGraphType==='income'?t.date:effectiveExpDate(t,usr);
-    const day=parseInt(d.slice(8),10);
-    dayTotals[day]=(dayTotals[day]||0)+t.amount;
     (byDate[d]=byDate[d]||[]).push({t,usr});
   });
-
-  // ミニカレンダー
-  const first=new Date(yy,mm,1).getDay();
-  const dim=new Date(yy,mm+1,0).getDate();
-  let cal='<div class="cd-cal">'+['日','月','火','水','木','金','土'].map(w=>`<div class="cd-wd">${w}</div>`).join('');
-  for(let i=0;i<first;i++)cal+='<div></div>';
-  for(let d=1;d<=dim;d++){
-    cal+=`<div class="cd-day${dayTotals[d]?' has':''}"><span class="cd-dnum">${d}</span>${dayTotals[d]?`<span class="cd-amt">${fmtN(dayTotals[d])}</span>`:''}</div>`;
-  }
-  document.getElementById('cd-cal').innerHTML=cal+'</div>';
 
   // 明細リスト（タップで編集）
   const listEl=document.getElementById('cd-list');
   const dates=Object.keys(byDate).sort();
   if(!dates.length){listEl.innerHTML=`<div class="empty-msg" style="padding:16px">この月の明細はありません</div>`;return;}
   const WD=['日','月','火','水','木','金','土'];
+  const sign=catGraphType==='expense'?'-':'+';
   listEl.innerHTML=dates.map(d=>{
     const dt=new Date(d);
-    const head=`<div class="cd-date-head">${dt.getMonth()+1}月${dt.getDate()}日（${WD[dt.getDay()]}）</div>`;
+    const daySum=byDate[d].reduce((s,x)=>s+x.t.amount,0);
+    const head=`<div class="cd-date-head"><span>${dt.getMonth()+1}月${dt.getDate()}日（${WD[dt.getDay()]}）</span><span class="cd-dh-amt">${sign}${fmt(daySum)}</span></div>`;
     const rows=byDate[d].map(({t,usr})=>{
       const k=t.payKind||'cash';
       const isCardShift=t.date!==d;   // カード請求で購入日と発生日がズレている
       return `<div class="cd-row" onclick="openTxEdit('${t.id}')">
+        <div style="width:30px;height:30px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
+          <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,catColor)}</svg>
+        </div>
         <div style="flex:1;min-width:0">
           <div class="cd-row-memo">${esc(t.memo||t.emojiName||'')}</div>
           <div class="cd-row-sub">${PAY_META[k]?.label||k}${isCardShift?`・購入 ${parseInt(t.date.slice(5,7))}/${parseInt(t.date.slice(8))}`:''}${UI.isMainMode?`・${esc(usr.name)}`:''}</div>
@@ -3407,13 +3454,15 @@ function renderDonut(items, total){
     return;
   }
   let offset=0;
+  const SLICE_GAP=items.length>1?1.6:0;   // スライス間の白い区切り（隣接費目が似た色でも見分けられる）
   const slices=items.map((v,i)=>{
     const pct=v.amt/total;
-    const dash=pct*circ;
+    const dash=Math.max(pct*circ-SLICE_GAP,0.5);
     const gap=circ-dash;
     const rot=offset*360-90;
     offset+=pct;
-    const color=DONUT_COLORS[i%DONUT_COLORS.length];
+    // スライスは費目と同じ色（凡例・リスト・アイコンと対応が分かるように）
+    const color=v.color||DONUT_COLORS[i%DONUT_COLORS.length];
     return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}"
       stroke-width="${r-ir}" stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}"
       transform="rotate(${rot.toFixed(2)} ${cx} ${cy})" style="transition:all 0.4s"/>`;

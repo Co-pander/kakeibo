@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.11.0">
+<link rel="stylesheet" href="style.css?v=3.11.1">
 <title>家計簿</title>
 </head>
 <body>
@@ -203,10 +203,10 @@
         <!-- ドーナツグラフ -->
         <div class="donut-wrap">
           <div style="position:relative;flex:none">
-            <svg id="donut-svg" width="110" height="110" viewBox="0 0 110 110"></svg>
+            <svg id="donut-svg" width="150" height="150" viewBox="0 0 110 110"></svg>
             <div class="donut-center" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
-              <div style="font-size:9px;color:var(--text-hint)" id="donut-lbl">合計</div>
-              <div style="font-size:12px;font-weight:700" id="donut-total">¥0</div>
+              <div style="font-size:10px;color:var(--text-hint)" id="donut-lbl">合計</div>
+              <div style="font-size:15px;font-weight:800;font-family:var(--font-num)" id="donut-total">¥0</div>
             </div>
           </div>
           <div class="donut-legend" id="donut-legend"></div>
@@ -531,7 +531,7 @@
       <span id="cd-sub" style="font-size:12px;color:var(--text-sub)"></span>
       <span id="cd-total" style="font-size:18px;font-weight:800"></span>
     </div>
-    <div id="cd-cal" style="padding:4px 12px 0"></div>
+    <div id="cd-bars" style="padding:4px 12px 0"></div>
     <div id="cd-list" style="padding:6px 12px 0"></div>
     <p class="csv-note" style="padding:8px 16px 0;margin:0">明細をタップすると編集できます</p>
   </div>
@@ -816,6 +816,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.11.0"></script>
+<script src="app.js?v=3.11.1"></script>
 </body>
 </html>

@@ -152,13 +152,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 /* 費目別リスト */
 .cat-sum-list{padding:0 14px 14px}
-.cat-sum-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-l)}
-.cat-sum-name{font-size:13px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-sum-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-l)}
+.cat-sum-name{font-size:14px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cat-sum-bar-bg{height:4px;background:var(--bg);border-radius:2px;margin-top:3px;overflow:hidden}
 .cat-sum-bar{height:100%;border-radius:2px;transition:width 0.5s}
 .cat-sum-right{text-align:right;min-width:60px}
-.cat-sum-amt{font-size:13px;font-weight:700;color:var(--red)}
-.cat-sum-pct{font-size:10px;color:var(--text-hint)}
+.cat-sum-amt{font-size:15px;font-weight:700;color:var(--red);font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.cat-sum-pct{font-size:11px;color:var(--text-hint)}
 
 /* ===== TOPBAR ===== */
 .topbar{background:var(--pri);padding:calc(var(--safe-top) + 10px) 14px 10px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:50;transition:background 0.3s}
@@ -451,14 +451,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 /* ===== 費目別明細モーダル（グラフの費目タップ） ===== */
 .cd-chev{font-size:16px;color:var(--text-hint);flex:none;margin-left:2px}
-.cd-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.cd-wd{font-size:10px;color:var(--text-hint);text-align:center;padding:2px 0}
-.cd-day{min-height:34px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
-.cd-day .cd-dnum{font-size:11px;color:var(--text-hint)}
-.cd-day.has{background:var(--pri-l)}
-.cd-day.has .cd-dnum{color:var(--text);font-weight:700}
-.cd-amt{font-size:9px;font-weight:700;color:var(--text-sub);font-family:var(--font-num);font-variant-numeric:tabular-nums;max-width:100%;overflow:hidden}
-.cd-date-head{font-size:11px;font-weight:700;color:var(--text-sub);padding:10px 2px 4px;border-bottom:1px solid var(--border-l)}
+/* 月別棒グラフ（タップで月切替） */
+.cd-bars{display:flex;align-items:flex-end;gap:6px;height:136px;padding:4px 2px 0}
+.cd-bar-col{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;cursor:pointer;border-radius:8px}
+.cd-bar-col:active{background:var(--bg)}
+.cd-bar-amt{font-size:9px;font-weight:700;color:var(--text-hint);font-family:var(--font-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cd-bar-col.sel .cd-bar-amt{color:var(--text)}
+.cd-bar{width:68%;max-width:34px;border-radius:4px 4px 0 0;transition:height 0.3s,opacity 0.2s}
+.cd-bar-lbl{font-size:9px;color:var(--text-hint);white-space:nowrap}
+.cd-bar-col.sel .cd-bar-lbl{color:var(--text);font-weight:700}
+.cd-date-head{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;color:var(--text-sub);padding:10px 2px 4px;border-bottom:1px solid var(--border-l)}
+.cd-dh-amt{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .cd-row{display:flex;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px solid var(--border-l);cursor:pointer}
 .cd-row:active{background:var(--bg)}
 .cd-row-memo{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
