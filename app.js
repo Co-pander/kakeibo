@@ -314,7 +314,7 @@ function load(){
   let _raw=null;
   try{
     _raw=localStorage.getItem('kb-v5');
-    if(_raw){const p=JSON.parse(_raw);DB=p.DB||DB;UI.year=p.UIyear||UI.year;UI.month=p.UImonth||UI.month;UI.activeUser=p.activeUser||DB.activeUser||'u1';DB.activeUser=UI.activeUser||DB.users[0].id;}
+    if(_raw){const p=JSON.parse(_raw);DB=p.DB||DB;UI.year=p.UIyear||UI.year;UI.month=p.UImonth||UI.month;DB.activeUser=p.activeUser||DB.activeUser||DB.users[0].id;}
   }catch(e){
     // 破損データを退避してから初期状態で続行（次のsave()で上書き消失するのを防ぐ）
     try{if(_raw)localStorage.setItem('kb-v5-broken',_raw);}catch(_){}
@@ -336,6 +336,14 @@ function load(){
     }
     if(u.avatar&&!USER_AVATARS.find(a=>a.id===u.avatar))u.avatar='person';
     if(u.isMain){DB.mainUser.enabled=true;delete u.isMain;}
+    // migration: CSVインポート等でアイコンを失った取引を費目名から復元
+    u.transactions.forEach(t=>{
+      if(t.iconId)return;
+      const led=u.ledgers.find(l=>l.id===t.ledger);
+      const cats=led?.customCats?.[t.type]||(t.type==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS);
+      const cat=cats.find(c=>c.n===t.emojiName);
+      t.iconId=cat?resolveIconId(cat):resolveIconId({id:t.iconId,e:t.emoji})||'other';
+    });
   });
   const u=activeUser();
   if(!u||!u.ledgers)return;
@@ -1052,15 +1060,17 @@ function renderChart(){
 }
 // effExpからカテゴリ別アイテムを生成
 function catBreakdownFromEff(effExp){
+  // 費目名で集計する（アイコンIDは複数費目で共用できるため、IDで括ると別費目が合算される）
   const map={};
   effExp.forEach(({t})=>{
     const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
-    map[iid]=map[iid]||{n:t.emojiName||t.memo||iid,amt:0};
-    map[iid].amt+=t.amount;
+    const key=t.emojiName||iid;
+    map[key]=map[key]||{n:t.emojiName||t.memo||iid,iid,amt:0};
+    map[key].amt+=t.amount;
   });
-  return Object.entries(map).sort((a,b)=>b[1].amt-a[1].amt).slice(0,8).map(([iid,v])=>{
-    const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
-    return {iconId:iid,label:v.n,amt:v.amt,color:ic.color,svg:ic.svg,emoji:ic.emoji||'💰'};
+  return Object.values(map).sort((a,b)=>b.amt-a.amt).slice(0,8).map(v=>{
+    const ic=CAT_ICONS[v.iid]||CAT_ICONS['other'];
+    return {iconId:v.iid,label:v.n,amt:v.amt,color:ic.color,svg:ic.svg,emoji:ic.emoji||'💰'};
   });
 }
 function _chartRows(items,total){
@@ -1392,7 +1402,8 @@ function buildCatGrid(gridId,type,selIconId,selName,pickFn){
     const iid=resolveIconId(c);
     const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
     const color=c.color||ic.color;
-    const isSel=iid===selIconId;
+    // 費目の同一判定は「名前」で行う（アイコンは複数費目で共用できるため、IDだけだと同時選択になる）
+    const isSel=selName?c.n===selName:iid===selIconId;
     return `<button class="cat-btn${isSel?' sel':''}" onclick="${pickFn}('${iid}','${escAttr(escJs(c.n))}',this)" style="${isSel?'border-color:'+color:''}">
       <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1px solid ${isSel?'transparent':'var(--border-l)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
         <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
@@ -1742,12 +1753,6 @@ function deleteCardFromEdit(){
   save();renderPayUI();renderAll();
 }
 
-/* ---- 旧delPayee は不使用になるが後方互換で残す ---- */
-function delPayee(k,id){
-  if(k==='bank')openBankEdit(id);
-  else openCardEdit(id);
-}
-
 /* =========================================================
    設定 / CSV
 /* =========================================================
@@ -1823,20 +1828,16 @@ function doExportCSV(){
   }
 
   const allTx = [];
-  DB.users.forEach(usr=>{
-    usr.transactions.forEach(t=>{
-      // 現在ユーザーかつ選択帳簿のみ
-      if(usr.id !== DB.activeUser) return;
-      if(!targetLedgerIds.includes(t.ledger)) return;
-      const l = usr.ledgers.find(x=>x.id===t.ledger)?.name||'';
-      const k = t.payKind||'cash';
-      const pLabel = PAY_META[k]?.label||k;
-      let pName = '';
-      if(k==='bank') pName = usr.payees.bank.find(p=>p.id===t.payeeId)?.name||'';
-      if(k==='card') pName = usr.payees.card.find(p=>p.id===t.payeeId)?.name||'';
-      allTx.push([t.date, t.type==='income'?'収入':'支出', t.amount,
-        t.emojiName||t.emoji, t.memo, pLabel, pName, l, usr.name]);
-    });
+  u.transactions.forEach(t=>{
+    if(!targetLedgerIds.includes(t.ledger)) return;
+    const l = u.ledgers.find(x=>x.id===t.ledger)?.name||'';
+    const k = t.payKind||'cash';
+    const pLabel = PAY_META[k]?.label||k;
+    let pName = '';
+    if(k==='bank') pName = u.payees.bank.find(p=>p.id===t.payeeId)?.name||'';
+    if(k==='card') pName = u.payees.card.find(p=>p.id===t.payeeId)?.name||'';
+    allTx.push([t.date, t.type==='income'?'収入':'支出', t.amount,
+      t.emojiName||t.emoji, t.memo, pLabel, pName, l, u.name]);
   });
 
   if(!allTx.length){
@@ -1887,34 +1888,68 @@ function saveFile(blob, fname, desc, accept, doneMsg){
   }
 }
 
-// ===== まるごとバックアップ（全データをJSONで保存／復元） =====
+// ===== バックアップ（JSONで保存／復元） =====
+// 全体バックアップ（No.0＝管理者用）：登録ユーザー・帳簿すべてを1ファイルに保存
 function exportBackup(){
   const backup={app:'kakeibo', type:'full-backup', version:APP_VERSION, exportedAt:new Date().toISOString(), DB};
   const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
-  const fname=`家計簿バックアップ_${nowStamp()}.json`;
-  saveFile(blob, fname, 'バックアップファイル', {'application/json':['.json']}, '✅ バックアップを保存しました');
+  const fname=`家計簿_全体バックアップ_${nowStamp()}.json`;
+  saveFile(blob, fname, 'バックアップファイル', {'application/json':['.json']}, `✅ 全ユーザー（${DB.users.length}人）のバックアップを保存しました`);
 }
+// 個人バックアップ（各ユーザー用）：今表示中のユーザーの設定・帳簿・取引を1ファイルに保存
+function exportUserBackup(){
+  const u=activeUser();
+  const user=JSON.parse(JSON.stringify(u));   // ディープコピー
+  const backup={app:'kakeibo', type:'user-backup', version:APP_VERSION, exportedAt:new Date().toISOString(), user};
+  const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
+  const fname=`家計簿_${safeName(u.name)}_バックアップ_${nowStamp()}.json`;
+  const tx=(u.transactions||[]).length;
+  saveFile(blob, fname, 'バックアップファイル', {'application/json':['.json']}, `✅ 「${u.name}」のバックアップを保存しました（取引${tx}件）`);
+}
+// 復元：ファイル種別（全体／個人）を自動判別
 function importBackup(ev){
   const file=ev.target.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
     try{
       const obj=JSON.parse(e.target.result);
-      const db=obj&&obj.DB;
-      if(!db||!Array.isArray(db.users)||!db.users.length){
-        alert('バックアップファイルの形式が正しくありません');ev.target.value='';return;
+      // 個人バックアップ
+      if(obj && obj.type==='user-backup' && obj.user && obj.user.name && Array.isArray(obj.user.ledgers)){
+        restoreUserBackup(obj.user); ev.target.value=''; return;
       }
-      const userCount=db.users.length;
-      const txCount=db.users.reduce((s,u)=>s+((u.transactions||[]).length),0);
-      if(!confirm(`このバックアップ（ユーザー${userCount}人 / 取引${txCount}件）で現在のデータを上書き復元します。\n今の端末のデータは置き換わります。よろしいですか？`)){ev.target.value='';return;}
-      // localStorageへ書いてリロード → load()のマイグレーションを通して安全に初期化
-      const cur=new Date();
-      localStorage.setItem('kb-v5',JSON.stringify({DB:db,UIyear:cur.getFullYear(),UImonth:cur.getMonth(),activeUser:db.users[0].id}));
-      alert('✅ 復元しました。画面を更新します。');
-      location.reload();
+      // 全体バックアップ
+      const db=obj&&obj.DB;
+      if(db&&Array.isArray(db.users)&&db.users.length){
+        const userCount=db.users.length;
+        const txCount=db.users.reduce((s,u)=>s+((u.transactions||[]).length),0);
+        if(!confirm(`全体バックアップ（ユーザー${userCount}人 / 取引${txCount}件）で現在のデータをすべて置き換えます。\n今の端末のデータは消えます。よろしいですか？`)){ev.target.value='';return;}
+        // localStorageへ書いてリロード → load()のマイグレーションを通して安全に初期化
+        const cur=new Date();
+        localStorage.setItem('kb-v5',JSON.stringify({DB:db,UIyear:cur.getFullYear(),UImonth:cur.getMonth(),activeUser:db.users[0].id}));
+        alert('✅ 全体を復元しました。画面を更新します。');
+        location.reload();
+        return;
+      }
+      alert('バックアップファイルの形式が正しくありません');ev.target.value='';
     }catch(err){alert('読み込みエラー：'+err.message);ev.target.value='';}
   };
   reader.readAsText(file,'UTF-8');
+}
+// 個人バックアップの復元：同名ユーザーがいれば上書き／いなければ新規作成
+function restoreUserBackup(imp){
+  imp.id='u'+Date.now()+Math.random().toString(36).slice(2,6);  // 他ユーザーとのID衝突を避け一意に
+  const tx=(imp.transactions||[]).length;
+  const led=(imp.ledgers||[]).length;
+  const idx=DB.users.findIndex(u=>u.name===imp.name);
+  const msg = idx>=0
+    ? `「${imp.name}」は既に存在します。このユーザーを個人バックアップ（帳簿${led} / 取引${tx}件）で上書きします。よろしいですか？`
+    : `個人バックアップ「${imp.name}」（帳簿${led} / 取引${tx}件）を新規ユーザーとして復元します。よろしいですか？`;
+  if(!confirm(msg))return;
+  if(idx>=0){ DB.users[idx]=imp; } else { DB.users.push(imp); }
+  DB.activeUser=imp.id;
+  save();
+  alert(`✅ 「${imp.name}」を復元しました。画面を更新します。`);
+  location.reload();
 }
 
 function importCSV(ev){
@@ -1934,10 +1969,15 @@ function importCSV(ev){
         const amount=parseInt(amtStr)||0;if(!amount||!date)continue;
         const type=typeStr==='収入'?'income':'expense';
         let ledger=u.ledgers.find(l=>l.name===ledgerName)?.id||UI.activeLedger;
+        // 費目名から帳簿の費目を探してアイコンを復元（見つからなければ「その他」）
+        const ledgerObj=u.ledgers.find(l=>l.id===ledger);
+        const cats=ledgerObj?.customCats?.[type]||(type==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS);
+        const cat=cats.find(c=>c.n===catName);
+        const iconId=cat?resolveIconId(cat):'other';
         let payKind='cash',payeeId=null;
         if(payLabel==='銀行'){payKind='bank';if(payeeName){let p=u.payees.bank.find(x=>x.name===payeeName);if(!p){p={id:'b'+Date.now()+i,name:payeeName};u.payees.bank.push(p);}payeeId=p.id;}}
         else if(payLabel==='カード'){payKind='card';if(payeeName){let p=u.payees.card.find(x=>x.name===payeeName);if(!p){p={id:'c'+Date.now()+i,name:payeeName};u.payees.card.push(p);}payeeId=p.id;}}
-        u.transactions.push({id:'t'+Date.now()+i+Math.random().toString(36).slice(2),ledger,type,amount,emoji:'📄',emojiName:catName,memo:memo||catName,date,payKind,payeeId});
+        u.transactions.push({id:'t'+Date.now()+i+Math.random().toString(36).slice(2),ledger,type,amount,iconId,emoji:iconId,emojiName:catName,memo:memo||catName,date,payKind,payeeId});
         added++;
       }
       save();renderAll();alert(`${added}件インポートしました`);
@@ -1958,9 +1998,10 @@ function parseCSV(line){
 }
 function clearAll(){
   if(!confirm('⚠️ 全データを削除します。取り消せません。\nCSVエクスポートを先に行ってください。'))return;
-  DB={users:[{id:'u1',name:'ユーザー',avatar:'👤',theme:'green',ledgers:[{id:'l1',name:'家計',theme:null}],payees:{bank:[],card:[]},transactions:[]}],activeUser:'u1',mainUser:{enabled:true,name:'マスター',theme:'indigo'}};
-  UI.activeLedger='l1';UI.selDay=null;UI.payFilter='all';
-  save();renderAll();alert('削除しました');
+  // 保存データを消してリロード → 冒頭のデフォルトDB＋load()の初期化パスに一本化
+  localStorage.removeItem('kb-v5');
+  alert('削除しました');
+  location.reload();
 }
 
 /* =========================================================
@@ -1988,7 +2029,7 @@ function openTxEdit(id){
   // 帳簿（オーナーユーザーの帳簿リスト）
   document.getElementById('te-ledger').innerHTML=u.ledgers.map(l=>`<option value="${l.id}"${l.id===t.ledger?' selected':''}>${esc(l.name)}</option>`).join('');
   // カテゴリグリッド
-  buildTxEditCatGrid(t.type, UI.txEditEmoji);
+  buildTxEditCatGrid(t.type, UI.txEditEmoji, UI.txEditEmojiName);
   // 支払い方法（オーナーユーザーの支払い先を参照）
   setTxEditKindUI(t.type,t.payKind||'cash',t.payeeId,u);
   document.getElementById('tx-edit-overlay').classList.remove('hidden');
@@ -2004,8 +2045,8 @@ function setTxEditType(type){
   buildTxEditCatGrid(type,null);
   setTxEditKindUI(type,'cash',null);
 }
-function buildTxEditCatGrid(type,selIconId){
-  buildCatGrid('te-cat-grid',type,selIconId,null,'pickTxEditCat');
+function buildTxEditCatGrid(type,selIconId,selName){
+  buildCatGrid('te-cat-grid',type,selIconId,selName,'pickTxEditCat');
   document.getElementById('te-pay-section').style.display=type==='expense'?'block':'none';
 }
 function pickTxEditCat(iconId,n,btn){
@@ -2068,7 +2109,7 @@ function saveTxEdit(){
   }
   pushMemoHistory('memo', memo);
   pushMemoHistory('memo2', memo2);
-  save();closeTxEdit();renderAll();
+  save();closeTxEdit();renderAll();refreshCatDetailIfOpen();
 }
 
 // ── メモ・内訳 入力履歴 ──
@@ -2131,7 +2172,7 @@ function delTxFromEdit(){
   if(!confirm('この取引を削除しますか？'))return;
   const u=findTxOwner(UI.editingTxId);  // No.0モード対応
   u.transactions=u.transactions.filter(t=>t.id!==UI.editingTxId);
-  save();closeTxEdit();renderAll();
+  save();closeTxEdit();renderAll();refreshCatDetailIfOpen();
 }
 
 /* =========================================================
@@ -2289,9 +2330,9 @@ function closeCatMgrToTx(){
   const caller=catMgrCaller;
   catMgrCaller=null;
   if(caller==='add'){
-    buildCatGrid('cat-grid', UI.txType, UI.selEmoji, null, 'pickCat');
+    buildCatGrid('cat-grid', UI.txType, UI.selEmoji, UI.selEmojiName, 'pickCat');
   } else if(caller==='edit'){
-    buildCatGrid('te-cat-grid', UI.txEditType, UI.txEditEmoji, null, 'pickTxEditCat');
+    buildCatGrid('te-cat-grid', UI.txEditType, UI.txEditEmoji, UI.txEditEmojiName, 'pickTxEditCat');
   }
 }
 
@@ -2330,17 +2371,21 @@ function renderCatList(){
   }).join('');
 }
 
-function buildCatEmojiGrid(gridId){
-  const el=document.getElementById(gridId);if(!el)return;
-  el.innerHTML=ALL_ICON_IDS.map(iid=>{
+// アイコン選択グリッドの共通HTML（費目追加／費目編集で共用）
+function iconGridHTML(selId, onclickOf){
+  return ALL_ICON_IDS.map(iid=>{
     const ic=CAT_ICONS[iid];
-    const isSel=iid===UI.selCatEmoji;
-    return `<button class="isb${isSel?' sel':''}" onclick="pickCatEmoji('${iid}','${gridId}')" title="${iid}">
+    const isSel=iid===selId;
+    return `<button class="isb${isSel?' sel':''}" onclick="${onclickOf(iid)}" title="${iid}">
       <div class="isb-inner" style="${isSel?`border-color:${ic.color};border-width:2px`:''}">
         <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
       </div>
     </button>`;
   }).join('');
+}
+function buildCatEmojiGrid(gridId){
+  const el=document.getElementById(gridId);if(!el)return;
+  el.innerHTML=iconGridHTML(UI.selCatEmoji, iid=>`pickCatEmoji('${iid}','${gridId}')`);
 }
 function pickCatEmoji(id,gridId){UI.selCatEmoji=id;buildCatEmojiGrid(gridId);}
 
@@ -2541,15 +2586,7 @@ function renderForecast(){
 function setForecastUser(id){gUser=id;renderForecast();}
 
 function buildCatEditEmojiGrid(){
-  document.getElementById('cat-edit-emoji-grid').innerHTML=ALL_ICON_IDS.map(iid=>{
-    const ic=CAT_ICONS[iid];
-    const isSel=iid===UI.catEditSelEmoji;
-    return `<button class="isb${isSel?' sel':''}" onclick="pickCatEditEmoji('${iid}')" title="${iid}">
-      <div class="isb-inner" style="${isSel?`border-color:${ic.color};border-width:2px`:''}">
-        <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
-      </div>
-    </button>`;
-  }).join('');
+  document.getElementById('cat-edit-emoji-grid').innerHTML=iconGridHTML(UI.catEditSelEmoji, iid=>`pickCatEditEmoji('${iid}')`);
 }
 function pickCatEditEmoji(id){
   UI.catEditSelEmoji=id;
@@ -2574,7 +2611,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.10.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.11.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2618,9 +2655,20 @@ function openSettings(){
   buildExportLedgerList();
   updateSecurityUI();
   updateMainUserSettingUI();
+  updateBackupSectionUI();
   const el=document.getElementById('ver-lbl');
   if(el) el.textContent=`v${APP_VERSION}`;
   document.getElementById('settings-overlay').classList.remove('hidden');
+}
+
+// バックアップ／CSVセクションの出し分け：No.0（管理者）=全体バックアップのみ、各ユーザー=個人バックアップ＋CSV
+function updateBackupSectionUI(){
+  const main=UI.isMainMode;
+  const set=(id,show)=>{const el=document.getElementById(id); if(el)el.style.display=show?'block':'none';};
+  set('backup-user-section', !main);   // 個人バックアップ：各ユーザーのみ
+  set('backup-full-section',  main);   // 全体バックアップ：No.0のみ
+  set('csv-export-section',  !main);   // CSV：各ユーザーのみ
+  set('csv-import-section',  !main);
 }
 
 function updateMainUserSettingUI(){
@@ -3207,15 +3255,16 @@ function renderDonutAndList(){
   document.getElementById('donut-total').textContent=fmt(total);
   document.getElementById('donut-lbl').textContent=catGraphType==='expense'?'支出合計':'収入合計';
 
-  // 費目別集計
+  // 費目別集計（費目名で括る。アイコンIDは共用できるためIDだと別費目が合算される）
   const map={};
   txs.forEach(t=>{
     const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
     const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
-    map[iid]=map[iid]||{name:t.emojiName||ic.emoji||iid,color:ic.color,svg:ic.svg,amt:0};
-    map[iid].amt+=t.amount;
+    const key=t.emojiName||iid;
+    map[key]=map[key]||{name:t.emojiName||ic.emoji||iid,color:ic.color,svg:ic.svg,iid,amt:0};
+    map[key].amt+=t.amount;
   });
-  const items=Object.entries(map).sort((a,b)=>b[1].amt-a[1].amt).slice(0,8).map(([iid,v])=>({...v,iid}));
+  const items=Object.values(map).sort((a,b)=>b.amt-a.amt).slice(0,8);
 
   // ドーナツ SVG
   renderDonut(items, total);
@@ -3229,11 +3278,11 @@ function renderDonutAndList(){
       <span class="legend-pct">${total?Math.round(v.amt/total*100):0}%</span>
     </div>`).join('');
 
-  // 費目別リスト
+  // 費目別リスト（タップでその費目の明細を開く）
   const list=document.getElementById('cat-sum-list');
   if(!items.length){list.innerHTML=`<div class="empty-msg" style="padding:12px">データなし</div>`;return;}
   list.innerHTML=items.map((v,i)=>`
-    <div class="cat-sum-item">
+    <div class="cat-sum-item" onclick="openCatDetail('${escAttr(escJs(v.name))}')" style="cursor:pointer">
       <div style="width:32px;height:32px;border-radius:9px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
         <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(v.svg||'',v.color)}</svg>
       </div>
@@ -3245,7 +3294,108 @@ function renderDonutAndList(){
         <div class="cat-sum-amt" style="color:${catGraphType==='expense'?'var(--red)':'var(--pri)'}">${fmt(v.amt)}</div>
         <div class="cat-sum-pct">${total?Math.round(v.amt/total*100):0}%</div>
       </div>
+      <span class="cd-chev">›</span>
     </div>`).join('');
+}
+
+/* ---- 費目タップ→明細（カレンダー＋一覧、タップで編集） ---- */
+let catDetailName=null;
+
+// グラフの費目別集計と同じ条件（選択月・スコープ・請求月ベース）で、指定費目の取引を抽出
+function catDetailTxs(){
+  const yy=(gSelY??UI.year), mm=(gSelM??UI.month);
+  const mk=`${yy}-${String(mm+1).padStart(2,'0')}`;
+  return graphScope().filter(({t,usr})=>{
+    if(t.type!==catGraphType)return false;
+    const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
+    if((t.emojiName||iid)!==catDetailName)return false;
+    return catGraphType==='income'?t.date.startsWith(mk):effectiveExpDate(t,usr).startsWith(mk);
+  });
+}
+
+function openCatDetail(name){
+  catDetailName=name;
+  renderCatDetail();
+  document.getElementById('cat-detail-overlay').classList.remove('hidden');
+  const sheet=document.querySelector('#cat-detail-overlay .sheet');
+  if(sheet)sheet.scrollTop=0;
+}
+function closeCatDetail(){
+  document.getElementById('cat-detail-overlay').classList.add('hidden');
+  catDetailName=null;
+}
+// 費目明細モーダルを開いたまま編集・削除したとき、明細と背後のグラフを最新化
+function refreshCatDetailIfOpen(){
+  const ov=document.getElementById('cat-detail-overlay');
+  if(!ov||ov.classList.contains('hidden'))return;
+  const graphTab=document.getElementById('tab-graph');
+  if(graphTab&&graphTab.classList.contains('active')){
+    renderBarChart();renderDonutAndList();renderPayBreakdown();
+  }
+  renderCatDetail();
+}
+
+function renderCatDetail(){
+  if(catDetailName===null)return;
+  const yy=(gSelY??UI.year), mm=(gSelM??UI.month);
+  const pairs=catDetailTxs();
+  const txs=pairs.map(x=>x.t);
+  const total=txs.reduce((s,t)=>s+t.amount,0);
+
+  // ヘッダ（アイコン＋費目名／対象月・件数／合計）
+  const iid=txs.length?(txs[0].iconId||resolveIconId({id:txs[0].iconId,e:txs[0].emoji})||'other'):'other';
+  const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
+  document.getElementById('cd-title').innerHTML=
+    `<span style="display:inline-flex;align-items:center;gap:8px">
+      <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
+      ${esc(catDetailName)}
+    </span>`;
+  document.getElementById('cd-sub').textContent=`${yy}年${mm+1}月・${txs.length}件`;
+  const totalEl=document.getElementById('cd-total');
+  totalEl.textContent=fmt(total);
+  totalEl.style.color=catGraphType==='expense'?'var(--red)':'var(--pri)';
+
+  // 発生日（支出のカードは請求日）ごとに集計・グループ化
+  const dayTotals={}, byDate={};
+  pairs.forEach(({t,usr})=>{
+    const d=catGraphType==='income'?t.date:effectiveExpDate(t,usr);
+    const day=parseInt(d.slice(8),10);
+    dayTotals[day]=(dayTotals[day]||0)+t.amount;
+    (byDate[d]=byDate[d]||[]).push({t,usr});
+  });
+
+  // ミニカレンダー
+  const first=new Date(yy,mm,1).getDay();
+  const dim=new Date(yy,mm+1,0).getDate();
+  let cal='<div class="cd-cal">'+['日','月','火','水','木','金','土'].map(w=>`<div class="cd-wd">${w}</div>`).join('');
+  for(let i=0;i<first;i++)cal+='<div></div>';
+  for(let d=1;d<=dim;d++){
+    cal+=`<div class="cd-day${dayTotals[d]?' has':''}"><span class="cd-dnum">${d}</span>${dayTotals[d]?`<span class="cd-amt">${fmtN(dayTotals[d])}</span>`:''}</div>`;
+  }
+  document.getElementById('cd-cal').innerHTML=cal+'</div>';
+
+  // 明細リスト（タップで編集）
+  const listEl=document.getElementById('cd-list');
+  const dates=Object.keys(byDate).sort();
+  if(!dates.length){listEl.innerHTML=`<div class="empty-msg" style="padding:16px">この月の明細はありません</div>`;return;}
+  const WD=['日','月','火','水','木','金','土'];
+  listEl.innerHTML=dates.map(d=>{
+    const dt=new Date(d);
+    const head=`<div class="cd-date-head">${dt.getMonth()+1}月${dt.getDate()}日（${WD[dt.getDay()]}）</div>`;
+    const rows=byDate[d].map(({t,usr})=>{
+      const k=t.payKind||'cash';
+      const isCardShift=t.date!==d;   // カード請求で購入日と発生日がズレている
+      return `<div class="cd-row" onclick="openTxEdit('${t.id}')">
+        <div style="flex:1;min-width:0">
+          <div class="cd-row-memo">${esc(t.memo||t.emojiName||'')}</div>
+          <div class="cd-row-sub">${PAY_META[k]?.label||k}${isCardShift?`・購入 ${parseInt(t.date.slice(5,7))}/${parseInt(t.date.slice(8))}`:''}${UI.isMainMode?`・${esc(usr.name)}`:''}</div>
+        </div>
+        <div class="cd-row-amt" style="color:${t.type==='expense'?'var(--red)':'var(--pri)'}">${fmt(t.amount)}</div>
+        <span class="cd-chev">›</span>
+      </div>`;
+    }).join('');
+    return head+rows;
+  }).join('');
 }
 
 function renderDonut(items, total){

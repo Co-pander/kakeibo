@@ -66,7 +66,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .ctx-title{font-size:12px;font-weight:600;color:var(--text-hint);text-align:center;margin-bottom:8px;padding:0 16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ctx-item{display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;transition:background 0.1s;font-size:15px;font-weight:500}
 .ctx-item:active{background:var(--bg)}
-.ctx-item.danger{color:var(--red)}
 .ctx-sep{height:1px;background:var(--border-l);margin:4px 0}
 /* ===== 日付選択モーダル ===== */
 .datesel-overlay{position:fixed;inset:0;z-index:210;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -145,8 +144,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* ドーナツグラフ */
 .donut-wrap{display:flex;align-items:center;gap:12px;padding:8px 14px 14px}
 .donut-center{text-align:center;position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
-.donut-center-lbl{font-size:9px;color:var(--text-hint)}
-.donut-center-val{font-size:13px;font-weight:700;color:var(--text)}
 .donut-legend{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
 .legend-row{display:flex;align-items:center;gap:6px}
 .legend-dot{width:9px;height:9px;border-radius:50%;flex:none}
@@ -167,7 +164,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .topbar{background:var(--pri);padding:calc(var(--safe-top) + 10px) 14px 10px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:50;transition:background 0.3s}
 .topbar-user{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .topbar-user *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-.user-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none;border:2px solid rgba(255,255,255,0.5)}
 .user-info{min-width:0;display:flex;align-items:center}
 .user-name{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
 .topbar-btns{display:flex;gap:5px;flex:none}
@@ -187,7 +183,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .ud-user-item.active{border-color:var(--pri);background:var(--pri-l)}
 /* 長押しスライド中、指の下のユーザーを強調 */
 .ud-user-item.slide-hover{border-color:var(--pri);background:var(--pri-l);transform:scale(1.03);box-shadow:0 2px 10px rgba(0,0,0,0.12)}
-.ud-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
 .ud-uinfo{flex:1;min-width:0}
 .ud-uname{font-size:14px;font-weight:700}
 .ud-ledger-count{font-size:11px;color:var(--text-sub);margin-top:1px}
@@ -260,8 +255,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tx-list{padding:0 12px}
 .tx-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-card);border-radius:var(--r12);margin-bottom:6px;box-shadow:var(--shadow);border:1px solid var(--border-l);transition:transform 0.1s}
 .tx-item:active{transform:scale(0.98)}
-.tx-icon{width:38px;height:38px;border-radius:var(--r8);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
-.tx-icon.inc-bg{background:var(--pri-l)}.tx-icon.exp-bg{background:var(--red-l)}
 .tx-info{flex:1;min-width:0}
 .tx-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 内訳(tx-name)とメモ(tx-memo2)を横並び。メモは内訳の右に左揃え。長い場合は各2行まで折り返し（…はその後） */
@@ -277,12 +270,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tx-right{text-align:right;flex:none}
 .tx-amount{font-size:15px;font-weight:700;white-space:nowrap}
 .tx-amount.inc{color:#3B82C4}.tx-amount.exp{color:var(--red)}
-.tx-del-btn{font-size:11px;color:var(--text-hint);margin-top:2px;cursor:pointer;background:none;border:none;font-family:var(--font);display:block;margin-left:auto}
 .tx-item-tap{cursor:pointer}
 
 /* 空メッセージ：カレンダーに連続するシンプル表示 */
 .empty-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;color:var(--text-hint);font-size:13px;background:var(--bg-card)}
-.empty-icon{margin-bottom:6px;opacity:0.35}
 
 /* 明細リスト：カード枠なし・仕切り線のみ */
 .tx-list{padding:0 0 0 0}
@@ -293,7 +284,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 /* ===== 費目管理 ===== */
 .cat-mgr-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-l)}
-.cat-mgr-emoji{font-size:20px;width:28px;text-align:center;flex:none}
 .cat-mgr-name{flex:1;font-size:14px}
 .cat-mgr-btns{display:flex;gap:4px}
 .cat-mgr-btn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;color:var(--text-hint);font-family:var(--font)}
@@ -364,10 +354,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   .cat-grid{grid-template-columns:repeat(9,1fr)!important;gap:2px}
 }
 /* アイコンSVG描画品質向上 */
-.cat-icon-wrap svg,.cat-mgr-icon-wrap svg,.isb-inner svg{shape-rendering:geometricPrecision;text-rendering:optimizeLegibility}
-/* 費目管理リスト内アイコン */
-.cat-mgr-icon-wrap{width:36px;height:36px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none}
-.cat-mgr-icon-wrap svg{width:20px;height:20px}
+.cat-icon-wrap svg,.isb-inner svg{shape-rendering:geometricPrecision;text-rendering:optimizeLegibility}
 /* 並び替えハンドル */
 .drag-handle{cursor:grab;color:var(--text-hint);font-size:18px;padding:4px 6px;flex:none;touch-action:none;line-height:1;user-select:none}
 .drag-handle:active{cursor:grabbing}
@@ -400,7 +387,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .mgr-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-l)}
 .mgr-icon{font-size:16px;width:24px;text-align:center}
 .mgr-name{flex:1;font-size:14px}
-.mgr-del{background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:16px;padding:4px;font-family:var(--font)}
 .add-row{display:flex;gap:8px;margin-top:10px;align-items:center}
 .add-row input,.add-row select{flex:1;padding:9px 12px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--font);outline:none;-webkit-appearance:none}
 .add-row input:focus{border-color:var(--pri)}
@@ -444,10 +430,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 .hint{font-size:11px;color:var(--text-hint);line-height:1.7;padding:8px 12px;background:var(--bg);border-radius:var(--r8);margin-top:8px}
 .hidden{display:none!important}
-.sec-divider{height:1px;background:var(--border-l);margin:4px 0}
 
 /* ===== 数字フォント・日別集計バー（2026-06 追加） ===== */
-.tx-amount,.day-amt,.sum-val,.cal-info-balance,.cal-info-day-bal,.cal-info-inc,.cal-info-exp,.tdh-inout,.donut-center-val,.cat-sum-amt,.amount-wrap input{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.tx-amount,.day-amt,.sum-val,.cal-info-balance,.cal-info-day-bal,.cal-info-inc,.cal-info-exp,.tdh-inout,.cat-sum-amt,.amount-wrap input{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .cal-info-inc{font-size:12px;font-weight:700;color:#3B82C4;white-space:nowrap}
 .cal-info-exp{font-size:12px;font-weight:700;color:var(--red);white-space:nowrap}
 .tdh-inout{display:inline-flex;gap:8px;white-space:nowrap}
@@ -463,3 +448,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tdh-line{background:transparent}
 /* 内訳グラフ：支払別／カテゴリ別の小見出し */
 .chart-sub{font-size:11px;font-weight:700;color:var(--text-sub);padding:6px 16px;letter-spacing:0.03em}
+
+/* ===== 費目別明細モーダル（グラフの費目タップ） ===== */
+.cd-chev{font-size:16px;color:var(--text-hint);flex:none;margin-left:2px}
+.cd-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cd-wd{font-size:10px;color:var(--text-hint);text-align:center;padding:2px 0}
+.cd-day{min-height:34px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.cd-day .cd-dnum{font-size:11px;color:var(--text-hint)}
+.cd-day.has{background:var(--pri-l)}
+.cd-day.has .cd-dnum{color:var(--text);font-weight:700}
+.cd-amt{font-size:9px;font-weight:700;color:var(--text-sub);font-family:var(--font-num);font-variant-numeric:tabular-nums;max-width:100%;overflow:hidden}
+.cd-date-head{font-size:11px;font-weight:700;color:var(--text-sub);padding:10px 2px 4px;border-bottom:1px solid var(--border-l)}
+.cd-row{display:flex;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px solid var(--border-l);cursor:pointer}
+.cd-row:active{background:var(--bg)}
+.cd-row-memo{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cd-row-sub{font-size:11px;color:var(--text-hint);margin-top:1px}
+.cd-row-amt{font-size:14px;font-weight:700;white-space:nowrap;flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums}

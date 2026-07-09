@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.10.2">
+<link rel="stylesheet" href="style.css?v=3.11.0">
 <title>家計簿</title>
 </head>
 <body>
@@ -519,6 +519,24 @@
   </div>
 </div>
 
+<!-- ===== 費目別明細モーダル（グラフの費目タップで表示） ===== -->
+<div class="overlay hidden" id="cat-detail-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title" id="cd-title">費目明細</span>
+      <button class="sheet-close" onclick="closeCatDetail()">✕</button>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;padding:10px 16px 4px">
+      <span id="cd-sub" style="font-size:12px;color:var(--text-sub)"></span>
+      <span id="cd-total" style="font-size:18px;font-weight:800"></span>
+    </div>
+    <div id="cd-cal" style="padding:4px 12px 0"></div>
+    <div id="cd-list" style="padding:6px 12px 0"></div>
+    <p class="csv-note" style="padding:8px 16px 0;margin:0">明細をタップすると編集できます</p>
+  </div>
+</div>
+
 <!-- ===== 取引編集モーダル ===== -->
 <div class="overlay hidden" id="tx-edit-overlay">
   <div class="sheet">
@@ -665,22 +683,31 @@
       <span class="sheet-title">⚙️ 設定・バックアップ</span>
       <button class="sheet-close" onclick="closeSettings()">✕</button>
     </div>
-    <div class="mgr-section">
-      <div class="mgr-stitle">💾 まるごとバックアップ・復元</div>
-      <p class="csv-note" style="margin-top:0;margin-bottom:10px">全ユーザー・帳簿・費目・支払い先・取引を1ファイルに保存します。機種変更や端末移行はこちらが確実です（設定もそのまま復元）。</p>
-      <button class="submit-btn" style="margin-top:0;font-size:14px" onclick="exportBackup()">💾 バックアップを保存（JSON）</button>
-      <button class="csv-btn" onclick="document.getElementById('backup-import').click()" style="width:100%;margin-top:8px">📥 バックアップから復元（上書き）</button>
-      <input type="file" id="backup-import" accept=".json,application/json" class="hidden" onchange="importBackup(event)">
-      <p class="csv-note" style="margin-top:8px">※復元すると今の端末のデータは置き換わります。先に「バックアップを保存」しておくと安心です。</p>
+    <!-- 個人バックアップ（各ユーザー画面で表示） -->
+    <div class="mgr-section" id="backup-user-section">
+      <div class="mgr-stitle">💾 このユーザーのバックアップ・復元</div>
+      <p class="csv-note" style="margin-top:0;margin-bottom:10px">今のユーザーの設定・帳簿・費目・支払い先・取引を1ファイルに保存します。機種変更のときは、このファイルを移行先で「復元」してください。</p>
+      <button class="submit-btn" style="margin-top:0;font-size:14px" onclick="exportUserBackup()">💾 このユーザーをバックアップ（JSON）</button>
+      <button class="csv-btn" onclick="document.getElementById('backup-import').click()" style="width:100%;margin-top:8px">📥 バックアップから復元</button>
+      <p class="csv-note" style="margin-top:8px">※同名ユーザーがいれば上書き、いなければ新規ユーザーとして復元します。</p>
     </div>
-    <div class="mgr-section">
+    <!-- 全体バックアップ（No.0＝管理者画面で表示） -->
+    <div class="mgr-section" id="backup-full-section" style="display:none">
+      <div class="mgr-stitle">💾 全ユーザーまとめてバックアップ・復元</div>
+      <p class="csv-note" style="margin-top:0;margin-bottom:10px">登録ユーザー・帳簿・費目・支払い先・取引をすべて1ファイルに保存します。端末移行はこちらが確実です（設定もそのまま復元）。</p>
+      <button class="submit-btn" style="margin-top:0;font-size:14px" onclick="exportBackup()">💾 全ユーザーをバックアップ（JSON）</button>
+      <button class="csv-btn" onclick="document.getElementById('backup-import').click()" style="width:100%;margin-top:8px">📥 バックアップから復元</button>
+      <p class="csv-note" style="margin-top:8px">※全体バックアップは全データを置き換え、個人バックアップはそのユーザーだけを復元します（自動判別）。</p>
+    </div>
+    <input type="file" id="backup-import" accept=".json,application/json" class="hidden" onchange="importBackup(event)">
+    <div class="mgr-section" id="csv-export-section">
       <div class="mgr-stitle">📤 CSVエクスポート</div>
       <div class="field-lbl" style="margin-bottom:8px">出力する帳簿を選択</div>
       <div id="export-ledger-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
       <button class="submit-btn" style="margin-top:0;font-size:14px" onclick="doExportCSV()">📤 CSVをダウンロード</button>
       <p class="csv-note" style="margin-top:8px">・Excelや Google スプレッドシートで開けます<br>・ファイルの保存先はブラウザのダウンロード設定に従います</p>
     </div>
-    <div class="mgr-section">
+    <div class="mgr-section" id="csv-import-section">
       <div class="mgr-stitle">📥 CSVインポート</div>
       <button class="csv-btn" onclick="document.getElementById('csv-import').click()" style="width:100%">📥 ファイルを選択してインポート</button>
       <input type="file" id="csv-import" accept=".csv" class="hidden" onchange="importCSV(event)">
@@ -789,6 +816,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.10.2"></script>
+<script src="app.js?v=3.11.0"></script>
 </body>
 </html>
