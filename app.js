@@ -257,6 +257,8 @@ function resolveIconId(cat){
   if(cat.e&&EMOJI_TO_ICON[cat.e])return EMOJI_TO_ICON[cat.e];
   return 'other';
 }
+// 取引からアイコンIDを解決（旧データは絵文字から変換、不明は'other'）
+function txIconId(t){return t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';}
 const PAY_META={
   cash:{icon:'💴',label:'現金',cls:'pb-cash',chipCls:'cash',barcol:'#E07B2E'},
   bank:{icon:'🏦',label:'銀行',cls:'pb-bank',chipCls:'bank',barcol:'#3B82C4'},
@@ -342,7 +344,7 @@ function load(){
       const led=u.ledgers.find(l=>l.id===t.ledger);
       const cats=led?.customCats?.[t.type]||(t.type==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS);
       const cat=cats.find(c=>c.n===t.emojiName);
-      t.iconId=cat?resolveIconId(cat):resolveIconId({id:t.iconId,e:t.emoji})||'other';
+      t.iconId=cat?resolveIconId(cat):txIconId(t);
     });
   });
   const u=activeUser();
@@ -964,7 +966,7 @@ function billingHTML(e){
 }
 function txHTML(t){
   const isI=t.type==='income';
-  const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
+  const iid=txIconId(t);
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
   // アイコンは費目のカスタム色（取引の帳簿の設定を優先）で表示。グラフ・費目管理と揃える
   const color=catColorOf(t.emojiName||'',iid,t.ledger);
@@ -1065,7 +1067,7 @@ function catBreakdownFromEff(effExp){
   // 費目名で集計する（アイコンIDは複数費目で共用できるため、IDで括ると別費目が合算される）
   const map={};
   effExp.forEach(({t})=>{
-    const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
+    const iid=txIconId(t);
     const key=t.emojiName||iid;
     map[key]=map[key]||{n:t.emojiName||t.memo||iid,iid,amt:0};
     map[key].amt+=t.amount;
@@ -2015,7 +2017,7 @@ function openTxEdit(id){
   const t=u.transactions.find(x=>x.id===id);if(!t)return;
   UI.editingTxId=id;
   UI.txEditType=t.type;
-  UI.txEditEmoji=t.iconId||resolveIconId({id:t.iconId,e:t.emoji});
+  UI.txEditEmoji=txIconId(t);
   UI.txEditEmojiName=t.emojiName;
   UI.txEditKind=t.payKind||'cash';UI.txEditPayeeId=t.payeeId||null;
   // type toggle
@@ -2633,7 +2635,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.11.4';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.11.5';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3262,7 +3264,6 @@ function updateBarSummary(data){
 }
 
 /* ---- ドーナツ＋費目別リスト ---- */
-const DONUT_COLORS=['#2EBD8F','#3B82C4','#E07B2E','#AB47BC','#EF5350','#26C6DA','#F5A623','#66BB6A','#EC407A','#78909C'];
 
 // 費目名から表示色を解決：帳簿のカスタム費目色 > アイコン標準色
 // （費目管理でカラーを変えると、ドーナツ・棒グラフ・アイコンが全て連動する）
@@ -3311,7 +3312,7 @@ function renderDonutAndList(){
   // 費目別集計（費目名で括る。アイコンIDは共用できるためIDだと別費目が合算される）
   const map={};
   txs.forEach(t=>{
-    const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
+    const iid=txIconId(t);
     const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
     const key=t.emojiName||iid;
     map[key]=map[key]||{name:t.emojiName||ic.emoji||iid,color:ic.color,svg:ic.svg,iid,amt:0};
@@ -3328,7 +3329,7 @@ function renderDonutAndList(){
   const leg=document.getElementById('donut-legend');
   leg.innerHTML=items.slice(0,6).map((v,i)=>`
     <div class="legend-row">
-      <div class="legend-dot" style="background:${v.color||DONUT_COLORS[i%DONUT_COLORS.length]}"></div>
+      <div class="legend-dot" style="background:${v.color}"></div>
       <span class="legend-name">${esc(v.name)}</span>
       <span class="legend-pct">${total?Math.round(v.amt/total*100):0}%</span>
     </div>`).join('');
@@ -3343,7 +3344,7 @@ function renderDonutAndList(){
       </div>
       <div style="flex:1;min-width:0">
         <div class="cat-sum-name">${esc(v.name)}</div>
-        <div class="cat-sum-bar-bg"><div class="cat-sum-bar" style="width:${total?Math.round(v.amt/total*100):0}%;background:${v.color||DONUT_COLORS[i%DONUT_COLORS.length]}"></div></div>
+        <div class="cat-sum-bar-bg"><div class="cat-sum-bar" style="width:${total?Math.round(v.amt/total*100):0}%;background:${v.color}"></div></div>
       </div>
       <div class="cat-sum-right">
         <div class="cat-sum-amt" style="color:${catGraphType==='expense'?'var(--red)':'var(--pri)'}">${fmt(v.amt)}</div>
@@ -3358,11 +3359,12 @@ let catDetailName=null;
 let cdSelY=null, cdSelM=null;   // モーダル内で選択中の月（棒グラフのタップで変わる）
 
 // グラフの費目別集計と同じ条件（スコープ・請求月ベース）で、指定費目の指定月の取引を抽出
-function catDetailTxs(yy,mm){
+// scope: graphScope()の結果を渡すと再計算しない（renderCatDetailは6ヶ月分呼ぶため）
+function catDetailTxs(yy,mm,scope){
   const mk=`${yy}-${String(mm+1).padStart(2,'0')}`;
-  return graphScope().filter(({t,usr})=>{
+  return (scope||graphScope()).filter(({t,usr})=>{
     if(t.type!==catGraphType)return false;
-    const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
+    const iid=txIconId(t);
     if((t.emojiName||iid)!==catDetailName)return false;
     return catGraphType==='income'?t.date.startsWith(mk):effectiveExpDate(t,usr).startsWith(mk);
   });
@@ -3408,10 +3410,11 @@ function refreshCatDetailIfOpen(){
 
 function renderCatDetail(){
   if(catDetailName===null)return;
-  // 月別合計（6ヶ月分）と選択月の取引
+  // 月別合計（6ヶ月分）と選択月の取引（スコープの全取引走査は1回だけ）
   const months=cdWindow();
+  const scope=graphScope();
   const monthData=months.map(({y,m})=>{
-    const p=catDetailTxs(y,m);
+    const p=catDetailTxs(y,m,scope);
     return {y,m,pairs:p,total:p.reduce((s,x)=>s+x.t.amount,0)};
   });
   const cur=monthData.find(d=>d.y===cdSelY&&d.m===cdSelM)||monthData[monthData.length-1];
@@ -3421,7 +3424,7 @@ function renderCatDetail(){
 
   // ヘッダ（アイコン＋費目名／対象月・件数／合計）
   const anyTx=monthData.flatMap(d=>d.pairs)[0]?.t;
-  const iid=anyTx?(anyTx.iconId||resolveIconId({id:anyTx.iconId,e:anyTx.emoji})||'other'):'other';
+  const iid=anyTx?txIconId(anyTx):'other';
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
   const catColor=catColorOf(catDetailName,iid,(gLedger&&gLedger!=='all')?gLedger:null);   // 費目色（カスタム色優先・表示中の帳簿優先）でグラフ・アイコンを統一
   document.getElementById('cd-title').innerHTML=
@@ -3501,8 +3504,7 @@ function renderDonut(items, total){
     const rot=offset*360-90;
     offset+=pct;
     // スライスは費目と同じ色（凡例・リスト・アイコンと対応が分かるように）
-    const color=v.color||DONUT_COLORS[i%DONUT_COLORS.length];
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}"
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${v.color}"
       stroke-width="${r-ir}" stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}"
       transform="rotate(${rot.toFixed(2)} ${cx} ${cy})" style="transition:all 0.4s"/>`;
   }).join('');
