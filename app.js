@@ -966,8 +966,10 @@ function txHTML(t){
   const isI=t.type==='income';
   const iid=t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
+  // アイコンは費目のカスタム色（取引の帳簿の設定を優先）で表示。グラフ・費目管理と揃える
+  const color=catColorOf(t.emojiName||'',iid,t.ledger);
   const iconEl=`<div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
-    <svg viewBox="-2 -2 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,ic.color)}</svg>
+    <svg viewBox="-2 -2 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
   </div>`;
 
   // メインユーザーの場合、保存先バッジを表示（inputByがある場合＝メインユーザーが入力した取引）
@@ -2387,7 +2389,24 @@ function buildCatEmojiGrid(gridId){
   const el=document.getElementById(gridId);if(!el)return;
   el.innerHTML=iconGridHTML(UI.selCatEmoji, iid=>`pickCatEmoji('${iid}','${gridId}')`);
 }
-function pickCatEmoji(id,gridId){UI.selCatEmoji=id;buildCatEmojiGrid(gridId);}
+// アイコン選択の切替：グリッド全体を再構築せず選択マークだけ付け替える（低速端末対策）
+function updateIconGridSel(gridEl, selId){
+  gridEl.querySelectorAll('button.isb').forEach(b=>{
+    const iid=b.title;
+    const sel=iid===selId;
+    b.classList.toggle('sel',sel);
+    const inner=b.querySelector('.isb-inner');
+    if(inner){
+      if(sel){const ic=CAT_ICONS[iid];inner.style.borderColor=ic?ic.color:'';inner.style.borderWidth='2px';}
+      else{inner.style.borderColor='';inner.style.borderWidth='';}
+    }
+  });
+}
+function pickCatEmoji(id,gridId){
+  UI.selCatEmoji=id;
+  const el=document.getElementById(gridId);
+  if(el)updateIconGridSel(el,id);
+}
 
 function addCat(){
   const name=document.getElementById('nc-catname').value.trim();
@@ -2429,7 +2448,9 @@ const CAT_COLOR_PRESETS=[
 ];
 
 function openCatEdit(idx){
-  const cats=catMgrLedgerObj().customCats?.[UI.catTab]||[];
+  // ensureLedgerCatsで初期化してから参照する（未カスタマイズの帳簿では
+  // customCatsが無く、リストはデフォルト表示なのに✏️が無反応になっていた）
+  const cats=ensureLedgerCats(catMgrLedgerObj())[UI.catTab];
   const c=cats[idx];if(!c)return;
   UI.editingCatIdx=idx;
   UI.catEditSelEmoji=resolveIconId(c);
@@ -2592,7 +2613,8 @@ function pickCatEditEmoji(id){
   UI.catEditSelEmoji=id;
   // デフォルト色未設定時はアイコン変更に追従
   if(!UI.catEditSelColor) buildCatColorUI();
-  buildCatEditEmojiGrid();
+  const el=document.getElementById('cat-edit-emoji-grid');
+  if(el)updateIconGridSel(el,id);
 }
 
 function saveCatEdit(){
@@ -2611,7 +2633,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.11.3';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.11.4';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
