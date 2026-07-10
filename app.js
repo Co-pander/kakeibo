@@ -2611,7 +2611,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.11.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.11.3';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3245,26 +3245,30 @@ const DONUT_COLORS=['#2EBD8F','#3B82C4','#E07B2E','#AB47BC','#EF5350','#26C6DA',
 // 費目名から表示色を解決：帳簿のカスタム費目色 > アイコン標準色
 // （費目管理でカラーを変えると、ドーナツ・棒グラフ・アイコンが全て連動する）
 // prefLedgerId: 表示中の帳簿。同名費目が複数帳簿にある場合、その帳簿の色を優先する
+// ※「カスタム色を持つ定義」を探し切るのが重要：No.0の全体表示などでは同名費目が
+//   複数ユーザー・複数帳簿にあり、色未設定の定義に先に当たった時点で打ち切ると
+//   別のユーザー・帳簿で設定した色が一切反映されなくなる
 function catColorOf(name, iid, prefLedgerId){
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
   const users=UI.isMainMode?DB.users:[activeUser()];
-  const findIn=l=>{
+  const customIn=l=>{
     const cc=l.customCats;if(!cc)return null;
     for(const arr of [cc.expense||[],cc.income||[]]){
       const c=arr.find(x=>x.n===name);
-      if(c)return c.color||ic.color;
+      if(c&&c.color)return c.color;   // カスタム色を持つ定義だけを採用
     }
     return null;
   };
-  // 表示中の帳簿を最優先
+  // 表示中の帳簿にカスタム色があれば最優先
   if(prefLedgerId){
     for(const u of users){
       const l=(u.ledgers||[]).find(x=>x.id===prefLedgerId);
-      if(l){const col=findIn(l);if(col)return col;}
+      if(l){const col=customIn(l);if(col)return col;}
     }
   }
+  // どこかの帳簿にカスタム色があればそれを使う
   for(const u of users)for(const l of (u.ledgers||[])){
-    const col=findIn(l);if(col)return col;
+    const col=customIn(l);if(col)return col;
   }
   return ic.color;
 }
