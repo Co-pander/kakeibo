@@ -1070,7 +1070,7 @@ function catBreakdownFromEff(effExp){
   });
   return Object.values(map).sort((a,b)=>b.amt-a.amt).slice(0,8).map(v=>{
     const ic=CAT_ICONS[v.iid]||CAT_ICONS['other'];
-    return {iconId:v.iid,label:v.n,amt:v.amt,color:catColorOf(v.n,v.iid),svg:ic.svg,emoji:ic.emoji||'💰'};
+    return {iconId:v.iid,label:v.n,amt:v.amt,color:catColorOf(v.n,v.iid,UI.activeLedger),svg:ic.svg,emoji:ic.emoji||'💰'};
   });
 }
 function _chartRows(items,total){
@@ -1404,7 +1404,7 @@ function buildCatGrid(gridId,type,selIconId,selName,pickFn){
     const color=c.color||ic.color;
     // 費目の同一判定は「名前」で行う（アイコンは複数費目で共用できるため、IDだけだと同時選択になる）
     const isSel=selName?c.n===selName:iid===selIconId;
-    return `<button class="cat-btn${isSel?' sel':''}" onclick="${pickFn}('${iid}','${escAttr(escJs(c.n))}',this)" style="${isSel?'border-color:'+color:''}">
+    return `<button class="cat-btn${isSel?' sel':''}" onclick="${pickFn}('${iid}','${escAttr(escJs(c.n))}',this,'${color}')" style="${isSel?'border-color:'+color:''}">
       <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1px solid ${isSel?'transparent':'var(--border-l)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
         <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
       </div>
@@ -1412,12 +1412,12 @@ function buildCatGrid(gridId,type,selIconId,selName,pickFn){
     </button>`;
   }).join('');
 }
-function pickCat(iconId,n,btn){
+function pickCat(iconId,n,btn,color){
   UI.selEmoji=iconId;UI.selEmojiName=n;
   document.querySelectorAll('#cat-grid .cat-btn').forEach(b=>{b.classList.remove('sel');b.style.borderColor='';});
   btn.classList.add('sel');
-  const ic=CAT_ICONS[iconId]||CAT_ICONS['other'];
-  btn.style.borderColor=ic.color;
+  // 選択枠は費目のカスタム色（グリッド描画と同じ色）を使う。アイコン標準色だと枠だけ違う色になる
+  btn.style.borderColor=color||(CAT_ICONS[iconId]||CAT_ICONS['other']).color;
   const m=document.getElementById('f-memo');if(!m.value)m.value=n;
 }
 function selectKind(k){
@@ -2049,12 +2049,12 @@ function buildTxEditCatGrid(type,selIconId,selName){
   buildCatGrid('te-cat-grid',type,selIconId,selName,'pickTxEditCat');
   document.getElementById('te-pay-section').style.display=type==='expense'?'block':'none';
 }
-function pickTxEditCat(iconId,n,btn){
+function pickTxEditCat(iconId,n,btn,color){
   UI.txEditEmoji=iconId;UI.txEditEmojiName=n;
   document.querySelectorAll('#te-cat-grid .cat-btn').forEach(b=>{b.classList.remove('sel');b.style.borderColor='';});
   btn.classList.add('sel');
-  const ic=CAT_ICONS[iconId]||CAT_ICONS['other'];
-  btn.style.borderColor=ic.color;
+  // 選択枠は費目のカスタム色（グリッド描画と同じ色）を使う
+  btn.style.borderColor=color||(CAT_ICONS[iconId]||CAT_ICONS['other']).color;
 }
 function setTxEditKind(k){
   UI.txEditKind=k;UI.txEditPayeeId=null;
@@ -2611,7 +2611,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.11.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.11.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3244,15 +3244,27 @@ const DONUT_COLORS=['#2EBD8F','#3B82C4','#E07B2E','#AB47BC','#EF5350','#26C6DA',
 
 // 費目名から表示色を解決：帳簿のカスタム費目色 > アイコン標準色
 // （費目管理でカラーを変えると、ドーナツ・棒グラフ・アイコンが全て連動する）
-function catColorOf(name, iid){
+// prefLedgerId: 表示中の帳簿。同名費目が複数帳簿にある場合、その帳簿の色を優先する
+function catColorOf(name, iid, prefLedgerId){
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
   const users=UI.isMainMode?DB.users:[activeUser()];
-  for(const u of users)for(const l of (u.ledgers||[])){
-    const cc=l.customCats;if(!cc)continue;
+  const findIn=l=>{
+    const cc=l.customCats;if(!cc)return null;
     for(const arr of [cc.expense||[],cc.income||[]]){
       const c=arr.find(x=>x.n===name);
       if(c)return c.color||ic.color;
     }
+    return null;
+  };
+  // 表示中の帳簿を最優先
+  if(prefLedgerId){
+    for(const u of users){
+      const l=(u.ledgers||[]).find(x=>x.id===prefLedgerId);
+      if(l){const col=findIn(l);if(col)return col;}
+    }
+  }
+  for(const u of users)for(const l of (u.ledgers||[])){
+    const col=findIn(l);if(col)return col;
   }
   return ic.color;
 }
@@ -3280,7 +3292,8 @@ function renderDonutAndList(){
     map[key].amt+=t.amount;
   });
   const items=Object.values(map).sort((a,b)=>b.amt-a.amt).slice(0,8);
-  items.forEach(v=>{v.color=catColorOf(v.name,v.iid);});  // カスタム費目色を反映
+  const prefLedger=(gLedger&&gLedger!=='all')?gLedger:null;
+  items.forEach(v=>{v.color=catColorOf(v.name,v.iid,prefLedger);});  // カスタム費目色を反映（表示中の帳簿優先）
 
   // ドーナツ SVG
   renderDonut(items, total);
@@ -3384,7 +3397,7 @@ function renderCatDetail(){
   const anyTx=monthData.flatMap(d=>d.pairs)[0]?.t;
   const iid=anyTx?(anyTx.iconId||resolveIconId({id:anyTx.iconId,e:anyTx.emoji})||'other'):'other';
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
-  const catColor=catColorOf(catDetailName,iid);   // 費目色（カスタム色優先）でグラフ・アイコンを統一
+  const catColor=catColorOf(catDetailName,iid,(gLedger&&gLedger!=='all')?gLedger:null);   // 費目色（カスタム色優先・表示中の帳簿優先）でグラフ・アイコンを統一
   document.getElementById('cd-title').innerHTML=
     `<span style="display:inline-flex;align-items:center;gap:8px">
       <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,catColor)}</svg>
@@ -3434,7 +3447,7 @@ function renderCatDetail(){
           <svg viewBox="-2 -2 28 28" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,catColor)}</svg>
         </div>
         <div style="flex:1;min-width:0">
-          <div class="cd-row-memo">${esc(t.memo||t.emojiName||'')}</div>
+          <div class="cd-row-memo"><span class="cd-rm-name">${esc(t.memo||t.emojiName||'')}</span>${t.memo2?`<span class="cd-rm-m2">${esc(t.memo2)}</span>`:''}</div>
           <div class="cd-row-sub">${PAY_META[k]?.label||k}${isCardShift?`・購入 ${parseInt(t.date.slice(5,7))}/${parseInt(t.date.slice(8))}`:''}${UI.isMainMode?`・${esc(usr.name)}`:''}</div>
         </div>
         <div class="cd-row-amt" style="color:${t.type==='expense'?'var(--red)':'var(--pri)'}">${fmt(t.amount)}</div>
