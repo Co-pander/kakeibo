@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.11.5">
+<link rel="stylesheet" href="style.css?v=3.12.0">
 <title>家計簿</title>
 </head>
 <body>
@@ -345,7 +345,7 @@
           </div>
           <div class="field" style="margin:0">
             <div class="field-lbl">帳簿</div>
-            <select id="f-ledger"></select>
+            <select id="f-ledger" onchange="onAddLedgerChange()"></select>
           </div>
         </div>
       </div>
@@ -577,7 +577,7 @@
       </div>
       <div class="field">
         <div class="field-lbl">帳簿</div>
-        <select id="te-ledger"></select>
+        <select id="te-ledger" onchange="onTxEditLedgerChange()"></select>
       </div>
       <div id="te-pay-section">
         <div class="field-lbl" style="margin-bottom:8px">💳 支払い方法</div>
@@ -816,6 +816,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.11.5"></script>
+<script src="app.js?v=3.12.0"></script>
 </body>
 </html>

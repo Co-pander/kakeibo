@@ -324,9 +324,9 @@ function load(){
   // migration（tryの外で必ず実行）
   if(!DB.mainUser)DB.mainUser={enabled:true,name:'マスター',theme:'indigo'};
   if(DB.mainUser.startupMain===undefined)DB.mainUser.startupMain=false;
-  if(!DB.memoHistory)DB.memoHistory={memo:[],memo2:[]};
-  if(!DB.memoHistory.memo)DB.memoHistory.memo=[];
-  if(!DB.memoHistory.memo2)DB.memoHistory.memo2=[];
+  // migration: 入力履歴を全体共有(DB.memoHistory)→ユーザーの帳簿ごと(ledger.memoHistory)へ。
+  // 既存の履歴は各帳簿に引き継ぐ（移行後は共有履歴を削除）
+  const _legacyHist=DB.memoHistory;
   DB.users.forEach(u=>{
     if(!u.payees)u.payees={bank:[],card:[]};
     if(!u.transactions)u.transactions=[];
@@ -346,7 +346,14 @@ function load(){
       const cat=cats.find(c=>c.n===t.emojiName);
       t.iconId=cat?resolveIconId(cat):txIconId(t);
     });
+    // migration: 各帳簿に入力履歴を用意（旧・全体共有の履歴があれば引き継ぐ）
+    u.ledgers.forEach(l=>{
+      if(!l.memoHistory)l.memoHistory=_legacyHist?JSON.parse(JSON.stringify(_legacyHist)):{memo:[],memo2:[]};
+      if(!l.memoHistory.memo)l.memoHistory.memo=[];
+      if(!l.memoHistory.memo2)l.memoHistory.memo2=[];
+    });
   });
+  delete DB.memoHistory;
   const u=activeUser();
   if(!u||!u.ledgers)return;
   if(!u.ledgers.find(l=>l.id===UI.activeLedger))UI.activeLedger=u.ledgers[0].id;
@@ -1315,8 +1322,6 @@ function openAddModal(){
   document.getElementById('f-amount').value='';
   document.getElementById('f-memo').value='';
   document.getElementById('f-memo2').value='';
-  renderMemoHistory('f-memo-hist','memo','f-memo');
-  renderMemoHistory('f-memo2-hist','memo2','f-memo2');
   const n=new Date(),yr=UI.year,mo=UI.month;
   const dd=UI.selDay||(yr===n.getFullYear()&&mo===n.getMonth()?n.getDate():1);
   document.getElementById('f-date').value=`${yr}-${String(mo+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
@@ -1336,6 +1341,8 @@ function openAddModal(){
     const u=activeUser();
     document.getElementById('f-ledger').innerHTML=u.ledgers.map(l=>`<option value="${l.id}"${l.id===UI.activeLedger?' selected':''}>${esc(l.name)}</option>`).join('');
   }
+  // 履歴は保存先（ユーザー・帳簿）が確定した後に描画
+  renderAddMemoHist();
 }
 function closeAddModal(){document.getElementById('add-overlay').classList.add('hidden');}
 
@@ -1358,6 +1365,8 @@ function onDestUserChange(){
   ['pk-cash','pk-bank','pk-card'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='pk-btn';});
   const pkc=document.getElementById('pk-cash');if(pkc)pkc.className='pk-btn sel-cash';
   const pw=document.getElementById('f-payee-wrap');if(pw)pw.classList.add('hidden');
+  // 履歴も保存先ユーザーの帳簿のものに切替
+  renderAddMemoHist();
 }
 
 // 保存先帳簿変更時：その帳簿の費目で費目グリッドを再構築
@@ -1371,6 +1380,8 @@ function onDestLedgerChange(){
   buildCatGrid('cat-grid',UI.txType,null,null,'pickCat');
   DB.activeUser=savedId; UI.activeLedger=savedLid;
   UI.selEmoji=null;UI.selEmojiName=null;
+  // 履歴も保存先帳簿のものに切替
+  renderAddMemoHist();
 }
 
 function setType(t){
@@ -1483,8 +1494,8 @@ function addTx(){
     tx.payeeId=UI.selPayeeId||null;
   }
   targetUser.transactions.push(tx);
-  pushMemoHistory('memo', document.getElementById('f-memo').value);
-  pushMemoHistory('memo2', document.getElementById('f-memo2').value);
+  pushMemoHistory(targetUser, ledger, 'memo', document.getElementById('f-memo').value);
+  pushMemoHistory(targetUser, ledger, 'memo2', document.getElementById('f-memo2').value);
   // 追加した取引が明細に見えるよう、その日付にフォーカスを合わせる
   const[ay,am,ad]=date.split('-').map(Number);
   UI.year=ay;UI.month=am-1;UI.selDay=ad;UI.expandList=false;
@@ -2027,8 +2038,8 @@ function openTxEdit(id){
   document.getElementById('te-amount').value=Number(t.amount).toLocaleString('ja-JP');
   document.getElementById('te-memo').value=t.memo;
   document.getElementById('te-memo2').value=t.memo2||'';
-  renderMemoHistory('te-memo-hist','memo','te-memo');
-  renderMemoHistory('te-memo2-hist','memo2','te-memo2');
+  renderMemoHistory('te-memo-hist','memo','te-memo',u,t.ledger);
+  renderMemoHistory('te-memo2-hist','memo2','te-memo2',u,t.ledger);
   document.getElementById('te-date').value=t.date;
   // 帳簿（オーナーユーザーの帳簿リスト）
   document.getElementById('te-ledger').innerHTML=u.ledgers.map(l=>`<option value="${l.id}"${l.id===t.ledger?' selected':''}>${esc(l.name)}</option>`).join('');
@@ -2111,32 +2122,66 @@ function saveTxEdit(){
   } else {
     t.payKind=null;t.payeeId=null;
   }
-  pushMemoHistory('memo', memo);
-  pushMemoHistory('memo2', memo2);
+  pushMemoHistory(u, ledger, 'memo', memo);
+  pushMemoHistory(u, ledger, 'memo2', memo2);
   save();closeTxEdit();renderAll();refreshCatDetailIfOpen();
 }
 
-// ── メモ・内訳 入力履歴 ──
-function pushMemoHistory(field, value){
+// ── メモ・内訳 入力履歴（ユーザーの帳簿ごとに保持。同名帳簿でもユーザーが違えば別履歴） ──
+// 対象帳簿の履歴配列を取得（未初期化なら作る）。返すのは実体への参照
+function memoHistOf(u, ledgerId, field){
+  const l=(u.ledgers||[]).find(x=>x.id===ledgerId)||u.ledgers[0];
+  if(!l)return [];
+  if(!l.memoHistory)l.memoHistory={memo:[],memo2:[]};
+  if(!l.memoHistory[field])l.memoHistory[field]=[];
+  return l.memoHistory[field];
+}
+function pushMemoHistory(u, ledgerId, field, value){
   if(!value||!value.trim())return;
   value=value.trim();
-  if(!DB.memoHistory)DB.memoHistory={memo:[],memo2:[]};
-  let arr=DB.memoHistory[field]||[];
-  arr=arr.filter(v=>v!==value);
+  const arr=memoHistOf(u,ledgerId,field);
+  const i=arr.indexOf(value);
+  if(i>=0)arr.splice(i,1);
   arr.unshift(value);
-  if(arr.length>10)arr=arr.slice(0,10);
-  DB.memoHistory[field]=arr;
+  if(arr.length>10)arr.length=10;
 }
 
-function renderMemoHistory(containerId, field, inputId){
+function renderMemoHistory(containerId, field, inputId, u, ledgerId){
   const el=document.getElementById(containerId);
   if(!el)return;
-  const arr=(DB.memoHistory&&DB.memoHistory[field])||[];
+  const arr=memoHistOf(u,ledgerId,field);
   if(!arr.length){el.innerHTML='';el.style.display='none';return;}
   el.style.display='flex';
   el.innerHTML=arr.map(v=>{
-    return `<button type="button" class="memo-hist-chip" data-field="${field}" data-container="${containerId}" data-input="${inputId}" data-word="${esc(v)}" onclick="applyMemoHistory('${inputId}','${escAttr(escJs(v))}')">${esc(v)}</button>`;
+    return `<button type="button" class="memo-hist-chip" data-field="${field}" data-container="${containerId}" data-input="${inputId}" data-uid="${u.id}" data-lid="${ledgerId}" data-word="${esc(v)}" onclick="applyMemoHistory('${inputId}','${escAttr(escJs(v))}')">${esc(v)}</button>`;
   }).join('');
+}
+
+// 追加モーダルの保存先（ユーザー＋帳簿）を取得
+function addModalTarget(){
+  if(UI.isMainMode){
+    const uid=document.getElementById('f-dest-user')?.value;
+    const u=DB.users.find(x=>x.id===uid)||activeUser();
+    const lid=document.getElementById('f-dest-ledger')?.value||u.ledgers[0]?.id;
+    return {u, lid};
+  }
+  const u=activeUser();
+  return {u, lid:document.getElementById('f-ledger')?.value||UI.activeLedger};
+}
+// 追加モーダルの内訳・メモ履歴を保存先に合わせて表示
+function renderAddMemoHist(){
+  const {u,lid}=addModalTarget();
+  renderMemoHistory('f-memo-hist','memo','f-memo',u,lid);
+  renderMemoHistory('f-memo2-hist','memo2','f-memo2',u,lid);
+}
+// 追加モーダルで帳簿（通常モード）を変えたとき
+function onAddLedgerChange(){renderAddMemoHist();}
+// 取引編集で帳簿を変えたとき
+function onTxEditLedgerChange(){
+  const u=findTxOwner(UI.editingTxId);
+  const lid=document.getElementById('te-ledger').value;
+  renderMemoHistory('te-memo-hist','memo','te-memo',u,lid);
+  renderMemoHistory('te-memo2-hist','memo2','te-memo2',u,lid);
 }
 
 function applyMemoHistory(inputId, value){
@@ -2157,9 +2202,12 @@ function _memoChipDown(e){
     _memoLP.fired=true;
     const word=chip.dataset.word, field=chip.dataset.field;
     if(confirm(`「${word}」を履歴から削除しますか？`)){
-      DB.memoHistory[field]=(DB.memoHistory[field]||[]).filter(w=>w!==word);
+      const owner=DB.users.find(x=>x.id===chip.dataset.uid)||activeUser();
+      const arr=memoHistOf(owner,chip.dataset.lid,field);
+      const i=arr.indexOf(word);
+      if(i>=0)arr.splice(i,1);
       save();
-      renderMemoHistory(chip.dataset.container,field,chip.dataset.input);
+      renderMemoHistory(chip.dataset.container,field,chip.dataset.input,owner,chip.dataset.lid);
     }
   },550);
 }
@@ -2635,7 +2683,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.11.5';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.12.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
