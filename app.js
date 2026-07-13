@@ -814,15 +814,33 @@ function renderTxArea(){
   const groups={};
   allItems.forEach(t=>{groups[t.date]=groups[t.date]||[];groups[t.date].push(t);});
   const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+
+  // 日内の自動整列：収入が上 → 支出は費目管理の並び順 → 同費目は入力順 → クレジット請求グループは最後
+  const expCats=getEXP_CATS(), incCats=getINC_CATS();
+  const rankOf=t=>{
+    if(t._isBilling)return [2,0];
+    const cats=t.type==='income'?incCats:expCats;
+    const ci=cats.findIndex(c=>c.n===t.emojiName);
+    return [t.type==='income'?0:1, ci<0?999:ci];
+  };
+
   el.innerHTML=dates.map(dt=>{
     const list=groups[dt];
+    list.forEach((t,i)=>t._oi=i);   // 入力順の保持（安定ソート用）
+    list.sort((a,b)=>{
+      const ra=rankOf(a), rb=rankOf(b);
+      return (ra[0]-rb[0])||(ra[1]-rb[1])||(a._oi-b._oi);
+    });
     const ds=dt.split('-');
     const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
     const di=list.filter(t=>t.type==='income'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
     const de=list.filter(t=>t.type==='expense'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
     const header=showHeaders?dateHeaderHTML(label,di,de):'';
+    // 請求グループ：まとめ行の下に、含まれる取引を通常文字＋購入日注記で展開
     return `${header}
-    <div class="tx-list">${list.map(t=>t._isBilling?billingHTML(t):txHTML(t)).join('')}</div>`;
+    <div class="tx-list">${list.map(t=>t._isBilling
+      ? billingHTML(t)+(t.txs||[]).map(x=>txHTML(x,true)).join('')
+      : txHTML(t)).join('')}</div>`;
   }).join('');
 }
 
@@ -938,8 +956,9 @@ function genBillingEntries(u, yr=UI.year, mo=UI.month){
     const ed=effectiveExpDate(t,u);
     const[ey,em]=ed.split('-').map(Number);
     if(ey!==yr||em-1!==mo)return;
-    const g=groups[card.id]||(groups[card.id]={card,total:0,date:ed,months:new Set()});
+    const g=groups[card.id]||(groups[card.id]={card,total:0,date:ed,months:new Set(),txs:[]});
     g.total+=t.amount;
+    g.txs.push(t);
     const ud=t.date.split('-'); g.months.add(`${ud[0]}-${ud[1]}`);
   });
   return Object.values(groups).map(g=>{
@@ -947,8 +966,10 @@ function genBillingEntries(u, yr=UI.year, mo=UI.month){
     const f=k=>{const[y,m]=k.split('-');return`${parseInt(y)}年${parseInt(m)}月`;};
     const label=ms.length<=1?`${f(ms[0]||`${yr}-${mo+1}`)}利用分`
       :`${f(ms[0])}〜${parseInt(ms[ms.length-1].split('-')[1])}月利用分`;
+    // txs: この請求に含まれる元の取引（購入日順）。請求日に個別明細を表示するために持たせる
+    const txs=g.txs.slice().sort((a,b)=>a.date.localeCompare(b.date));
     return {id:`billing-${g.card.id}-${yr}-${mo}`, date:g.date, type:'expense', amount:g.total,
-      payKind:'card', payeeId:g.card.id, cardName:g.card.name, usedMoLabel:label, _isBilling:true};
+      payKind:'card', payeeId:g.card.id, cardName:g.card.name, usedMoLabel:label, txs, _isBilling:true};
   });
 }
 
@@ -971,7 +992,8 @@ function billingHTML(e){
     </div>
   </div>`;
 }
-function txHTML(t){
+// billed=true のとき：請求日の個別明細として表示（通常文字＋購入日注記。薄字クラスを付けない）
+function txHTML(t, billed){
   const isI=t.type==='income';
   const iid=txIconId(t);
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
@@ -990,7 +1012,9 @@ function txHTML(t){
     if(ledgerName)destBadge=`<span style="font-size:10px;color:var(--text-hint);background:var(--bg);border-radius:10px;padding:1px 6px;border:1px solid var(--border-l)">${esc(ledgerName)}</span>`;
   }
 
-  return `<div class="tx-item tx-item-tap tx-lp${!isI&&t.payKind==='card'?' tx-card-use':''}"
+  // 請求日の個別明細には購入日を注記
+  const buyTag=billed?`<span class="credit-tag">購入 ${parseInt(t.date.slice(5,7))}/${parseInt(t.date.slice(8))}</span>`:'';
+  return `<div class="tx-item tx-item-tap tx-lp${!billed&&!isI&&t.payKind==='card'?' tx-card-use':''}"
     data-txid="${t.id}"
     onclick="openTxEdit('${t.id}')">
     ${iconEl}
@@ -999,7 +1023,7 @@ function txHTML(t){
         <span class="tx-name">${esc(t.memo||t.emojiName||'')}</span>
         ${t.memo2?`<span class="tx-memo2">${esc(t.memo2)}</span>`:''}
       </div>
-      <div class="tx-meta"><span class="tx-cat">${esc(t.emojiName||'')}</span>${isI?'':payBadge(t)}${destBadge}</div>
+      <div class="tx-meta"><span class="tx-cat">${esc(t.emojiName||'')}</span>${isI?'':payBadge(t)}${buyTag}${destBadge}</div>
     </div>
     <div class="tx-right">
       <div class="tx-amount ${isI?'inc':'exp'}">${fmt(t.amount)}</div>
@@ -2683,7 +2707,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.12.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.13.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
