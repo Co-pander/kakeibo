@@ -2714,7 +2714,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.14.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.14.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3244,6 +3244,9 @@ function renderSheetBody(){
   });
   const n=new Date();
   const isCurMonth=n.getFullYear()===shY&&n.getMonth()===shM;
+  // 展開明細の並び：費目管理の並び順（カレンダーと同じ）。同費目は入力順（sortが安定なので保たれる）
+  const expCats=getEXP_CATS();
+  const catRank=name=>{const i=expCats.findIndex(c=>c.n===name);return i<0?999:i;};
   let bal=0, rows='';
   for(let d=1;d<=dim;d++){
     bal+=(bByDay[d]||0)-(eByDay[d]||0);
@@ -3257,7 +3260,7 @@ function renderSheetBody(){
       <span class="sh-c-bal${bal<0?' neg':''}">${bal<0?'-':''}${fmtN(Math.abs(bal))}</span>
     </div>`;
     if(open){
-      rows+=eTxByDay[d].map(t=>`<div class="sh-sub-row" onclick="openTxEdit('${t.id}')">
+      rows+=eTxByDay[d].slice().sort((a,b)=>catRank(a.emojiName)-catRank(b.emojiName)).map(t=>`<div class="sh-sub-row" onclick="openTxEdit('${t.id}')">
         <span class="sh-sub-name">${esc(t.memo||t.emojiName||'')}</span>
         <span class="sh-sub-cat">${esc(t.emojiName||'')}</span>
         <span class="sh-sub-amt">${fmt(t.amount)}</span>
@@ -3293,7 +3296,32 @@ function addSheetBudget(){
 
 // 予算の編集モーダル（OSの確認ダイアログはPWAで表示されないことがあるため使わない）
 let shEditBudgetId=null;
+// モーダル部品が無ければJSから生成する
+// （index.htmlとapp.jsの版ズレ＝HTML側だけ古い場合でも動くようにする防御策）
+function ensureSheetBudgetModal(){
+  if(document.getElementById('sh-budget-overlay'))return;
+  const div=document.createElement('div');
+  div.innerHTML=`<div class="overlay hidden" id="sh-budget-overlay">
+    <div class="sheet">
+      <div class="sheet-drag"></div>
+      <div class="sheet-head">
+        <span class="sheet-title">💰 予算を編集</span>
+        <button class="sheet-close" onclick="closeSheetBudgetEdit()">✕</button>
+      </div>
+      <div style="padding:12px 16px">
+        <div class="field-lbl">日付</div>
+        <input type="date" id="sh-be-date" class="sh-inp" style="width:100%;margin:4px 0 12px">
+        <div class="field-lbl">金額</div>
+        <div class="amount-wrap" style="margin:4px 0 4px"><span class="amount-yen">¥</span><input type="text" id="sh-be-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+        <button class="submit-btn" onclick="saveSheetBudgetEdit()">保存</button>
+        <button class="csv-btn" id="sh-be-del" onclick="delSheetBudgetFromEdit()" style="width:100%;margin-top:8px;color:var(--red)">🗑️ 削除</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
 function openSheetBudgetEdit(id){
+  ensureSheetBudgetModal();
   const l=activeUser().ledgers.find(x=>x.id===UI.activeLedger);if(!l)return;
   const b=budgetsOf(l).find(x=>x.id===id);if(!b)return;
   shEditBudgetId=id;
