@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.14.0">
+<link rel="stylesheet" href="style.css?v=3.14.1">
 <title>家計簿</title>
 </head>
 <body>
@@ -265,13 +265,13 @@
         <button class="sh-add-btn" onclick="addSheetBudget()">投入</button>
       </div>
       <div id="sh-budget-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
-      <p class="csv-note" style="margin:6px 0 0">・予算は帳票専用の数字で、収入・支出の統計には含まれません<br>・投入済みの予算はタップで削除できます</p>
+      <p class="csv-note" style="margin:6px 0 0">・予算は帳票専用の数字で、収入・支出の統計には含まれません<br>・投入済みの予算はタップで編集・削除できます</p>
     </div>
     <!-- 帳票テーブル -->
     <div class="sh-card" style="padding:0">
       <div id="sh-table"></div>
     </div>
-    <p class="csv-note" style="padding:0 16px">・支出は購入日ベース（カードも購入日で計上）<br>・残高は月ごとの計算です（前月からの繰り越しはしません）</p>
+    <p class="csv-note" style="padding:0 16px">・支出のある日はタップすると明細が開き、明細をタップで編集できます<br>・支出は購入日ベース（カードも購入日で計上）<br>・残高は月ごとの計算です（前月からの繰り越しはしません）</p>
   </div><!-- /tab-sheet -->
 </div>
 
@@ -566,6 +566,25 @@
       </div>
       <button class="submit-btn" onclick="saveCatEdit()">保存する</button>
       <button class="cancel-btn" onclick="closeCatEdit()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 帳票：予算編集モーダル ===== -->
+<div class="overlay hidden" id="sh-budget-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">💰 予算を編集</span>
+      <button class="sheet-close" onclick="closeSheetBudgetEdit()">✕</button>
+    </div>
+    <div style="padding:12px 16px">
+      <div class="field-lbl">日付</div>
+      <input type="date" id="sh-be-date" class="sh-inp" style="width:100%;margin:4px 0 12px">
+      <div class="field-lbl">金額</div>
+      <div class="amount-wrap" style="margin:4px 0 4px"><span class="amount-yen">¥</span><input type="text" id="sh-be-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+      <button class="submit-btn" onclick="saveSheetBudgetEdit()">保存</button>
+      <button class="csv-btn" id="sh-be-del" onclick="delSheetBudgetFromEdit()" style="width:100%;margin-top:8px;color:var(--red)">🗑️ 削除</button>
     </div>
   </div>
 </div>
@@ -867,6 +886,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.14.0"></script>
+<script src="app.js?v=3.14.1"></script>
 </body>
 </html>

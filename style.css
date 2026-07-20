@@ -473,6 +473,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .sh-c-exp{color:var(--red)}
 .sh-c-bal{font-weight:700}
 .sh-c-bal.neg{color:var(--red)}
+.sh-row.has-exp{cursor:pointer}
+.sh-row.has-exp:active{background:var(--bg)}
+.sh-chev{font-size:10px;color:var(--text-hint);margin-left:3px}
+.sh-sub-row{display:flex;align-items:center;gap:8px;padding:8px 14px 8px 28px;border-bottom:1px solid var(--border-l);background:var(--bg);font-size:13px;cursor:pointer}
+.sh-sub-row:active{background:var(--border-l)}
+.sh-sub-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.sh-sub-cat{font-size:11px;color:var(--text-hint);flex:none}
+.sh-sub-amt{font-family:var(--font-num);font-variant-numeric:tabular-nums;color:var(--red);font-weight:700;flex:none}
 
 /* ===== 費目別明細モーダル（グラフの費目タップ） ===== */
 .cd-chev{font-size:16px;color:var(--text-hint);flex:none;margin-left:2px}

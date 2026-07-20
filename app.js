@@ -2714,7 +2714,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.14.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.14.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3165,6 +3165,7 @@ function shChangeMonth(d){
   shM+=d;
   if(shM<0){shM=11;shY--;}
   if(shM>11){shM=0;shY++;}
+  shOpenDay=null;
   renderSheetTab();
 }
 
@@ -3226,39 +3227,61 @@ function renderSheetBody(){
     gauge.innerHTML=`<div class="sh-title" style="margin:0">📊 予算消化率</div><div class="sh-gauge-empty">予算が未設定です。「予算の投入」から金額を入れると、ここに消化率が表示されます。</div>`;
   }
 
-  // 予算チップ（タップで削除）
+  // 予算チップ（タップで編集モーダル）
   document.getElementById('sh-budget-list').innerHTML=buds.map(b=>
-    `<button class="sh-bud-chip" onclick="delSheetBudget('${b.id}')">${parseInt(b.date.slice(5,7))}/${parseInt(b.date.slice(8))}　${fmt(b.amount)} ✕</button>`
+    `<button class="sh-bud-chip" onclick="openSheetBudgetEdit('${b.id}')">${parseInt(b.date.slice(5,7))}/${parseInt(b.date.slice(8))}　${fmt(b.amount)} ›</button>`
   ).join('');
 
   // 帳票テーブル（日にち・予算・支出・残高。残高＝前日残高＋当日予算−当日支出）
+  // 支出のある日はタップで明細を展開→タップで編集
   const dim=new Date(shY,shM+1,0).getDate();
-  const bByDay={},eByDay={};
+  const bByDay={},eByDay={},eTxByDay={};
   buds.forEach(b=>{const d=parseInt(b.date.slice(8));bByDay[d]=(bByDay[d]||0)+b.amount;});
-  exps.forEach(t=>{const d=parseInt(t.date.slice(8));eByDay[d]=(eByDay[d]||0)+t.amount;});
+  exps.forEach(t=>{
+    const d=parseInt(t.date.slice(8));
+    eByDay[d]=(eByDay[d]||0)+t.amount;
+    (eTxByDay[d]=eTxByDay[d]||[]).push(t);
+  });
   const n=new Date();
   const isCurMonth=n.getFullYear()===shY&&n.getMonth()===shM;
   let bal=0, rows='';
   for(let d=1;d<=dim;d++){
     bal+=(bByDay[d]||0)-(eByDay[d]||0);
     const has=!!(bByDay[d]||eByDay[d]);
-    rows+=`<div class="sh-row${has?'':' quiet'}${isCurMonth&&d===n.getDate()?' today':''}">
-      <span class="sh-c-day">${d}日</span>
+    const hasExp=!!eTxByDay[d];
+    const open=hasExp&&shOpenDay===d;
+    rows+=`<div class="sh-row${has?'':' quiet'}${isCurMonth&&d===n.getDate()?' today':''}${hasExp?' has-exp':''}"${hasExp?` onclick="sheetToggleDay(${d})"`:''}>
+      <span class="sh-c-day">${d}日${hasExp?`<span class="sh-chev">${open?'▾':'▸'}</span>`:''}</span>
       <span class="sh-c-bud">${bByDay[d]?fmtN(bByDay[d]):''}</span>
       <span class="sh-c-exp">${eByDay[d]?fmtN(eByDay[d]):''}</span>
       <span class="sh-c-bal${bal<0?' neg':''}">${bal<0?'-':''}${fmtN(Math.abs(bal))}</span>
     </div>`;
+    if(open){
+      rows+=eTxByDay[d].map(t=>`<div class="sh-sub-row" onclick="openTxEdit('${t.id}')">
+        <span class="sh-sub-name">${esc(t.memo||t.emojiName||'')}</span>
+        <span class="sh-sub-cat">${esc(t.emojiName||'')}</span>
+        <span class="sh-sub-amt">${fmt(t.amount)}</span>
+        <span class="cd-chev">›</span>
+      </div>`).join('');
+    }
   }
   document.getElementById('sh-table').innerHTML=
     `<div class="sh-row head"><span class="sh-c-day">日にち</span><span class="sh-c-bud">予算</span><span class="sh-c-exp">支出</span><span class="sh-c-bal">残高</span></div>${rows}`;
 }
 
-// 予算の投入・削除
+// 日にち行タップ：その日の支出明細を開閉
+let shOpenDay=null;
+function sheetToggleDay(d){
+  shOpenDay=shOpenDay===d?null:d;
+  renderSheetBody();
+}
+
+// 予算の投入
 function addSheetBudget(){
   const date=document.getElementById('sh-bdate').value;
   const amount=parseAmountInput('sh-bamount');
-  if(!date){alert('日付を選択してください');return;}
-  if(!amount){alert('金額を入力してください');return;}
+  if(!date){showToast('⚠️ 日付を選択してください');return;}
+  if(!amount){showToast('⚠️ 金額を入力してください');return;}
   const l=activeUser().ledgers.find(x=>x.id===UI.activeLedger);
   if(!l)return;
   budgetsOf(l).push({id:'bg'+Date.now(),date,amount});
@@ -3267,22 +3290,55 @@ function addSheetBudget(){
   save();renderSheetTab();
   showToast('✅ 予算を投入しました');
 }
-function delSheetBudget(id){
-  const l=activeUser().ledgers.find(x=>x.id===UI.activeLedger);
-  if(!l)return;
-  const b=budgetsOf(l).find(x=>x.id===id);
-  if(!b)return;
-  if(!confirm(`${parseInt(b.date.slice(5,7))}/${parseInt(b.date.slice(8))}の予算 ${fmt(b.amount)} を削除しますか？`))return;
-  l.budgets=l.budgets.filter(x=>x.id!==id);
-  save();renderSheetBody();
+
+// 予算の編集モーダル（OSの確認ダイアログはPWAで表示されないことがあるため使わない）
+let shEditBudgetId=null;
+function openSheetBudgetEdit(id){
+  const l=activeUser().ledgers.find(x=>x.id===UI.activeLedger);if(!l)return;
+  const b=budgetsOf(l).find(x=>x.id===id);if(!b)return;
+  shEditBudgetId=id;
+  document.getElementById('sh-be-date').value=b.date;
+  document.getElementById('sh-be-amount').value=Number(b.amount).toLocaleString('ja-JP');
+  const del=document.getElementById('sh-be-del');
+  del.textContent='🗑️ 削除'; delete del.dataset.arm;
+  document.getElementById('sh-budget-overlay').classList.remove('hidden');
+}
+function closeSheetBudgetEdit(){
+  document.getElementById('sh-budget-overlay').classList.add('hidden');
+  shEditBudgetId=null;
+}
+function saveSheetBudgetEdit(){
+  const l=activeUser().ledgers.find(x=>x.id===UI.activeLedger);if(!l)return;
+  const b=budgetsOf(l).find(x=>x.id===shEditBudgetId);if(!b)return;
+  const date=document.getElementById('sh-be-date').value;
+  const amount=parseAmountInput('sh-be-amount');
+  if(!date){showToast('⚠️ 日付を選択してください');return;}
+  if(!amount){showToast('⚠️ 金額を入力してください');return;}
+  b.date=date; b.amount=amount;
+  shY=parseInt(date.slice(0,4)); shM=parseInt(date.slice(5,7))-1;
+  save();closeSheetBudgetEdit();renderSheetTab();
+  showToast('✅ 予算を更新しました');
+}
+// 削除は誤タップ防止の2段階タップ
+function delSheetBudgetFromEdit(){
+  const del=document.getElementById('sh-be-del');
+  if(!del.dataset.arm){
+    del.dataset.arm='1';
+    del.textContent='⚠️ もう一度タップで削除';
+    return;
+  }
+  const l=activeUser().ledgers.find(x=>x.id===UI.activeLedger);if(!l)return;
+  l.budgets=budgetsOf(l).filter(x=>x.id!==shEditBudgetId);
+  save();closeSheetBudgetEdit();renderSheetTab();
+  showToast('🗑️ 予算を削除しました');
 }
 
 // 一覧入力：支出を追加（現金・カレンダー等にもそのまま反映）
 function sheetQuickAdd(){
   const amount=parseAmountInput('sh-amount');
-  if(!amount){alert('金額を入力してください');return;}
+  if(!amount){showToast('⚠️ 金額を入力してください');return;}
   const date=document.getElementById('sh-date').value;
-  if(!date){alert('日付を選択してください');return;}
+  if(!date){showToast('⚠️ 日付を選択してください');return;}
   const u=activeUser();
   const catName=document.getElementById('sh-cat').value;
   const cat=getEXP_CATS().find(c=>c.n===catName);
