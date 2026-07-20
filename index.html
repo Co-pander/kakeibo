@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.14.3">
+<link rel="stylesheet" href="style.css?v=3.14.4">
 <title>家計簿</title>
 </head>
 <body>
@@ -256,13 +256,15 @@
       </div>
       <p class="csv-note" style="margin:6px 0 0">・支払い方法は現金で登録されます（銀行・カードは＋ボタンから）<br>・追加した支出はカレンダーにも反映されます</p>
     </div>
-    <!-- 予算の投入 -->
+    <!-- 予算（帳票専用の予算データ） -->
     <div class="sh-card">
-      <div class="sh-title">💰 予算の投入</div>
+      <div class="sh-title">💰 予算</div>
       <div class="sh-form-row">
-        <input type="date" id="sh-bdate" class="sh-inp" style="flex:1.2">
+        <input type="date" id="sh-bdate" class="sh-inp" style="flex:1">
+      </div>
+      <div class="sh-form-row">
         <div class="amount-wrap" style="flex:1"><span class="amount-yen">¥</span><input type="text" id="sh-bamount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
-        <button class="sh-add-btn" onclick="addSheetBudget()">投入</button>
+        <button class="sh-add-btn" onclick="addSheetBudget()">予算追加</button>
       </div>
       <div id="sh-budget-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
       <p class="csv-note" style="margin:6px 0 0">・予算は帳票専用の数字で、収入・支出の統計には含まれません<br>・下のチップ、または表の「予算」欄（点線）をタップすると編集・削除できます</p>
@@ -886,6 +888,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.14.3"></script>
+<script src="app.js?v=3.14.4"></script>
 </body>
 </html>

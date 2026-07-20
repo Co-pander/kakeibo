@@ -452,7 +452,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* ===== 帳票タブ（予算・支出・残高） ===== */
 .sh-card{background:var(--bg-card);margin:0 0 8px;padding:12px 16px}
 .sh-title{font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:8px}
-.sh-form-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.sh-form-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+/* 日付欄は縮みすぎると「2026/」で切れるため下限を確保（入りきらない時は折り返す） */
+input[type="date"].sh-inp{min-width:150px}
+/* 金額欄は縮められるようにして、追加ボタンが同じ行に収まるようにする */
+.sh-form-row .amount-wrap{min-width:0}
+.sh-form-row .amount-wrap input{width:100%;min-width:0;box-sizing:border-box}
 .sh-inp{padding:9px 10px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--font);outline:none;min-width:0;-webkit-appearance:none}
 .sh-add-btn{padding:10px 18px;border-radius:var(--r8);border:none;background:var(--pri);color:#fff;font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer;flex:none}
 .sh-gauge-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}

@@ -2714,7 +2714,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.14.3';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.14.4';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3230,7 +3230,7 @@ function renderSheetBody(){
         <span>残り <b style="color:${remain<0?'var(--red)':'var(--pri)'}">${remain<0?'-':''}${fmt(remain)}</b></span>
       </div>`;
   }else{
-    gauge.innerHTML=`<div class="sh-title" style="margin:0">📊 予算消化率</div><div class="sh-gauge-empty">予算が未設定です。「予算の投入」から金額を入れると、ここに消化率が表示されます。</div>`;
+    gauge.innerHTML=`<div class="sh-title" style="margin:0">📊 予算消化率</div><div class="sh-gauge-empty">予算が未設定です。「予算」から金額を入れると、ここに消化率が表示されます。</div>`;
   }
 
   // 予算チップ（タップで編集モーダル）。イベントは委譲方式（下のリスナー）で拾う
@@ -3304,7 +3304,7 @@ document.addEventListener('click',e=>{
   }
 });
 
-// 予算の投入
+// 予算の追加
 function addSheetBudget(){
   const date=document.getElementById('sh-bdate').value;
   const amount=parseAmountInput('sh-bamount');
@@ -3316,7 +3316,7 @@ function addSheetBudget(){
   document.getElementById('sh-bamount').value='';
   shY=parseInt(date.slice(0,4)); shM=parseInt(date.slice(5,7))-1;
   save();renderSheetTab();
-  showToast('✅ 予算を投入しました');
+  showToast('✅ 予算を追加しました');
 }
 
 // 予算の編集モーダル（OSの確認ダイアログはPWAで表示されないことがあるため使わない）
