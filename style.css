@@ -470,6 +470,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .sh-c-day{font-size:12px}
 .sh-c-bud,.sh-c-exp,.sh-c-bal{text-align:right;font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .sh-c-bud{color:#3B82C4}
+.sh-c-bud.tapable{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.sh-bud-chip:active{background:var(--border-l)}
 .sh-c-exp{color:var(--red)}
 .sh-c-bal{font-weight:700}
 .sh-c-bal.neg{color:var(--red)}
