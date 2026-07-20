@@ -443,6 +443,13 @@ function filtered(){
   const[k,id]=UI.payFilter.split(':');
   return txs.filter(t=>t.type==='expense'&&t.payKind===k&&t.payeeId===id);
 }
+// 日付キーの組み立て（月:'YYYY-MM' / 日:'YYYY-MM-DD'）。mは0始まり
+const _p2=n=>String(n).padStart(2,'0');
+function ymKey(y,m){return `${y}-${_p2(m+1)}`;}
+function ymd(y,m,d){return `${ymKey(y,m)}-${_p2(d)}`;}
+// 'YYYY-MM-DD' → 'M/D'（購入日の注記などの表示用）
+function mdLabel(s){return `${parseInt(s.slice(5,7))}/${parseInt(s.slice(8))}`;}
+
 function fmt(n){return '¥'+Math.abs(n).toLocaleString('ja-JP')}
 function fmtS(n){return n>=10000?'¥'+(n/10000).toFixed(1)+'万':'¥'+n.toLocaleString('ja-JP')}
 // カレンダー用：数字のみカンマ区切り（¥なし・単位なし）
@@ -535,7 +542,7 @@ function renderSummary(){
 
   let inc=0,exp=0,cashAmt=0,cardAmt=0,bankAmt=0;
   // 請求ベース集計：カードは請求月で計上（利用月は計上しない）。現金・銀行は取引日で計上。
-  const mk=`${UI.year}-${String(UI.month+1).padStart(2,'0')}`;
+  const mk=ymKey(UI.year,UI.month);
   const tally=(usr,txs)=>{
     txs.forEach(t=>{
       if(t.type==='income'){ if(t.date.startsWith(mk))inc+=t.amount; return; }
@@ -741,7 +748,7 @@ function _updateExpandTri(){
 
 // 前月までの繰り越し残高。帳簿の「前月の残高を繰り越す」設定(carry)が有効な場合のみ計上、無効なら0
 function carryoverBefore(yr,mo){
-  const firstStr=`${yr}-${String(mo+1).padStart(2,'0')}-01`;
+  const firstStr=ymd(yr,mo,1);
   // 請求ベース：収入は取引日、支出はeffectiveExpDate（カードは請求日）が当月より前なら計上
   const sumBefore=(usr,txs)=>{
     let s=0;
@@ -950,7 +957,7 @@ function effectiveExpDate(t, u){
   by+=Math.floor(bm/12); bm=((bm%12)+12)%12;
   const lastDay=new Date(by,bm+1,0).getDate();
   const bday=card.billingDay===31?lastDay:Math.min(card.billingDay,lastDay);
-  return `${by}-${String(bm+1).padStart(2,'0')}-${String(bday).padStart(2,'0')}`;
+  return ymd(by,bm,bday);
 }
 
 // 指定月(yr,mo)に請求される、カードごとの請求エントリ（effectiveExpDate基準で統一）
@@ -1020,7 +1027,7 @@ function txHTML(t, billed){
   }
 
   // 請求日の個別明細には購入日を注記
-  const buyTag=billed?`<span class="credit-tag">購入 ${parseInt(t.date.slice(5,7))}/${parseInt(t.date.slice(8))}</span>`:'';
+  const buyTag=billed?`<span class="credit-tag">購入 ${mdLabel(t.date)}</span>`:'';
   return `<div class="tx-item tx-item-tap tx-lp${!billed&&!isI&&t.payKind==='card'?' tx-card-use':''}"
     data-txid="${t.id}"
     onclick="openTxEdit('${t.id}')">
@@ -1048,7 +1055,7 @@ function payBadge(t){
 // 指定月(yr,mo)の支払別内訳を請求ベースで集計。scope=[{t,usr}]の対象取引。
 // 返り値: {effExp:[{t,usr}], total, payItems(通常字), useItems(カード今月利用=薄字参考)}
 function payBreakdownFor(yr,mo,scope){
-  const mk=`${yr}-${String(mo+1).padStart(2,'0')}`;
+  const mk=ymKey(yr,mo);
   const effExp=[]; const cardUse={};
   (scope||scopeTxs('all')).forEach(({t,usr})=>{
     if(t.type!=='expense')return;
@@ -1355,7 +1362,7 @@ function openAddModal(){
   document.getElementById('f-memo2').value='';
   const n=new Date(),yr=UI.year,mo=UI.month;
   const dd=UI.selDay||(yr===n.getFullYear()&&mo===n.getMonth()?n.getDate():1);
-  document.getElementById('f-date').value=`${yr}-${String(mo+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+  document.getElementById('f-date').value=ymd(yr,mo,dd);
 
   const destEl=document.getElementById('f-save-dest');
   const ledgerRow=document.getElementById('f-ledger')?.closest('.field');
@@ -1907,8 +1914,8 @@ function doExportCSV(){
 
 // ファイル名用：YYYYMMDD_HHMMSS（保存のたびに一意になり上書き・重複ダイアログを防ぐ）
 function nowStamp(){
-  const d=new Date(), p=n=>String(n).padStart(2,'0');
-  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  const d=new Date();
+  return `${d.getFullYear()}${_p2(d.getMonth()+1)}${_p2(d.getDate())}_${_p2(d.getHours())}${_p2(d.getMinutes())}${_p2(d.getSeconds())}`;
 }
 // ファイル名に使えない文字を除去
 function safeName(s){return String(s).replace(/[\\/:*?"<>|\n\r]/g,'_').trim().slice(0,30);}
@@ -2069,8 +2076,7 @@ function openTxEdit(id){
   document.getElementById('te-amount').value=Number(t.amount).toLocaleString('ja-JP');
   document.getElementById('te-memo').value=t.memo;
   document.getElementById('te-memo2').value=t.memo2||'';
-  renderMemoHistory('te-memo-hist','memo','te-memo',u,t.ledger);
-  renderMemoHistory('te-memo2-hist','memo2','te-memo2',u,t.ledger);
+  renderMemoHistPair('te',u,t.ledger);
   document.getElementById('te-date').value=t.date;
   // 帳簿（オーナーユーザーの帳簿リスト）
   document.getElementById('te-ledger').innerHTML=u.ledgers.map(l=>`<option value="${l.id}"${l.id===t.ledger?' selected':''}>${esc(l.name)}</option>`).join('');
@@ -2202,8 +2208,7 @@ function addModalTarget(){
 // 追加モーダルの内訳・メモ履歴を保存先に合わせて表示
 function renderAddMemoHist(){
   const {u,lid}=addModalTarget();
-  renderMemoHistory('f-memo-hist','memo','f-memo',u,lid);
-  renderMemoHistory('f-memo2-hist','memo2','f-memo2',u,lid);
+  renderMemoHistPair('f',u,lid);
 }
 // 追加モーダルで帳簿（通常モード）を変えたとき
 function onAddLedgerChange(){renderAddMemoHist();}
@@ -2211,8 +2216,14 @@ function onAddLedgerChange(){renderAddMemoHist();}
 function onTxEditLedgerChange(){
   const u=findTxOwner(UI.editingTxId);
   const lid=document.getElementById('te-ledger').value;
-  renderMemoHistory('te-memo-hist','memo','te-memo',u,lid);
-  renderMemoHistory('te-memo2-hist','memo2','te-memo2',u,lid);
+  renderMemoHistPair('te',u,lid);
+}
+
+// 内訳(memo)とメモ(memo2)の履歴チップをまとめて描画。
+// prefix: 'f'=追加モーダル / 'te'=取引編集 / 'sh'=帳票（各画面のid命名を統一してある）
+function renderMemoHistPair(prefix, u, lid){
+  renderMemoHistory(`${prefix}-memo-hist`,'memo',`${prefix}-memo`,u,lid);
+  renderMemoHistory(`${prefix}-memo2-hist`,'memo2',`${prefix}-memo2`,u,lid);
 }
 
 function applyMemoHistory(inputId, value){
@@ -2714,7 +2725,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.14.4';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.14.5';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3186,17 +3197,16 @@ function renderSheetTab(){
   if(keep&&[...sel.options].some(o=>o.value===keep))sel.value=keep;
   // 日付初期値（表示月内の今日、月が違えば1日）
   const n=new Date();
-  const mk=`${shY}-${String(shM+1).padStart(2,'0')}`;
+  const mk=ymKey(shY,shM);
   const dd=(shY===n.getFullYear()&&shM===n.getMonth())?n.getDate():1;
-  const dstr=`${mk}-${String(dd).padStart(2,'0')}`;
+  const dstr=ymd(shY,shM,dd);
   ['sh-date','sh-bdate'].forEach(id=>{
     const el=document.getElementById(id);
     if(el&&!String(el.value||'').startsWith(mk))el.value=dstr;
   });
   // 内訳・メモの履歴チップ（この帳簿のもの）
   const u=activeUser();
-  renderMemoHistory('sh-memo-hist','memo','sh-memo',u,UI.activeLedger);
-  renderMemoHistory('sh-memo2-hist','memo2','sh-memo2',u,UI.activeLedger);
+  renderMemoHistPair('sh',u,UI.activeLedger);
   renderSheetBody();
 }
 
@@ -3204,7 +3214,7 @@ function renderSheetTab(){
 function sheetMonthData(){
   const u=activeUser();
   const l=sheetLedger();
-  const mk=`${shY}-${String(shM+1).padStart(2,'0')}`;
+  const mk=ymKey(shY,shM);
   const buds=budgetsOf(l).filter(b=>b.date.startsWith(mk));
   const exps=u.transactions.filter(t=>t.type==='expense'&&t.ledger===l.id&&t.date.startsWith(mk));
   return {l,buds,exps};
@@ -3235,7 +3245,7 @@ function renderSheetBody(){
 
   // 予算チップ（タップで編集モーダル）。イベントは委譲方式（下のリスナー）で拾う
   document.getElementById('sh-budget-list').innerHTML=buds.map(b=>
-    `<button type="button" class="sh-bud-chip" data-bgid="${escAttr(b.id)}">${parseInt(b.date.slice(5,7))}/${parseInt(b.date.slice(8))}　${fmt(b.amount)} ›</button>`
+    `<button type="button" class="sh-bud-chip" data-bgid="${escAttr(b.id)}">${mdLabel(b.date)}　${fmt(b.amount)} ›</button>`
   ).join('');
 
   // 帳票テーブル（日にち・予算・支出・残高。残高＝前日残高＋当日予算−当日支出）
@@ -3284,6 +3294,9 @@ function sheetToggleDay(d){
   shOpenDay=shOpenDay===d?null:d;
   renderSheetBody();
 }
+// 追加・編集した日付の月へ帳票の表示月を移す
+function shGoToMonthOf(date){ shY=parseInt(date.slice(0,4)); shM=parseInt(date.slice(5,7))-1; }
+
 // 行タップ：予算欄をタップしたときは開閉せず、予算の編集にまわす
 function sheetRowTap(e,d){
   if(e.target.closest('.sh-c-bud[data-bgday]'))return;
@@ -3298,7 +3311,7 @@ document.addEventListener('click',e=>{
   const cell=e.target.closest('.sh-c-bud[data-bgday]');
   if(cell){
     const day=parseInt(cell.dataset.bgday,10);
-    const mk=`${shY}-${String(shM+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const mk=ymd(shY,shM,day);
     const b=budgetsOf(sheetLedger()||{}).find(x=>x.date===mk);
     if(b)openSheetBudgetEdit(b.id);
   }
@@ -3314,7 +3327,7 @@ function addSheetBudget(){
   if(!l){showToast('⚠️ 帳簿が見つかりません');return;}
   budgetsOf(l).push({id:'bg'+Date.now(),date,amount});
   document.getElementById('sh-bamount').value='';
-  shY=parseInt(date.slice(0,4)); shM=parseInt(date.slice(5,7))-1;
+  shGoToMonthOf(date);
   save();renderSheetTab();
   showToast('✅ 予算を追加しました');
 }
@@ -3372,7 +3385,7 @@ function saveSheetBudgetEdit(){
   if(!date){showToast('⚠️ 日付を選択してください');return;}
   if(!amount){showToast('⚠️ 金額を入力してください');return;}
   b.date=date; b.amount=amount;
-  shY=parseInt(date.slice(0,4)); shM=parseInt(date.slice(5,7))-1;
+  shGoToMonthOf(date);
   save();closeSheetBudgetEdit();renderSheetTab();
   showToast('✅ 予算を更新しました');
 }
@@ -3409,7 +3422,7 @@ function sheetQuickAdd(){
   pushMemoHistory(u,UI.activeLedger,'memo',memoRaw);
   pushMemoHistory(u,UI.activeLedger,'memo2',memo2);
   ['sh-amount','sh-memo','sh-memo2'].forEach(id=>document.getElementById(id).value='');
-  shY=parseInt(date.slice(0,4)); shM=parseInt(date.slice(5,7))-1;
+  shGoToMonthOf(date);
   save();renderAll();   // ホーム・カレンダー側も最新化（帳票はrenderAll経由で再描画）
   showToast('✅ 追加しました');
 }
@@ -3557,7 +3570,7 @@ function renderBarChart(){
   // 表示年の1月〜12月（請求ベース：収入=取引日、支出=effectiveExpDate）
   const data=[];
   for(let m=0;m<12;m++){
-    const mk=`${yr}-${String(m+1).padStart(2,'0')}`;
+    const mk=ymKey(yr,m);
     let inc=0,exp=0;
     scope.forEach(({t,usr})=>{
       if(t.type==='income'){if(t.date.startsWith(mk))inc+=t.amount;}
@@ -3642,7 +3655,7 @@ function catColorOf(name, iid, prefLedgerId){
 
 function renderDonutAndList(){
   const yy=(gSelY??UI.year), mm=(gSelM??UI.month);
-  const mk=`${yy}-${String(mm+1).padStart(2,'0')}`;
+  const mk=ymKey(yy,mm);
   // 請求ベース：支出はeffectiveExpDate（カードは請求月）、収入は取引日で選択月分を抽出
   const txs=graphScope().filter(({t,usr})=>{
     if(t.type!==catGraphType)return false;
@@ -3705,7 +3718,7 @@ let cdSelY=null, cdSelM=null;   // モーダル内で選択中の月（棒グラ
 // グラフの費目別集計と同じ条件（スコープ・請求月ベース）で、指定費目の指定月の取引を抽出
 // scope: graphScope()の結果を渡すと再計算しない（renderCatDetailは6ヶ月分呼ぶため）
 function catDetailTxs(yy,mm,scope){
-  const mk=`${yy}-${String(mm+1).padStart(2,'0')}`;
+  const mk=ymKey(yy,mm);
   return (scope||graphScope()).filter(({t,usr})=>{
     if(t.type!==catGraphType)return false;
     const iid=txIconId(t);
@@ -3821,7 +3834,7 @@ function renderCatDetail(){
         </div>
         <div style="flex:1;min-width:0">
           <div class="cd-row-memo"><span class="cd-rm-name">${esc(t.memo||t.emojiName||'')}</span>${t.memo2?`<span class="cd-rm-m2">${esc(t.memo2)}</span>`:''}</div>
-          <div class="cd-row-sub">${PAY_META[k]?.label||k}${isCardShift?`・購入 ${parseInt(t.date.slice(5,7))}/${parseInt(t.date.slice(8))}`:''}${UI.isMainMode?`・${esc(usr.name)}`:''}</div>
+          <div class="cd-row-sub">${PAY_META[k]?.label||k}${isCardShift?`・購入 ${mdLabel(t.date)}`:''}${UI.isMainMode?`・${esc(usr.name)}`:''}</div>
         </div>
         <div class="cd-row-amt" style="color:${t.type==='expense'?'var(--red)':'var(--pri)'}">${fmt(t.amount)}</div>
         <span class="cd-chev">›</span>
@@ -3968,7 +3981,7 @@ function confirmDateSel(){
   const u=activeUser();
   const t=u.transactions.find(x=>x.id===ctxTxId);
   if(!t){closeDateSel();return;}
-  const newDate=`${dateselY}-${String(dateselM+1).padStart(2,'0')}-${String(dateselD).padStart(2,'0')}`;
+  const newDate=ymd(dateselY,dateselM,dateselD);
   if(ctxAction_==='copy'){
     // コピー：同じ内容で新しいIDの取引を作成
     const copy={...t, id:'t'+Date.now()+Math.random().toString(36).slice(2), date:newDate};
