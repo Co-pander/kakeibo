@@ -449,6 +449,31 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* 内訳グラフ：支払別／カテゴリ別の小見出し */
 .chart-sub{font-size:11px;font-weight:700;color:var(--text-sub);padding:6px 16px;letter-spacing:0.03em}
 
+/* ===== 帳票タブ（予算・支出・残高） ===== */
+.sh-card{background:var(--bg-card);margin:0 0 8px;padding:12px 16px}
+.sh-title{font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:8px}
+.sh-form-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.sh-inp{padding:9px 10px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--font);outline:none;min-width:0;-webkit-appearance:none}
+.sh-add-btn{padding:10px 18px;border-radius:var(--r8);border:none;background:var(--pri);color:#fff;font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer;flex:none}
+.sh-gauge-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sh-gauge-pct{font-size:22px;font-weight:800;font-family:var(--font-num)}
+.sh-gauge-bg{height:14px;border-radius:7px;background:var(--bg);overflow:hidden}
+.sh-gauge-bar{height:100%;border-radius:7px;transition:width 0.4s,background 0.3s}
+.sh-gauge-nums{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--text-sub)}
+.sh-gauge-nums b{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.sh-gauge-empty{font-size:12px;color:var(--text-hint);padding:8px 0 2px;line-height:1.6}
+.sh-bud-chip{padding:6px 10px;border-radius:14px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-family:var(--font-num);cursor:pointer}
+.sh-row{display:grid;grid-template-columns:58px 1fr 1fr 1.1fr;gap:6px;padding:7px 14px;border-bottom:1px solid var(--border-l);font-size:13px;align-items:center}
+.sh-row.head{font-size:11px;font-weight:700;color:var(--text-hint);background:var(--bg);border-bottom:1px solid var(--border)}
+.sh-row.quiet .sh-c-day,.sh-row.quiet .sh-c-bal{color:var(--text-hint)}
+.sh-row.today{background:var(--pri-l)}
+.sh-c-day{font-size:12px}
+.sh-c-bud,.sh-c-exp,.sh-c-bal{text-align:right;font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.sh-c-bud{color:#3B82C4}
+.sh-c-exp{color:var(--red)}
+.sh-c-bal{font-weight:700}
+.sh-c-bal.neg{color:var(--red)}
+
 /* ===== 費目別明細モーダル（グラフの費目タップ） ===== */
 .cd-chev{font-size:16px;color:var(--text-hint);flex:none;margin-left:2px}
 /* 月別棒グラフ（タップで月切替） */

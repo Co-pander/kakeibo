@@ -473,6 +473,13 @@ function renderAll(){
   renderTxArea();
   renderChart();
   renderCalInfoBar();
+  // 帳票タブ：No.0では非表示。表示中なら最新化
+  const shBtn=document.getElementById('navBtn-sheet');
+  if(shBtn)shBtn.style.display=UI.isMainMode?'none':'';
+  if(typeof currentTab!=='undefined'&&currentTab==='sheet'){
+    if(UI.isMainMode)switchTab('home');
+    else renderSheetTab();
+  }
 }
 
 function renderTopbar(){
@@ -2707,7 +2714,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.13.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.14.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3137,9 +3144,160 @@ function switchTab(tab){
   if(page)page.classList.add('active');
   if(btn)btn.classList.add('active');
   if(tab==='graph')renderGraphTab();
+  if(tab==='sheet')renderSheetTab();
   // グラフタブでは上部の帳簿バーを隠す（グラフ内に帳簿チップがあるため二重表示を防ぐ）
   const lb=document.getElementById('ledger-bar');
   if(lb)lb.style.display=(tab==='graph')?'none':'';
+}
+
+/* =========================================================
+   帳票タブ（袋分け出納帳：予算・支出・残高）
+   ・予算は帳簿専用データ(ledger.budgets)。収入・支出の統計には一切影響しない
+   ・支出は購入日ベース（カードも購入日で計上）
+   ・残高は月ごと完結（繰り越しなし）
+   ・No.0（管理ユーザー）では非表示
+========================================================= */
+let shY=null, shM=null;   // 帳票タブの表示月（ホームの表示月には影響しない）
+
+function budgetsOf(l){ if(!l.budgets)l.budgets=[]; return l.budgets; }
+
+function shChangeMonth(d){
+  shM+=d;
+  if(shM<0){shM=11;shY--;}
+  if(shM>11){shM=0;shY++;}
+  renderSheetTab();
+}
+
+function renderSheetTab(){
+  if(UI.isMainMode){switchTab('home');return;}
+  if(shY===null){shY=UI.year;shM=UI.month;}
+  document.getElementById('sh-month-label').textContent=`${shY}年${shM+1}月`;
+  // 費目ドロップダウン（この帳簿の支出費目に連動）
+  const sel=document.getElementById('sh-cat');
+  const keep=sel.value;
+  sel.innerHTML=getEXP_CATS().map(c=>`<option value="${escAttr(c.n)}">${esc(c.n)}</option>`).join('');
+  if(keep&&[...sel.options].some(o=>o.value===keep))sel.value=keep;
+  // 日付初期値（表示月内の今日、月が違えば1日）
+  const n=new Date();
+  const mk=`${shY}-${String(shM+1).padStart(2,'0')}`;
+  const dd=(shY===n.getFullYear()&&shM===n.getMonth())?n.getDate():1;
+  const dstr=`${mk}-${String(dd).padStart(2,'0')}`;
+  ['sh-date','sh-bdate'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el&&!String(el.value||'').startsWith(mk))el.value=dstr;
+  });
+  // 内訳・メモの履歴チップ（この帳簿のもの）
+  const u=activeUser();
+  renderMemoHistory('sh-memo-hist','memo','sh-memo',u,UI.activeLedger);
+  renderMemoHistory('sh-memo2-hist','memo2','sh-memo2',u,UI.activeLedger);
+  renderSheetBody();
+}
+
+// 表示月の予算・支出データ
+function sheetMonthData(){
+  const u=activeUser();
+  const l=u.ledgers.find(x=>x.id===UI.activeLedger)||u.ledgers[0];
+  const mk=`${shY}-${String(shM+1).padStart(2,'0')}`;
+  const buds=budgetsOf(l).filter(b=>b.date.startsWith(mk));
+  const exps=u.transactions.filter(t=>t.type==='expense'&&t.ledger===l.id&&t.date.startsWith(mk));
+  return {l,buds,exps};
+}
+
+function renderSheetBody(){
+  const {buds,exps}=sheetMonthData();
+  const totalB=buds.reduce((s,b)=>s+b.amount,0);
+  const totalE=exps.reduce((s,t)=>s+t.amount,0);
+
+  // 予算消化ゲージ（〜70%緑 / 〜100%橙 / 超過は赤）
+  const gauge=document.getElementById('sh-gauge');
+  if(totalB>0){
+    const pct=Math.round(totalE/totalB*100);
+    const remain=totalB-totalE;
+    const col=pct<=70?'var(--pri)':pct<=100?'#F5A623':'var(--red)';
+    gauge.innerHTML=`
+      <div class="sh-gauge-top"><span class="sh-title" style="margin:0">📊 予算消化率</span><span class="sh-gauge-pct" style="color:${col}">${pct}%</span></div>
+      <div class="sh-gauge-bg"><div class="sh-gauge-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>
+      <div class="sh-gauge-nums">
+        <span>予算 <b>${fmt(totalB)}</b></span>
+        <span>支出 <b style="color:var(--red)">${fmt(totalE)}</b></span>
+        <span>残り <b style="color:${remain<0?'var(--red)':'var(--pri)'}">${remain<0?'-':''}${fmt(remain)}</b></span>
+      </div>`;
+  }else{
+    gauge.innerHTML=`<div class="sh-title" style="margin:0">📊 予算消化率</div><div class="sh-gauge-empty">予算が未設定です。「予算の投入」から金額を入れると、ここに消化率が表示されます。</div>`;
+  }
+
+  // 予算チップ（タップで削除）
+  document.getElementById('sh-budget-list').innerHTML=buds.map(b=>
+    `<button class="sh-bud-chip" onclick="delSheetBudget('${b.id}')">${parseInt(b.date.slice(5,7))}/${parseInt(b.date.slice(8))}　${fmt(b.amount)} ✕</button>`
+  ).join('');
+
+  // 帳票テーブル（日にち・予算・支出・残高。残高＝前日残高＋当日予算−当日支出）
+  const dim=new Date(shY,shM+1,0).getDate();
+  const bByDay={},eByDay={};
+  buds.forEach(b=>{const d=parseInt(b.date.slice(8));bByDay[d]=(bByDay[d]||0)+b.amount;});
+  exps.forEach(t=>{const d=parseInt(t.date.slice(8));eByDay[d]=(eByDay[d]||0)+t.amount;});
+  const n=new Date();
+  const isCurMonth=n.getFullYear()===shY&&n.getMonth()===shM;
+  let bal=0, rows='';
+  for(let d=1;d<=dim;d++){
+    bal+=(bByDay[d]||0)-(eByDay[d]||0);
+    const has=!!(bByDay[d]||eByDay[d]);
+    rows+=`<div class="sh-row${has?'':' quiet'}${isCurMonth&&d===n.getDate()?' today':''}">
+      <span class="sh-c-day">${d}日</span>
+      <span class="sh-c-bud">${bByDay[d]?fmtN(bByDay[d]):''}</span>
+      <span class="sh-c-exp">${eByDay[d]?fmtN(eByDay[d]):''}</span>
+      <span class="sh-c-bal${bal<0?' neg':''}">${bal<0?'-':''}${fmtN(Math.abs(bal))}</span>
+    </div>`;
+  }
+  document.getElementById('sh-table').innerHTML=
+    `<div class="sh-row head"><span class="sh-c-day">日にち</span><span class="sh-c-bud">予算</span><span class="sh-c-exp">支出</span><span class="sh-c-bal">残高</span></div>${rows}`;
+}
+
+// 予算の投入・削除
+function addSheetBudget(){
+  const date=document.getElementById('sh-bdate').value;
+  const amount=parseAmountInput('sh-bamount');
+  if(!date){alert('日付を選択してください');return;}
+  if(!amount){alert('金額を入力してください');return;}
+  const l=activeUser().ledgers.find(x=>x.id===UI.activeLedger);
+  if(!l)return;
+  budgetsOf(l).push({id:'bg'+Date.now(),date,amount});
+  document.getElementById('sh-bamount').value='';
+  shY=parseInt(date.slice(0,4)); shM=parseInt(date.slice(5,7))-1;
+  save();renderSheetTab();
+  showToast('✅ 予算を投入しました');
+}
+function delSheetBudget(id){
+  const l=activeUser().ledgers.find(x=>x.id===UI.activeLedger);
+  if(!l)return;
+  const b=budgetsOf(l).find(x=>x.id===id);
+  if(!b)return;
+  if(!confirm(`${parseInt(b.date.slice(5,7))}/${parseInt(b.date.slice(8))}の予算 ${fmt(b.amount)} を削除しますか？`))return;
+  l.budgets=l.budgets.filter(x=>x.id!==id);
+  save();renderSheetBody();
+}
+
+// 一覧入力：支出を追加（現金・カレンダー等にもそのまま反映）
+function sheetQuickAdd(){
+  const amount=parseAmountInput('sh-amount');
+  if(!amount){alert('金額を入力してください');return;}
+  const date=document.getElementById('sh-date').value;
+  if(!date){alert('日付を選択してください');return;}
+  const u=activeUser();
+  const catName=document.getElementById('sh-cat').value;
+  const cat=getEXP_CATS().find(c=>c.n===catName);
+  const iconId=cat?resolveIconId(cat):'other';
+  const memoRaw=document.getElementById('sh-memo').value;
+  const memo2=document.getElementById('sh-memo2').value||'';
+  u.transactions.push({id:'t'+Date.now()+Math.random().toString(36).slice(2),
+    ledger:UI.activeLedger, type:'expense', amount, iconId, emoji:iconId,
+    emojiName:catName, memo:memoRaw||catName, memo2, date, payKind:'cash', payeeId:null});
+  pushMemoHistory(u,UI.activeLedger,'memo',memoRaw);
+  pushMemoHistory(u,UI.activeLedger,'memo2',memo2);
+  ['sh-amount','sh-memo','sh-memo2'].forEach(id=>document.getElementById(id).value='');
+  shY=parseInt(date.slice(0,4)); shM=parseInt(date.slice(5,7))-1;
+  save();renderAll();   // ホーム・カレンダー側も最新化（帳票はrenderAll経由で再描画）
+  showToast('✅ 追加しました');
 }
 
 /* =========================================================

@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.13.0">
+<link rel="stylesheet" href="style.css?v=3.14.0">
 <title>家計簿</title>
 </head>
 <body>
@@ -83,6 +83,9 @@
       </button>
       <button class="tib nav-btn" id="navBtn-graph" onclick="switchTab('graph')" title="グラフ">
         <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><rect x="3" y="12" width="4" height="9" rx="1" stroke="#fff" stroke-width="1.5"/><rect x="10" y="7" width="4" height="14" rx="1" stroke="#fff" stroke-width="1.5"/><rect x="17" y="3" width="4" height="18" rx="1" stroke="#fff" stroke-width="1.5"/></svg>
+      </button>
+      <button class="tib nav-btn" id="navBtn-sheet" onclick="switchTab('sheet')" title="帳票">
+        <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#fff" stroke-width="1.5"/><path d="M3 9h18M9 9v11M15 9v11" stroke="#fff" stroke-width="1.3"/></svg>
       </button>
       <button class="tib nav-btn" id="navBtn-pay" onclick="openPayMgr()" title="支払い方法">
         <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#fff" stroke-width="1.5"/><path d="M2 10h20" stroke="#fff" stroke-width="1.5"/><path d="M6 15h4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -222,6 +225,54 @@
       </div>
     </div>
   </div><!-- /tab-graph -->
+
+  <!-- ===== 帳票タブ（予算・支出・残高の出納帳） ===== -->
+  <div class="tab-page" id="tab-sheet">
+    <div class="month-nav">
+      <button class="mnav-btn" onclick="shChangeMonth(-1)">‹</button>
+      <span class="month-label" id="sh-month-label"></span>
+      <button class="mnav-btn" onclick="shChangeMonth(1)">›</button>
+    </div>
+    <!-- 予算消化ゲージ -->
+    <div class="sh-card" id="sh-gauge"></div>
+    <!-- クイック入力（支出） -->
+    <div class="sh-card">
+      <div class="sh-title">✏️ 一覧入力（支出）</div>
+      <div class="sh-form-row">
+        <input type="date" id="sh-date" class="sh-inp" style="flex:1.2">
+        <select id="sh-cat" class="sh-inp" style="flex:1"></select>
+      </div>
+      <div class="sh-form-row">
+        <input type="text" id="sh-memo" class="sh-inp" placeholder="内訳" style="flex:1">
+      </div>
+      <div class="memo-hist" id="sh-memo-hist"></div>
+      <div class="sh-form-row">
+        <input type="text" id="sh-memo2" class="sh-inp" placeholder="メモ" style="flex:1">
+      </div>
+      <div class="memo-hist" id="sh-memo2-hist"></div>
+      <div class="sh-form-row">
+        <div class="amount-wrap" style="flex:1"><span class="amount-yen">¥</span><input type="text" id="sh-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+        <button class="sh-add-btn" onclick="sheetQuickAdd()">追加</button>
+      </div>
+      <p class="csv-note" style="margin:6px 0 0">・支払い方法は現金で登録されます（銀行・カードは＋ボタンから）<br>・追加した支出はカレンダーにも反映されます</p>
+    </div>
+    <!-- 予算の投入 -->
+    <div class="sh-card">
+      <div class="sh-title">💰 予算の投入</div>
+      <div class="sh-form-row">
+        <input type="date" id="sh-bdate" class="sh-inp" style="flex:1.2">
+        <div class="amount-wrap" style="flex:1"><span class="amount-yen">¥</span><input type="text" id="sh-bamount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+        <button class="sh-add-btn" onclick="addSheetBudget()">投入</button>
+      </div>
+      <div id="sh-budget-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+      <p class="csv-note" style="margin:6px 0 0">・予算は帳票専用の数字で、収入・支出の統計には含まれません<br>・投入済みの予算はタップで削除できます</p>
+    </div>
+    <!-- 帳票テーブル -->
+    <div class="sh-card" style="padding:0">
+      <div id="sh-table"></div>
+    </div>
+    <p class="csv-note" style="padding:0 16px">・支出は購入日ベース（カードも購入日で計上）<br>・残高は月ごとの計算です（前月からの繰り越しはしません）</p>
+  </div><!-- /tab-sheet -->
 </div>
 
 <!-- ===== 長押しメニュー ===== -->
@@ -816,6 +867,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.13.0"></script>
+<script src="app.js?v=3.14.0"></script>
 </body>
 </html>
