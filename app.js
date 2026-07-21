@@ -564,10 +564,21 @@ function renderSummary(){
   document.getElementById('s-inc').textContent=fmt(inc);
   document.getElementById('s-exp').textContent=fmt(exp);
   const be=document.getElementById('s-bal');
-  be.textContent=fmt(bal);be.className='sum-val '+(bal>=0?'bal':'exp');
+  be.textContent=(bal<0?'-':'')+fmt(bal);be.className='s2-val '+(bal>=0?'bal':'exp');
   document.getElementById('s-cash').textContent=fmt(cashAmt);
   document.getElementById('s-card').textContent=fmt(cardAmt);
   document.getElementById('s-bank').textContent=fmt(bankAmt);
+  applySummaryBreakState();
+}
+
+// 上部サマリー右側の支払い方法内訳（現金・カード・銀行振込）を⌄で開閉。既定は開いた状態
+let summaryBreakOpen=true;
+function toggleSummaryBreak(){ summaryBreakOpen=!summaryBreakOpen; applySummaryBreakState(); }
+function applySummaryBreakState(){
+  const br=document.getElementById('s2-break');
+  const ch=document.getElementById('s2-chev');
+  if(br)br.style.display=summaryBreakOpen?'':'none';
+  if(ch)ch.style.transform=summaryBreakOpen?'':'rotate(-90deg)';
 }
 
 function renderPayMini(){
@@ -711,10 +722,21 @@ function renderCalInfoBar(){
   }
   bar?.classList.remove('hidden');
 
-  const cumBal=cumInc-cumExp+carryoverBefore(yr,mo);
+  const carry=carryoverBefore(yr,mo);
+  const cumBal=cumInc-cumExp+carry;
   const dayBal=dayInc-dayExp;
 
-  // 1行目：選択日までの累計（収入・支出・残高）
+  // 前月繰越（繰越設定ONの帳簿のみ／0以外のとき表示）。プラス=通常色（黒字）、マイナス=赤字
+  const carryEl=document.getElementById('cal-carry');
+  if(carryEl){
+    if(carry!==0){
+      carryEl.textContent=`繰越 ${(carry<0?'-':'+')+fmtN(Math.abs(carry))}`;
+      carryEl.style.color=carry<0?'var(--red)':'var(--text)';
+      carryEl.classList.remove('hidden');
+    }else carryEl.classList.add('hidden');
+  }
+
+  // 1行目：選択日までの累計（前月繰越・収入・支出・残高）
   document.getElementById('cal-cum-inc').textContent=`収入 ${fmtN(cumInc)}`;
   document.getElementById('cal-cum-exp').textContent=`支出 ${fmtN(cumExp)}`;
   const cumBalEl=document.getElementById('cal-cum-bal');
@@ -2725,7 +2747,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.14.6';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.14.8';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){

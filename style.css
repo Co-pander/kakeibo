@@ -208,16 +208,24 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .memo-hist-chip:active{background:var(--pri);color:#fff;border-color:var(--pri)}
 
 /* ===== SUMMARY ===== */
-.summary-wrap{background:var(--bg-card);border-bottom:1px solid var(--border);padding:6px 12px 8px}
-.summary-grid{display:flex;flex-direction:column;gap:1px}
-.sum-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--border-l)}
-.sum-row:last-child{border-bottom:none}
-.sum-item{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;gap:6px;position:relative}
-.sum-item+.sum-item::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:1px;background:var(--border-l)}
-.sum-lbl{font-size:10px;color:var(--text-sub);font-weight:500;white-space:nowrap;flex:none}
-.sum-val{font-size:11px;font-weight:700;text-align:right;white-space:nowrap}
-.sum-val.inc{color:#3B82C4}.sum-val.exp{color:var(--red)}.sum-val.bal{color:var(--pri)}
-.sum-val.cash{color:#E07B2E}.sum-val.card-c{color:#AB47BC}.sum-val.bank{color:#42A5F5}
+.summary-wrap{background:var(--bg-card);border-bottom:1px solid var(--border);padding:8px 12px 10px}
+/* 上部サマリー：左=収入/収支（大）、右=支出（大）＋支払い方法内訳（小・⌄で開閉） */
+.summary2{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.summary2 .s2-col{padding:2px 12px;min-width:0}
+.summary2 .s2-col+.s2-col{border-left:1px solid var(--border-l)}
+.s2-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0}
+.s2-lbl{font-size:12px;color:var(--text-sub);font-weight:500;white-space:nowrap;flex:none}
+.s2-val{font-size:18px;font-weight:800;text-align:right;white-space:nowrap;font-family:var(--font-num);font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.s2-val.inc{color:#3B82C4}.s2-val.exp{color:var(--red)}.s2-val.bal{color:var(--pri)}
+.s2-tog{cursor:pointer}
+.s2-chev{font-size:11px;color:var(--text-hint);display:inline-block;transition:transform 0.2s;transform-origin:center}
+.s2-break{margin-top:0}
+.s2-bline{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0;line-height:1.4}
+.s2-blbl{font-size:10px;color:var(--text-hint);white-space:nowrap;flex:none}
+.s2-bval{font-size:11px;font-weight:600;text-align:right;white-space:nowrap;font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.s2-bval.cash{color:#E07B2E}.s2-bval.card-c{color:#AB47BC}.s2-bval.bank{color:#42A5F5}
+/* 前月繰越（日別バー1行目） */
+.cal-info-carry{font-size:12px;font-weight:600;font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .pm-chip{flex:none;display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all 0.12s}
 .pm-chip.cash{background:var(--orange-l);color:var(--orange);border-color:rgba(224,123,46,0.2)}
 .pm-chip.bank{background:var(--blue-l);color:var(--blue);border-color:rgba(59,130,196,0.2)}

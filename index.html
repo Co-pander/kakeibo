@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.14.6">
+<link rel="stylesheet" href="style.css?v=3.14.8">
 <title>家計簿</title>
 </head>
 <body>
@@ -112,16 +112,18 @@
     </div>
 
     <div class="summary-wrap">
-      <div class="summary-grid">
-        <div class="sum-row">
-          <div class="sum-item"><span class="sum-lbl">収入</span><span class="sum-val inc" id="s-inc">¥0</span></div>
-          <div class="sum-item"><span class="sum-lbl">支出</span><span class="sum-val exp" id="s-exp">¥0</span></div>
-          <div class="sum-item"><span class="sum-lbl">収支</span><span class="sum-val bal" id="s-bal">¥0</span></div>
+      <div class="summary2">
+        <div class="s2-col">
+          <div class="s2-line"><span class="s2-lbl">収入</span><span class="s2-val inc" id="s-inc">¥0</span></div>
+          <div class="s2-line"><span class="s2-lbl">収支</span><span class="s2-val bal" id="s-bal">¥0</span></div>
         </div>
-        <div class="sum-row">
-          <div class="sum-item"><span class="sum-lbl">現金</span><span class="sum-val cash" id="s-cash">¥0</span></div>
-          <div class="sum-item"><span class="sum-lbl">カード</span><span class="sum-val card-c" id="s-card">¥0</span></div>
-          <div class="sum-item"><span class="sum-lbl">銀行振込</span><span class="sum-val bank" id="s-bank">¥0</span></div>
+        <div class="s2-col">
+          <div class="s2-line s2-tog" onclick="toggleSummaryBreak()"><span class="s2-lbl">支出 <span class="s2-chev" id="s2-chev">⌄</span></span><span class="s2-val exp" id="s-exp">¥0</span></div>
+          <div class="s2-break" id="s2-break">
+            <div class="s2-bline"><span class="s2-blbl">現金</span><span class="s2-bval cash" id="s-cash">¥0</span></div>
+            <div class="s2-bline"><span class="s2-blbl">カード</span><span class="s2-bval card-c" id="s-card">¥0</span></div>
+            <div class="s2-bline"><span class="s2-blbl">銀行振込</span><span class="s2-bval bank" id="s-bank">¥0</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -138,6 +140,7 @@
     <div class="cal-info-bar" id="cal-info-bar">
       <div class="cal-info-row cal-row-cum">
         <div class="cal-info-main">
+          <span class="cal-info-carry hidden" id="cal-carry"></span>
           <span class="cal-info-inc" id="cal-cum-inc"></span>
           <span class="cal-info-exp" id="cal-cum-exp"></span>
         </div>
@@ -888,6 +891,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.14.6"></script>
+<script src="app.js?v=3.14.8"></script>
 </body>
 </html>
