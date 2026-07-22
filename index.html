@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.15.0">
+<link rel="stylesheet" href="style.css?v=3.15.1">
 <title>家計簿</title>
 </head>
 <body>
@@ -243,24 +243,24 @@
       <div id="sh-table"></div>
     </div>
     <p class="csv-note" style="padding:6px 16px 0">・「予算」欄タップ＝予算の追加/編集　・「支出」欄タップ＝支出を入力　・日付/残高タップ＝明細の開閉　・明細タップ＝編集<br>・支出は購入日ベース（カードも購入日で計上）／残高は月ごと計算（繰り越しなし）</p>
-    <!-- 手入力フォーム（折りたたみ。まとめて入力したいとき用） -->
-    <details class="sh-forms">
-      <summary>✏️ 手入力フォーム（一覧入力・予算）</summary>
-      <div class="sh-card" style="margin-top:8px">
+    <button class="sh-forms-btn" onclick="openSheetForms()">✏️ まとめて入力（一覧入力・予算）</button>
+  </div><!-- /tab-sheet -->
+
+  <!-- ===== 帳票：まとめて入力モーダル（一覧入力・予算） ===== -->
+  <div class="overlay hidden" id="sh-forms-overlay">
+    <div class="sheet">
+      <div class="sheet-drag"></div>
+      <div class="sheet-head">
+        <span class="sheet-title">✏️ まとめて入力</span>
+        <button class="sheet-close" onclick="closeSheetForms()">✕</button>
+      </div>
+      <div class="sh-card">
         <div class="sh-title">✏️ 一覧入力（支出）</div>
-        <div class="sh-form-row">
-          <input type="date" id="sh-date" class="sh-inp" style="flex:1">
-        </div>
-        <div class="sh-form-row">
-          <select id="sh-cat" class="sh-inp" style="flex:1"></select>
-        </div>
-        <div class="sh-form-row">
-          <input type="text" id="sh-memo" class="sh-inp" placeholder="内訳" style="flex:1">
-        </div>
+        <div class="sh-form-row"><input type="date" id="sh-date" class="sh-inp" style="flex:1"></div>
+        <div class="sh-form-row"><select id="sh-cat" class="sh-inp" style="flex:1"></select></div>
+        <div class="sh-form-row"><input type="text" id="sh-memo" class="sh-inp" placeholder="内訳" style="flex:1"></div>
         <div class="memo-hist" id="sh-memo-hist"></div>
-        <div class="sh-form-row">
-          <input type="text" id="sh-memo2" class="sh-inp" placeholder="メモ" style="flex:1">
-        </div>
+        <div class="sh-form-row"><input type="text" id="sh-memo2" class="sh-inp" placeholder="メモ" style="flex:1"></div>
         <div class="memo-hist" id="sh-memo2-hist"></div>
         <div class="sh-form-row">
           <div class="amount-wrap" style="flex:1"><span class="amount-yen">¥</span><input type="text" id="sh-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
@@ -270,9 +270,7 @@
       </div>
       <div class="sh-card">
         <div class="sh-title">💰 予算</div>
-        <div class="sh-form-row">
-          <input type="date" id="sh-bdate" class="sh-inp" style="flex:1">
-        </div>
+        <div class="sh-form-row"><input type="date" id="sh-bdate" class="sh-inp" style="flex:1"></div>
         <div class="sh-form-row">
           <div class="amount-wrap" style="flex:1"><span class="amount-yen">¥</span><input type="text" id="sh-bamount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
           <button class="sh-add-btn" onclick="addSheetBudget()">予算追加</button>
@@ -280,8 +278,8 @@
         <div id="sh-budget-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
         <p class="csv-note" style="margin:6px 0 0">・予算は帳票専用（収入・支出の統計には含まれません）</p>
       </div>
-    </details>
-  </div><!-- /tab-sheet -->
+    </div>
+  </div>
 </div>
 
 <!-- ===== 長押しメニュー ===== -->
@@ -895,6 +893,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.15.0"></script>
+<script src="app.js?v=3.15.1"></script>
 </body>
 </html>

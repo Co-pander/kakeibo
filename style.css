@@ -498,12 +498,9 @@ input[type="date"].sh-inp{min-width:150px}
 .sh-row.head{cursor:default}
 .sh-add-mini{color:var(--text-hint);opacity:0.5;font-size:12px}
 .sh-c-exp.tapable,.sh-c-bud.tapable{cursor:pointer}
-/* 帳票の手入力フォーム（折りたたみ） */
-.sh-forms{margin:8px 0 0}
-.sh-forms>summary{list-style:none;cursor:pointer;padding:10px 16px;font-size:13px;font-weight:600;color:var(--pri);background:var(--bg-card);border-top:1px solid var(--border-l)}
-.sh-forms>summary::-webkit-details-marker{display:none}
-.sh-forms>summary::before{content:'▸ ';font-size:11px}
-.sh-forms[open]>summary::before{content:'▾ '}
+/* 帳票「まとめて入力」ボタン（タップでモーダル） */
+.sh-forms-btn{display:block;width:calc(100% - 32px);margin:12px 16px 20px;padding:12px;border-radius:var(--r8);border:1.5px dashed var(--border);background:var(--bg-card);color:var(--pri);font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer}
+.sh-forms-btn:active{background:var(--bg)}
 .sh-row.has-exp{cursor:pointer}
 .sh-row.has-exp:active{background:var(--bg)}
 .sh-chev{font-size:10px;color:var(--text-hint);margin-left:3px}

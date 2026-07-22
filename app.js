@@ -2859,7 +2859,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.15.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.15.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3324,12 +3324,17 @@ function renderSheetTab(){
   if(UI.isMainMode){switchTab('home');return;}
   if(shY===null){shY=UI.year;shM=UI.month;}
   document.getElementById('sh-month-label').textContent=`${shY}年${shM+1}月`;
-  // 費目ドロップダウン（この帳簿の支出費目に連動）
+  refreshSheetForms();
+  renderSheetBody();
+}
+// まとめて入力フォーム（モーダル内）の中身を表示月に合わせて更新
+function refreshSheetForms(){
   const sel=document.getElementById('sh-cat');
-  const keep=sel.value;
-  sel.innerHTML=getEXP_CATS().map(c=>`<option value="${escAttr(c.n)}">${esc(c.n)}</option>`).join('');
-  if(keep&&[...sel.options].some(o=>o.value===keep))sel.value=keep;
-  // 日付初期値（表示月内の今日、月が違えば1日）
+  if(sel){
+    const keep=sel.value;
+    sel.innerHTML=getEXP_CATS().map(c=>`<option value="${escAttr(c.n)}">${esc(c.n)}</option>`).join('');
+    if(keep&&[...sel.options].some(o=>o.value===keep))sel.value=keep;
+  }
   const n=new Date();
   const mk=ymKey(shY,shM);
   const dd=(shY===n.getFullYear()&&shM===n.getMonth())?n.getDate():1;
@@ -3338,11 +3343,11 @@ function renderSheetTab(){
     const el=document.getElementById(id);
     if(el&&!String(el.value||'').startsWith(mk))el.value=dstr;
   });
-  // 内訳・メモの履歴チップ（この帳簿のもの）
-  const u=activeUser();
-  renderMemoHistPair('sh',u,UI.activeLedger);
-  renderSheetBody();
+  renderMemoHistPair('sh',activeUser(),UI.activeLedger);
 }
+// まとめて入力モーダルの開閉
+function openSheetForms(){ refreshSheetForms(); const o=document.getElementById('sh-forms-overlay'); if(o){o.classList.remove('hidden');const s=o.querySelector('.sheet');if(s)s.scrollTop=0;} }
+function closeSheetForms(){ const o=document.getElementById('sh-forms-overlay'); if(o)o.classList.add('hidden'); }
 
 // 表示月の予算・支出データ
 function sheetMonthData(){
@@ -3472,6 +3477,7 @@ function addSheetBudget(){
   budgetsOf(l).push({id:'bg'+Date.now(),date,amount});
   document.getElementById('sh-bamount').value='';
   shGoToMonthOf(date);
+  closeSheetForms();
   save();renderSheetTab();
   showToast('✅ 予算を追加しました');
 }
@@ -3583,6 +3589,7 @@ function sheetQuickAdd(){
   pushMemoHistory(u,UI.activeLedger,'memo2',memo2);
   ['sh-amount','sh-memo','sh-memo2'].forEach(id=>document.getElementById(id).value='');
   shGoToMonthOf(date);
+  closeSheetForms();
   save();renderAll();   // ホーム・カレンダー側も最新化（帳票はrenderAll経由で再描画）
   showToast('✅ 追加しました');
 }
