@@ -221,7 +221,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .s2-chev{font-size:11px;color:var(--text-hint);display:inline-block;transition:transform 0.2s;transform-origin:center}
 .s2-break{margin-top:0}
 .s2-bline{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0;line-height:1.4}
-.s2-blbl{font-size:10px;color:var(--text-hint);white-space:nowrap;flex:none}
+.s2-blbl{font-size:10px;color:var(--text-sub);white-space:nowrap;flex:none}
 .s2-bval{font-size:11px;font-weight:600;text-align:right;white-space:nowrap;font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .s2-bval.cash{color:#E07B2E}.s2-bval.card-c{color:#AB47BC}.s2-bval.bank{color:#42A5F5}
 /* 前月繰越（日別バー1行目） */
@@ -445,7 +445,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .hidden{display:none!important}
 
 /* ===== 数字フォント・日別集計バー（2026-06 追加） ===== */
-.tx-amount,.day-amt,.sum-val,.cal-info-balance,.cal-info-day-bal,.cal-info-inc,.cal-info-exp,.tdh-inout,.cat-sum-amt,.amount-wrap input{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.tx-amount,.day-amt,.cal-info-balance,.cal-info-day-bal,.cal-info-inc,.cal-info-exp,.tdh-inout,.cat-sum-amt,.amount-wrap input{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .cal-info-inc{font-size:12px;font-weight:700;color:#3B82C4;white-space:nowrap}
 .cal-info-exp{font-size:12px;font-weight:700;color:var(--red);white-space:nowrap}
 .tdh-inout{display:inline-flex;gap:8px;white-space:nowrap}

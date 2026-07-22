@@ -338,8 +338,13 @@ function load(){
     }
     if(u.avatar&&!USER_AVATARS.find(a=>a.id===u.avatar))u.avatar='person';
     if(u.isMain){DB.mainUser.enabled=true;delete u.isMain;}
-    // migration: CSVインポート等でアイコンを失った取引を費目名から復元
+    // migration: 日付表記の正規化＋アイコン欠落の復元
     u.transactions.forEach(t=>{
+      // Excel編集CSVで2026/07/05等になった日付をハイフン区切りに直す（月日NaN・集計0の修復）
+      if(t.date&&!/^\d{4}-\d{2}-\d{2}$/.test(t.date)){
+        const nd=normalizeDate(t.date);
+        if(nd)t.date=nd;
+      }
       if(t.iconId)return;
       const led=u.ledgers.find(l=>l.id===t.ledger);
       const cats=led?.customCats?.[t.type]||(t.type==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS);
@@ -449,11 +454,35 @@ function ymKey(y,m){return `${y}-${_p2(m+1)}`;}
 function ymd(y,m,d){return `${ymKey(y,m)}-${_p2(d)}`;}
 // 'YYYY-MM-DD' → 'M/D'（購入日の注記などの表示用）
 function mdLabel(s){return `${parseInt(s.slice(5,7))}/${parseInt(s.slice(8))}`;}
+// 各種日付表記を 'YYYY-MM-DD'（ハイフン・ゼロ埋め）に正規化。
+// ExcelでCSVを編集すると 2026/07/05 や 2026/7/5、シリアル値(46023)等になり、
+// アプリの日付処理（ハイフン前提）が壊れる（月日NaN・集計0）ため取り込み時／起動時に正規化する
+function normalizeDate(s){
+  if(s==null)return '';
+  s=String(s).trim();
+  if(!s)return '';
+  let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);   // 年先頭（- / . 区切り）
+  if(m)return `${m[1]}-${_p2(+m[2])}-${_p2(+m[3])}`;
+  if(/^\d+$/.test(s)){                                          // Excelシリアル値（1899-12-30起点）
+    const n=parseInt(s,10);
+    if(n>20000&&n<80000){
+      const d=new Date(Date.UTC(1899,11,30)+n*86400000);
+      return `${d.getUTCFullYear()}-${_p2(d.getUTCMonth()+1)}-${_p2(d.getUTCDate())}`;
+    }
+  }
+  const d=new Date(s);                                          // その他はDateで解釈できれば変換
+  if(!isNaN(d.getTime()))return `${d.getFullYear()}-${_p2(d.getMonth()+1)}-${_p2(d.getDate())}`;
+  return '';
+}
 
 function fmt(n){return '¥'+Math.abs(n).toLocaleString('ja-JP')}
 function fmtS(n){return n>=10000?'¥'+(n/10000).toFixed(1)+'万':'¥'+n.toLocaleString('ja-JP')}
 // カレンダー用：数字のみカンマ区切り（¥なし・単位なし）
 function fmtN(n){return Math.abs(n).toLocaleString('ja-JP')}
+// 符号付き金額（マイナスのみ「-」を前置。残高・収支などの表示に使用）
+function sfmt(n){return (n<0?'-':'')+fmt(n);}
+// 月の集計に使う「実効日」：収入は取引日、支出はeffectiveExpDate（カードは請求日）
+function effDateOf(t,u){return t.type==='income'?t.date:effectiveExpDate(t,u);}
 // 金額入力欄：入力中にカンマ区切りで整形（数字以外は除去）
 function formatAmountInput(el){
   const raw=el.value.replace(/[^\d]/g,'');
@@ -545,9 +574,8 @@ function renderSummary(){
   const mk=ymKey(UI.year,UI.month);
   const tally=(usr,txs)=>{
     txs.forEach(t=>{
-      if(t.type==='income'){ if(t.date.startsWith(mk))inc+=t.amount; return; }
-      const ed=effectiveExpDate(t,usr);
-      if(!ed.startsWith(mk))return;
+      if(!effDateOf(t,usr).startsWith(mk))return;
+      if(t.type==='income'){inc+=t.amount;return;}
       exp+=t.amount;
       if(t.payKind==='card')cardAmt+=t.amount;
       else if(t.payKind==='bank')bankAmt+=t.amount;
@@ -564,7 +592,7 @@ function renderSummary(){
   document.getElementById('s-inc').textContent=fmt(inc);
   document.getElementById('s-exp').textContent=fmt(exp);
   const be=document.getElementById('s-bal');
-  be.textContent=(bal<0?'-':'')+fmt(bal);be.className='s2-val '+(bal>=0?'bal':'exp');
+  be.textContent=sfmt(bal);be.className='s2-val '+(bal>=0?'bal':'exp');
   document.getElementById('s-cash').textContent=fmt(cashAmt);
   document.getElementById('s-card').textContent=fmt(cardAmt);
   document.getElementById('s-bank').textContent=fmt(bankAmt);
@@ -740,7 +768,7 @@ function renderCalInfoBar(){
   document.getElementById('cal-cum-inc').textContent=`収入 ${fmtN(cumInc)}`;
   document.getElementById('cal-cum-exp').textContent=`支出 ${fmtN(cumExp)}`;
   const cumBalEl=document.getElementById('cal-cum-bal');
-  cumBalEl.textContent=`残高 ${(cumBal<0?'-':'')+fmt(cumBal)}`;
+  cumBalEl.textContent=`残高 ${sfmt(cumBal)}`;
   cumBalEl.style.color=cumBal<0?'var(--red)':'var(--text)';
 
   // 2行目：その日（収入・支出・残高）。0の項目は非表示
@@ -749,7 +777,7 @@ function renderCalInfoBar(){
   if(dayInc>0){dInc.textContent=`収入 ${fmtN(dayInc)}`;dInc.classList.remove('hidden');}else dInc.classList.add('hidden');
   if(dayExp>0){dExp.textContent=`支出 ${fmtN(dayExp)}`;dExp.classList.remove('hidden');}else dExp.classList.add('hidden');
   const dayBalEl=document.getElementById('cal-day-bal');
-  dayBalEl.textContent=`残高 ${(dayBal<0?'-':'')+fmt(dayBal)}`;
+  dayBalEl.textContent=`残高 ${sfmt(dayBal)}`;
   dayBalEl.style.color=dayBal<0?'var(--red)':'var(--text-sub)';
 
   // 無支出日バッジ（その日の支出が0）
@@ -775,8 +803,7 @@ function carryoverBefore(yr,mo){
   const sumBefore=(usr,txs)=>{
     let s=0;
     txs.forEach(t=>{
-      if(t.type==='income'){if(t.date<firstStr)s+=t.amount;}
-      else if(effectiveExpDate(t,usr)<firstStr)s-=t.amount;
+      if(effDateOf(t,usr)<firstStr)s+=(t.type==='income'?t.amount:-t.amount);
     });
     return s;
   };
@@ -2034,32 +2061,91 @@ function importCSV(ev){
     try{
       const text=e.target.result.replace(/^\uFEFF/,'');
       const lines=text.split(/\r?\n/).filter(l=>l.trim());
-      if(lines.length<2){alert('データが見つかりません');return;}
-      let added=0;
+      if(lines.length<2){showToast('⚠️ データが見つかりません');ev.target.value='';return;}
       const u=activeUser();
+      const rows=[];
       for(let i=1;i<lines.length;i++){
         const cols=parseCSV(lines[i]);
         if(cols.length<5)continue;
-        const[date,typeStr,amtStr,catName,memo,payLabel='',payeeName='',ledgerName='']=cols;
-        const amount=parseInt(amtStr)||0;if(!amount||!date)continue;
+        const[dateRaw,typeStr,amtStr,catName,memo,payLabel='',payeeName='',ledgerName='']=cols;
+        const date=normalizeDate(dateRaw);                                // Excelのスラッシュ日付等を正規化
+        const amount=parseInt(String(amtStr).replace(/[^\d-]/g,''))||0;    // カンマ・¥等を除去
+        if(!amount||!date)continue;
         const type=typeStr==='収入'?'income':'expense';
-        let ledger=u.ledgers.find(l=>l.name===ledgerName)?.id||UI.activeLedger;
-        // 費目名から帳簿の費目を探してアイコンを復元（見つからなければ「その他」）
+        const ledger=u.ledgers.find(l=>l.name===ledgerName)?.id||UI.activeLedger;
         const ledgerObj=u.ledgers.find(l=>l.id===ledger);
         const cats=ledgerObj?.customCats?.[type]||(type==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS);
         const cat=cats.find(c=>c.n===catName);
         const iconId=cat?resolveIconId(cat):'other';
-        let payKind='cash',payeeId=null;
-        if(payLabel==='銀行'){payKind='bank';if(payeeName){let p=u.payees.bank.find(x=>x.name===payeeName);if(!p){p={id:'b'+Date.now()+i,name:payeeName};u.payees.bank.push(p);}payeeId=p.id;}}
-        else if(payLabel==='カード'){payKind='card';if(payeeName){let p=u.payees.card.find(x=>x.name===payeeName);if(!p){p={id:'c'+Date.now()+i,name:payeeName};u.payees.card.push(p);}payeeId=p.id;}}
-        u.transactions.push({id:'t'+Date.now()+i+Math.random().toString(36).slice(2),ledger,type,amount,iconId,emoji:iconId,emojiName:catName,memo:memo||catName,date,payKind,payeeId});
-        added++;
+        rows.push({date,type,amount,catName,memo:memo||catName,iconId,payLabel,payeeName,ledger});
       }
-      save();renderAll();alert(`${added}件インポートしました`);
-    }catch(err){alert('読み込みエラー：'+err.message);}
+      if(!rows.length){showToast('⚠️ 取り込めるデータがありませんでした');ev.target.value='';return;}
+      pendingCSV=rows;
+      const targetLedgers=new Set(rows.map(r=>r.ledger));
+      const existing=u.transactions.filter(t=>targetLedgers.has(t.ledger)).length;
+      if(existing===0){ doImportCSV('append'); }        // 既存が無ければそのまま追加
+      else openCSVImportDialog(rows.length, existing);   // あれば方法を選ばせる
+    }catch(err){showToast('⚠️ 読み込みエラー: '+err.message);}
     ev.target.value='';
   };
   reader.readAsText(file,'UTF-8');
+}
+let pendingCSV=null;
+function openCSVImportDialog(count, existing){
+  ensureCSVImportModal();
+  document.getElementById('csvimp-count').textContent=count;
+  document.getElementById('csvimp-existing').textContent=existing;
+  const rb=document.getElementById('csvimp-replace');
+  rb.textContent='♻️ 置き換え（この帳簿を消して取り込み）'; delete rb.dataset.arm;
+  document.getElementById('csv-import-overlay').classList.remove('hidden');
+}
+function closeCSVImportDialog(){ document.getElementById('csv-import-overlay').classList.add('hidden'); pendingCSV=null; }
+function confirmReplaceImport(){   // 置き換えは誤操作防止の2段階タップ
+  const rb=document.getElementById('csvimp-replace');
+  if(!rb.dataset.arm){ rb.dataset.arm='1'; rb.textContent='⚠️ もう一度タップで置き換え'; return; }
+  doImportCSV('replace');
+}
+// mode: 'append'（全追加）/ 'merge'（重複除外）/ 'replace'（対象帳簿を消して取り込み）
+function doImportCSV(mode){
+  const rows=pendingCSV; if(!rows)return;
+  const u=activeUser();
+  const targetLedgers=new Set(rows.map(r=>r.ledger));
+  if(mode==='replace') u.transactions=u.transactions.filter(t=>!targetLedgers.has(t.ledger));
+  const dupKey=r=>`${r.date}|${r.type}|${r.amount}|${r.ledger}|${r.catName||r.emojiName}|${r.memo}`;
+  const seen=new Set(u.transactions.map(dupKey));
+  let added=0,skipped=0;
+  rows.forEach((r,i)=>{
+    if(mode==='merge'&&seen.has(dupKey(r))){skipped++;return;}
+    let payKind='cash',payeeId=null;
+    if(r.payLabel==='銀行'){payKind='bank';if(r.payeeName){let p=u.payees.bank.find(x=>x.name===r.payeeName);if(!p){p={id:'b'+Date.now()+i,name:r.payeeName};u.payees.bank.push(p);}payeeId=p.id;}}
+    else if(r.payLabel==='カード'){payKind='card';if(r.payeeName){let p=u.payees.card.find(x=>x.name===r.payeeName);if(!p){p={id:'c'+Date.now()+i,name:r.payeeName};u.payees.card.push(p);}payeeId=p.id;}}
+    u.transactions.push({id:'t'+Date.now()+i+Math.random().toString(36).slice(2),ledger:r.ledger,type:r.type,amount:r.amount,iconId:r.iconId,emoji:r.iconId,emojiName:r.catName,memo:r.memo,date:r.date,payKind,payeeId});
+    seen.add(dupKey(r));
+    added++;
+  });
+  save();renderAll();closeCSVImportDialog();
+  showToast(`✅ ${added}件を取り込みました`+(skipped?`（重複${skipped}件スキップ）`:''));
+}
+// 取り込みダイアログのDOMをJSから生成（index.htmlが古くても動く防御策）
+function ensureCSVImportModal(){
+  if(document.getElementById('csv-import-overlay'))return;
+  const div=document.createElement('div');
+  div.innerHTML=`<div class="overlay hidden" id="csv-import-overlay">
+    <div class="sheet">
+      <div class="sheet-drag"></div>
+      <div class="sheet-head"><span class="sheet-title">📥 CSVの取り込み方法</span><button class="sheet-close" onclick="closeCSVImportDialog()">✕</button></div>
+      <div style="padding:12px 16px">
+        <p class="csv-note" style="margin:0 0 12px">読み込み <b id="csvimp-count">0</b> 件／この帳簿に既存 <b id="csvimp-existing">0</b> 件。取り込み方法を選んでください。</p>
+        <button class="submit-btn" style="margin-top:0" onclick="doImportCSV('merge')">🔀 重複を除いて追加（おすすめ）</button>
+        <p class="csv-note" style="margin:4px 0 12px">日付・種別・金額・費目・メモが同じ取引はスキップ。再取り込みでも二重になりません。</p>
+        <button class="csv-btn" style="width:100%" onclick="doImportCSV('append')">➕ すべて追加</button>
+        <p class="csv-note" style="margin:4px 0 12px">確認せず全件追加します（重複する可能性あり）。</p>
+        <button class="csv-btn" id="csvimp-replace" style="width:100%;color:var(--red)" onclick="confirmReplaceImport()">♻️ 置き換え（この帳簿を消して取り込み）</button>
+        <p class="csv-note" style="margin:4px 0 0">今あるこの帳簿のデータを消してから取り込みます。取り消せません。</p>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
 }
 function parseCSV(line){
   const r=[];let cur='';let q=false;
@@ -2747,7 +2833,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.14.8';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.14.10';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3595,8 +3681,7 @@ function renderBarChart(){
     const mk=ymKey(yr,m);
     let inc=0,exp=0;
     scope.forEach(({t,usr})=>{
-      if(t.type==='income'){if(t.date.startsWith(mk))inc+=t.amount;}
-      else if(effectiveExpDate(t,usr).startsWith(mk))exp+=t.amount;
+      if(effDateOf(t,usr).startsWith(mk)){if(t.type==='income')inc+=t.amount;else exp+=t.amount;}
     });
     data.push({y:yr,m,inc,exp,label:`${m+1}`});
   }
@@ -3681,7 +3766,7 @@ function renderDonutAndList(){
   // 請求ベース：支出はeffectiveExpDate（カードは請求月）、収入は取引日で選択月分を抽出
   const txs=graphScope().filter(({t,usr})=>{
     if(t.type!==catGraphType)return false;
-    return catGraphType==='income'?t.date.startsWith(mk):effectiveExpDate(t,usr).startsWith(mk);
+    return effDateOf(t,usr).startsWith(mk);
   }).map(x=>x.t);
 
   const total=txs.reduce((s,t)=>s+t.amount,0);
@@ -3745,7 +3830,7 @@ function catDetailTxs(yy,mm,scope){
     if(t.type!==catGraphType)return false;
     const iid=txIconId(t);
     if((t.emojiName||iid)!==catDetailName)return false;
-    return catGraphType==='income'?t.date.startsWith(mk):effectiveExpDate(t,usr).startsWith(mk);
+    return effDateOf(t,usr).startsWith(mk);
   });
 }
 
@@ -3833,7 +3918,7 @@ function renderCatDetail(){
   // 発生日（支出のカードは請求日）ごとにグループ化
   const byDate={};
   pairs.forEach(({t,usr})=>{
-    const d=catGraphType==='income'?t.date:effectiveExpDate(t,usr);
+    const d=effDateOf(t,usr);
     (byDate[d]=byDate[d]||[]).push({t,usr});
   });
 
