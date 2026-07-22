@@ -105,7 +105,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .cal-info-date{font-size:13px;font-weight:600;color:var(--text)}
 .cal-info-badge{font-size:11px;font-weight:600;color:var(--pri);background:var(--pri-l);padding:2px 8px;border-radius:20px;border:1px solid var(--pri)}
 .cal-info-day-bal{font-size:12px;font-weight:700;color:var(--text-sub);margin-left:auto;white-space:nowrap}
-.cal-fab{position:absolute;bottom:10px;right:10px;width:44px;height:44px;border-radius:50%;background:var(--pri);color:#fff;border:none;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,0.2);z-index:5;font-family:var(--font);transition:transform 0.1s,background 0.3s;line-height:1}
+/* 「＋」ボタン：カレンダー下部の専用帯（.cal-section の padding-bottom）に配置し日付にかぶらない */
+.cal-fab{position:absolute;bottom:4px;right:8px;width:40px;height:40px;border-radius:50%;background:var(--pri);color:#fff;border:none;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,0.2);z-index:5;font-family:var(--font);transition:transform 0.1s,background 0.3s;line-height:1}
 .cal-fab:active{transform:scale(0.92)}
 
 /* ===== グラフ画面 ===== */
@@ -213,9 +214,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .summary2{display:grid;grid-template-columns:1fr 1fr;gap:0}
 .summary2 .s2-col{padding:2px 12px;min-width:0}
 .summary2 .s2-col+.s2-col{border-left:1px solid var(--border-l)}
-.s2-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0}
+.s2-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:1px 0}
 .s2-lbl{font-size:12px;color:var(--text-sub);font-weight:500;white-space:nowrap;flex:none}
-.s2-val{font-size:18px;font-weight:800;text-align:right;white-space:nowrap;font-family:var(--font-num);font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.s2-val{font-size:14px;font-weight:800;text-align:right;white-space:nowrap;font-family:var(--font-num);font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .s2-val.inc{color:#3B82C4}.s2-val.exp{color:var(--red)}.s2-val.bal{color:var(--pri)}
 .s2-tog{cursor:pointer}
 .s2-chev{font-size:11px;color:var(--text-hint);display:inline-block;transition:transform 0.2s;transform-origin:center}
@@ -239,11 +240,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .fb-btn.active{background:var(--pri);color:#fff;border-color:var(--pri)}
 
 /* ===== CALENDAR ===== */
-.cal-section{background:var(--bg-card);border-bottom:1px solid var(--border);padding:0 12px 8px}
+.cal-section{background:var(--bg-card);border-bottom:1px solid var(--border);padding:0 12px 46px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
 .cal-dow{text-align:center;font-size:10px;color:var(--text-hint);padding:6px 0;font-weight:500}
 .cal-dow:first-child{color:#E05252}.cal-dow:last-child{color:var(--blue)}
-.cal-day{border-radius:var(--r8);min-height:56px;display:flex;flex-direction:column;align-items:center;padding:4px 2px;cursor:pointer;transition:background 0.1s}
+.cal-day{border-radius:var(--r8);min-height:50px;display:flex;flex-direction:column;align-items:center;padding:3px 2px;cursor:pointer;transition:background 0.1s}
 .cal-day:active{background:var(--border-l)}
 .cal-day.other .day-n{color:var(--text-hint)}
 .cal-day.selected{background:var(--pri-ll);outline:2px solid var(--pri);outline-offset:-2px}
@@ -493,6 +494,16 @@ input[type="date"].sh-inp{min-width:150px}
 .sh-c-exp{color:var(--red)}
 .sh-c-bal{font-weight:700}
 .sh-c-bal.neg{color:var(--red)}
+.sh-row{cursor:pointer}
+.sh-row.head{cursor:default}
+.sh-add-mini{color:var(--text-hint);opacity:0.5;font-size:12px}
+.sh-c-exp.tapable,.sh-c-bud.tapable{cursor:pointer}
+/* 帳票の手入力フォーム（折りたたみ） */
+.sh-forms{margin:8px 0 0}
+.sh-forms>summary{list-style:none;cursor:pointer;padding:10px 16px;font-size:13px;font-weight:600;color:var(--pri);background:var(--bg-card);border-top:1px solid var(--border-l)}
+.sh-forms>summary::-webkit-details-marker{display:none}
+.sh-forms>summary::before{content:'▸ ';font-size:11px}
+.sh-forms[open]>summary::before{content:'▾ '}
 .sh-row.has-exp{cursor:pointer}
 .sh-row.has-exp:active{background:var(--bg)}
 .sh-chev{font-size:10px;color:var(--text-hint);margin-left:3px}

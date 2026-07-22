@@ -1217,21 +1217,27 @@ function calTouchEnd(e){
   changeMonth(dx<0?1:-1); // 左スワイプ→翌月、右スワイプ→前月
 }
 
-// ── 月選択モーダル ──
-let monthPickerYearVal=null;
+// ── 月選択モーダル（ホーム／帳票 共用。targetで対象を切替） ──
+let monthPickerYearVal=null, monthPickerTarget='home';
 function openMonthPicker(){
-  monthPickerYearVal=UI.year;
+  monthPickerTarget='home'; monthPickerYearVal=UI.year;
+  document.getElementById('monthpicker-overlay').classList.remove('hidden');
+  renderMonthPicker();
+}
+function openSheetMonthPicker(){
+  monthPickerTarget='sheet'; monthPickerYearVal=shY;
   document.getElementById('monthpicker-overlay').classList.remove('hidden');
   renderMonthPicker();
 }
 function closeMonthPicker(){document.getElementById('monthpicker-overlay').classList.add('hidden');}
 function monthPickerYear(d){monthPickerYearVal+=d;renderMonthPicker();}
 function renderMonthPicker(){
+  const curY=monthPickerTarget==='sheet'?shY:UI.year, curM=monthPickerTarget==='sheet'?shM:UI.month;
   document.getElementById('monthpicker-year').textContent=`${monthPickerYearVal}年`;
   const now=new Date();
   const grid=document.getElementById('monthpicker-grid');
   grid.innerHTML=Array.from({length:12},(_,m)=>{
-    const isCur=monthPickerYearVal===UI.year&&m===UI.month;
+    const isCur=monthPickerYearVal===curY&&m===curM;
     const isThis=monthPickerYearVal===now.getFullYear()&&m===now.getMonth();
     const bg=isCur?'var(--pri)':'var(--bg)';
     const col=isCur?'#fff':'var(--text)';
@@ -1240,9 +1246,24 @@ function renderMonthPicker(){
   }).join('');
 }
 function pickMonth(m){
-  UI.year=monthPickerYearVal;UI.month=m;
-  UI.selDay=null;UI.payFilter='all';
-  closeMonthPicker();renderAll();
+  if(monthPickerTarget==='sheet'){
+    shY=monthPickerYearVal;shM=m;shOpenDay=null;
+    closeMonthPicker();renderSheetTab();
+  }else{
+    UI.year=monthPickerYearVal;UI.month=m;
+    UI.selDay=null;UI.payFilter='all';
+    closeMonthPicker();renderAll();
+  }
+}
+// 帳票タブの左右スワイプで月移動
+let shTouchX=null, shTouchY=null;
+function shTouchStart(e){ if(e.touches.length!==1){shTouchX=null;return;} shTouchX=e.touches[0].clientX; shTouchY=e.touches[0].clientY; }
+function shTouchEnd(e){
+  if(shTouchX===null)return;
+  const dx=e.changedTouches[0].clientX-shTouchX, dy=e.changedTouches[0].clientY-shTouchY;
+  shTouchX=null;
+  if(Math.abs(dx)<50||Math.abs(dy)>Math.abs(dx))return;
+  shChangeMonth(dx<0?1:-1);
 }
 
 /* =========================================================
@@ -1400,6 +1421,7 @@ function deleteUser(){
    取引追加
 /* =========================================================
 ========================================================= */
+let addPresetDate=null;   // 追加モーダルの日付プリセット（帳票の支出欄タップ等で使用）
 function openAddModal(){
   document.getElementById('add-overlay').classList.remove('hidden');
   // 前回のスクロール位置を引き継がず、必ず先頭から表示
@@ -1409,9 +1431,13 @@ function openAddModal(){
   document.getElementById('f-amount').value='';
   document.getElementById('f-memo').value='';
   document.getElementById('f-memo2').value='';
-  const n=new Date(),yr=UI.year,mo=UI.month;
-  const dd=UI.selDay||(yr===n.getFullYear()&&mo===n.getMonth()?n.getDate():1);
-  document.getElementById('f-date').value=ymd(yr,mo,dd);
+  if(addPresetDate){           // 帳票の支出欄タップ等：指定日をプリセット
+    document.getElementById('f-date').value=addPresetDate; addPresetDate=null;
+  }else{
+    const n=new Date(),yr=UI.year,mo=UI.month;
+    const dd=UI.selDay||(yr===n.getFullYear()&&mo===n.getMonth()?n.getDate():1);
+    document.getElementById('f-date').value=ymd(yr,mo,dd);
+  }
 
   const destEl=document.getElementById('f-save-dest');
   const ledgerRow=document.getElementById('f-ledger')?.closest('.field');
@@ -2833,7 +2859,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.14.10';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.15.0';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3377,10 +3403,12 @@ function renderSheetBody(){
     const has=!!(bByDay[d]||eByDay[d]);
     const hasExp=!!eTxByDay[d];
     const open=hasExp&&shOpenDay===d;
-    rows+=`<div class="sh-row${has?'':' quiet'}${isCurMonth&&d===n.getDate()?' today':''}${hasExp?' has-exp':''}"${hasExp?` onclick="sheetRowTap(event,${d})"`:''}>
+    // 各欄タップで操作：予算欄→予算追加/編集、支出欄→支出入力、日付/残高→明細開閉
+    const plus='<span class="sh-add-mini">＋</span>';
+    rows+=`<div class="sh-row${has?'':' quiet'}${isCurMonth&&d===n.getDate()?' today':''}${hasExp?' has-exp':''}" onclick="sheetRowTap(event,${d})">
       <span class="sh-c-day">${d}日${hasExp?`<span class="sh-chev">${open?'▾':'▸'}</span>`:''}</span>
-      <span class="sh-c-bud${bByDay[d]?' tapable':''}"${bByDay[d]?` data-bgday="${d}"`:''}>${bByDay[d]?fmtN(bByDay[d]):''}</span>
-      <span class="sh-c-exp">${eByDay[d]?fmtN(eByDay[d]):''}</span>
+      <span class="sh-c-bud tapable" data-zone="bud">${bByDay[d]?fmtN(bByDay[d]):plus}</span>
+      <span class="sh-c-exp tapable" data-zone="exp">${eByDay[d]?fmtN(eByDay[d]):plus}</span>
       <span class="sh-c-bal${bal<0?' neg':''}">${bal<0?'-':''}${fmtN(Math.abs(bal))}</span>
     </div>`;
     if(open){
@@ -3405,24 +3433,32 @@ function sheetToggleDay(d){
 // 追加・編集した日付の月へ帳票の表示月を移す
 function shGoToMonthOf(date){ shY=parseInt(date.slice(0,4)); shM=parseInt(date.slice(5,7))-1; }
 
-// 行タップ：予算欄をタップしたときは開閉せず、予算の編集にまわす
+// 行タップの振り分け：予算欄→予算、支出欄→支出入力、それ以外（日付/残高）→明細開閉
 function sheetRowTap(e,d){
-  if(e.target.closest('.sh-c-bud[data-bgday]'))return;
+  if(e.target.closest('.sh-c-bud')){ openSheetBudgetForDay(d); return; }
+  if(e.target.closest('.sh-c-exp')){ openSheetExpenseForDay(d); return; }
   sheetToggleDay(d);
+}
+// 指定日の予算：既存があれば編集、無ければ新規（日付プリセット）
+function openSheetBudgetForDay(d){
+  const l=sheetLedger(); if(!l)return;
+  const mk=ymd(shY,shM,d);
+  const b=budgetsOf(l).find(x=>x.date===mk);
+  if(b) openSheetBudgetEdit(b.id);
+  else openSheetBudgetNew(mk);
+}
+// 指定日の支出入力：共通の追加モーダルを日付プリセットで開く（現金以外や費目も選べる）
+function openSheetExpenseForDay(d){
+  addPresetDate=ymd(shY,shM,d);
+  openAddModal();
 }
 
 // 予算のタップ処理（委譲）：チップでも表の予算欄でも編集できる。
 // innerHTMLで作り直される要素でも確実に拾えるよう、documentで受ける
+// 予算チップ（折りたたみフォーム内）のタップ編集。表の予算欄はsheetRowTapが担当
 document.addEventListener('click',e=>{
   const chip=e.target.closest('.sh-bud-chip');
-  if(chip){ openSheetBudgetEdit(chip.dataset.bgid); return; }
-  const cell=e.target.closest('.sh-c-bud[data-bgday]');
-  if(cell){
-    const day=parseInt(cell.dataset.bgday,10);
-    const mk=ymd(shY,shM,day);
-    const b=budgetsOf(sheetLedger()||{}).find(x=>x.date===mk);
-    if(b)openSheetBudgetEdit(b.id);
-  }
+  if(chip) openSheetBudgetEdit(chip.dataset.bgid);
 });
 
 // 予算の追加
@@ -3475,8 +3511,19 @@ function openSheetBudgetEdit(id){
   shEditBudgetId=id;
   document.getElementById('sh-be-date').value=b.date;
   document.getElementById('sh-be-amount').value=Number(b.amount).toLocaleString('ja-JP');
+  document.querySelector('#sh-budget-overlay .sheet-title').textContent='💰 予算を編集';
   const del=document.getElementById('sh-be-del');
-  del.textContent='🗑️ 削除'; delete del.dataset.arm;
+  del.textContent='🗑️ 削除'; delete del.dataset.arm; del.style.display='';
+  document.getElementById('sh-budget-overlay').classList.remove('hidden');
+}
+// 新規予算（日付プリセット）。shEditBudgetId=null で「新規」を表す
+function openSheetBudgetNew(dateStr){
+  ensureSheetBudgetModal();
+  shEditBudgetId=null;
+  document.getElementById('sh-be-date').value=dateStr;
+  document.getElementById('sh-be-amount').value='';
+  document.querySelector('#sh-budget-overlay .sheet-title').textContent='💰 予算を追加';
+  document.getElementById('sh-be-del').style.display='none';   // 新規は削除ボタン非表示
   document.getElementById('sh-budget-overlay').classList.remove('hidden');
 }
 function closeSheetBudgetEdit(){
@@ -3486,16 +3533,21 @@ function closeSheetBudgetEdit(){
 function saveSheetBudgetEdit(){
   const l=sheetLedger();
   if(!l){showToast('⚠️ 帳簿が見つかりません');return;}
-  const b=budgetsOf(l).find(x=>x.id===shEditBudgetId);
-  if(!b){showToast('⚠️ この予算が見つかりません');return;}
   const date=document.getElementById('sh-be-date').value;
   const amount=parseAmountInput('sh-be-amount');
   if(!date){showToast('⚠️ 日付を選択してください');return;}
   if(!amount){showToast('⚠️ 金額を入力してください');return;}
-  b.date=date; b.amount=amount;
+  const isEdit=!!shEditBudgetId;
+  if(isEdit){                  // 既存の編集
+    const b=budgetsOf(l).find(x=>x.id===shEditBudgetId);
+    if(!b){showToast('⚠️ この予算が見つかりません');return;}
+    b.date=date; b.amount=amount;
+  }else{                       // 新規追加
+    budgetsOf(l).push({id:'bg'+Date.now(),date,amount});
+  }
   shGoToMonthOf(date);
   save();closeSheetBudgetEdit();renderSheetTab();
-  showToast('✅ 予算を更新しました');
+  showToast(isEdit?'✅ 予算を更新しました':'✅ 予算を追加しました');
 }
 // 削除は誤タップ防止の2段階タップ
 function delSheetBudgetFromEdit(){
