@@ -596,6 +596,16 @@ function renderSummary(){
   document.getElementById('s-cash').textContent=fmt(cashAmt);
   document.getElementById('s-card').textContent=fmt(cardAmt);
   document.getElementById('s-bank').textContent=fmt(bankAmt);
+  // 前月繰越：繰越ONの帳簿のみ、収支の下に常時表示（プラス=通常色／マイナス=赤字）
+  const carry=carryoverBefore(UI.year,UI.month);
+  const cw=document.getElementById('s2-carry-wrap'), ce=document.getElementById('s-carry');
+  if(cw&&ce){
+    if(carry!==0){
+      ce.textContent=sfmt(carry);
+      ce.style.color=carry<0?'var(--red)':'var(--text)';
+      cw.classList.remove('hidden');
+    }else cw.classList.add('hidden');
+  }
   applySummaryBreakState();
 }
 
@@ -2849,7 +2859,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.15.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.15.3';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
