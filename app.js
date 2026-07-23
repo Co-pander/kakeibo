@@ -1192,29 +1192,28 @@ function _chartRows(items,total){
     </div>`;
   }).join('');
 }
+// 月送り（年の繰り上がり/繰り下がりを処理）。d=+1翌月 / -1前月
+function rollMonth(y,m,d){ m+=d; if(m<0){m=11;y--;} if(m>11){m=0;y++;} return {y,m}; }
+
 function changeMonth(d){
-  UI.month+=d;
-  if(UI.month<0){UI.month=11;UI.year--;}
-  if(UI.month>11){UI.month=0;UI.year++;}
+  ({y:UI.year,m:UI.month}=rollMonth(UI.year,UI.month,d));
   UI.selDay=null;UI.expandList=false;UI.payFilter='all';renderAll();
 }
 function goToday(){const n=new Date();UI.year=n.getFullYear();UI.month=n.getMonth();UI.selDay=null;UI.expandList=false;UI.payFilter='all';renderAll();}
 
-// ── カレンダー左右スワイプ ──
-let calTouchX=null, calTouchY=null;
-function calTouchStart(e){
-  if(e.touches.length!==1){calTouchX=null;return;}
-  calTouchX=e.touches[0].clientX;
-  calTouchY=e.touches[0].clientY;
+// ── 左右スワイプ検出（カレンダー・帳票で共用）。縦移動が大きいときは無視 ──
+let _swipeX=null,_swipeY=null;
+function swipeStart(e){
+  if(e.touches.length!==1){_swipeX=null;return;}
+  _swipeX=e.touches[0].clientX; _swipeY=e.touches[0].clientY;
 }
-function calTouchEnd(e){
-  if(calTouchX===null)return;
-  const dx=e.changedTouches[0].clientX-calTouchX;
-  const dy=e.changedTouches[0].clientY-calTouchY;
-  calTouchX=null;
-  // 横方向のスワイプのみ（縦移動が大きい場合は無視）
+// onSwipe(+1=翌月 / -1=前月) を呼ぶ
+function swipeEnd(e,onSwipe){
+  if(_swipeX===null)return;
+  const dx=e.changedTouches[0].clientX-_swipeX, dy=e.changedTouches[0].clientY-_swipeY;
+  _swipeX=null;
   if(Math.abs(dx)<50||Math.abs(dy)>Math.abs(dx))return;
-  changeMonth(dx<0?1:-1); // 左スワイプ→翌月、右スワイプ→前月
+  onSwipe(dx<0?1:-1); // 左スワイプ→翌月、右スワイプ→前月
 }
 
 // ── 月選択モーダル（ホーム／帳票 共用。targetで対象を切替） ──
@@ -1256,15 +1255,6 @@ function pickMonth(m){
   }
 }
 // 帳票タブの左右スワイプで月移動
-let shTouchX=null, shTouchY=null;
-function shTouchStart(e){ if(e.touches.length!==1){shTouchX=null;return;} shTouchX=e.touches[0].clientX; shTouchY=e.touches[0].clientY; }
-function shTouchEnd(e){
-  if(shTouchX===null)return;
-  const dx=e.changedTouches[0].clientX-shTouchX, dy=e.changedTouches[0].clientY-shTouchY;
-  shTouchX=null;
-  if(Math.abs(dx)<50||Math.abs(dy)>Math.abs(dx))return;
-  shChangeMonth(dx<0?1:-1);
-}
 
 /* =========================================================
    ユーザードロワー
@@ -2859,7 +2849,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.15.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.15.2';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3313,9 +3303,7 @@ function sheetLedger(){
 }
 
 function shChangeMonth(d){
-  shM+=d;
-  if(shM<0){shM=11;shY--;}
-  if(shM>11){shM=0;shY++;}
+  ({y:shY,m:shM}=rollMonth(shY,shM,d));
   shOpenDay=null;
   renderSheetTab();
 }
@@ -3700,9 +3688,7 @@ function setGraphLedger(id){
 
 // グラフタブの月◀▶ナビ（前月/翌月）。ホームの表示月(UI.year/month)は変えない
 function gChangeMonth(d){
-  let y=(gSelY??UI.year), m=(gSelM??UI.month)+d;
-  if(m<0){m=11;y--;} if(m>11){m=0;y++;}
-  gSelY=y;gSelM=m;
+  ({y:gSelY,m:gSelM}=rollMonth(gSelY??UI.year,gSelM??UI.month,d));
   renderGraphMonthLabel();
   renderBarChart();
   renderDonutAndList();

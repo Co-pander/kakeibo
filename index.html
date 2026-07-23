@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.15.1">
+<link rel="stylesheet" href="style.css?v=3.15.2">
 <title>家計簿</title>
 </head>
 <body>
@@ -131,7 +131,7 @@
     <div class="filter-bar" id="filter-bar"></div>
 
     <div class="cal-section" style="position:relative" id="cal-section"
-         ontouchstart="calTouchStart(event)" ontouchend="calTouchEnd(event)">
+         ontouchstart="swipeStart(event)" ontouchend="swipeEnd(event,changeMonth)">
       <div class="cal-grid" id="cal-grid"></div>
       <button class="cal-fab" onclick="openAddModal()" id="cal-fab">＋</button>
     </div>
@@ -230,7 +230,7 @@
   </div><!-- /tab-graph -->
 
   <!-- ===== 帳票タブ（予算・支出・残高の出納帳） ===== -->
-  <div class="tab-page" id="tab-sheet" ontouchstart="shTouchStart(event)" ontouchend="shTouchEnd(event)">
+  <div class="tab-page" id="tab-sheet" ontouchstart="swipeStart(event)" ontouchend="swipeEnd(event,shChangeMonth)">
     <div class="month-nav">
       <button class="mnav-btn" onclick="shChangeMonth(-1)">‹</button>
       <span class="month-label" id="sh-month-label" onclick="openSheetMonthPicker()" style="cursor:pointer"></span>
@@ -893,6 +893,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.15.1"></script>
+<script src="app.js?v=3.15.2"></script>
 </body>
 </html>
