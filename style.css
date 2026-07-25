@@ -29,7 +29,7 @@ body.locked .app,.locked .fab,.locked .user-drawer{filter:blur(8px);pointer-even
   --blue:#3B82C4;--blue-l:#EEF5FC;
   --orange:#E07B2E;--orange-l:#FDF4EC;
   --bg:#F7F8FA;--bg-card:#fff;
-  --bg-card-tr:rgba(255,255,255,0.85);   /* 半透明パネル用（すりガラス）。白85%=明るめ・うっすら透ける */
+  --bg-card-tr:rgba(255,255,255,0.9);   /* 半透明パネル用（すりガラス）。白90%=明るく・ごくうっすら透ける */
   --text:#1A2233;--text-sub:#6B7A90;--text-hint:#B0BBC8;
   --border:#E8EBF0;--border-l:#F0F2F5;
   --shadow:0 1px 4px rgba(0,0,0,0.06),0 0 1px rgba(0,0,0,0.04);
@@ -44,7 +44,7 @@ body.locked .app,.locked .fab,.locked .user-drawer{filter:blur(8px);pointer-even
 @media(prefers-color-scheme:dark){
   :root{
     --bg:#121820;--bg-card:#1E2530;
-    --bg-card-tr:rgba(30,37,48,0.85);
+    --bg-card-tr:rgba(30,37,48,0.9);
     --text:#E8EDF5;--text-sub:#8A97AA;--text-hint:#4A5568;
     --border:#2A3340;--border-l:#232B36;
     --pri-l:#0D3328;--pri-ll:#0A2820;
