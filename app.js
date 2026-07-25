@@ -375,6 +375,11 @@ function findTxOwner(txId){
   return activeUser();
 }
 function getTheme(themeId){return THEMES.find(t=>t.id===(themeId||DEFAULT_THEME))||THEMES[0];}
+// テーマの主色（グラデ開始色）と、テーマ色のグラデーション文字列
+function themeMain(t){return t.g1||t.pri;}
+function themeGrad(t,deg=135){return `linear-gradient(${deg}deg,${themeMain(t)},${t.g2||t.prid||t.pri})`;}
+// テーマ色でアバターSVGを描画（色指定の重複をまとめる）
+function avatarOf(avatarId,t,size=40){return renderAvatarSVG(avatarId||'person',themeMain(t),size,t.g2||null);}
 
 /* =========================================================
    テーマ適用
@@ -526,8 +531,8 @@ function renderTopbar(){
 
   if(UI.isMainMode){
     const t=getTheme(DB.mainUser.theme||'indigo');
-    const grad=`linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid})`;
-    uaEl.innerHTML=renderAvatarSVG('person',t.g1||t.pri,34,t.g2||null);
+    const grad=themeGrad(t);
+    uaEl.innerHTML=avatarOf('person',t,34);
     document.getElementById('ua-name').innerHTML=DB.mainUser.name+chevron;
     document.getElementById('topbar').style.background=grad;
     document.getElementById('ledger-bar').style.background=t.prid;
@@ -539,8 +544,8 @@ function renderTopbar(){
     const u=activeUser();
     const ut=userTheme();
     const lt=ledgerTheme();
-    const uGrad=`linear-gradient(135deg,${ut.g1||ut.pri},${ut.g2||ut.prid})`;
-    uaEl.innerHTML=renderAvatarSVG(u.avatar||'person',ut.g1||ut.pri,34,ut.g2||null);
+    const uGrad=themeGrad(ut);
+    uaEl.innerHTML=avatarOf(u.avatar,ut,34);
     document.getElementById('ua-name').innerHTML=u.name+chevron;
     document.getElementById('topbar').style.background=uGrad;
     document.getElementById('ledger-bar').style.background=lt.prid;
@@ -963,8 +968,7 @@ function renderMainUserList(){
 
     const rows=entries.map(e=>{
       const ut=getTheme(e.theme);
-      const pri=ut.g1||ut.pri;
-      const av=renderAvatarSVG(e.avatar, pri, 38, ut.g2||null);
+      const av=avatarOf(e.avatar, ut, 38);
       const incPart=e.inc>0?`<span style="color:var(--inc);font-size:12px;font-weight:700">${fmt(e.inc)}</span>`:'';
       const expPart=e.exp>0?`<span style="color:var(--red);font-size:12px;font-weight:700">${fmt(e.exp)}</span>`:'';
       const amounts=[incPart,expPart].filter(Boolean).join('<span style="color:var(--border-l);margin:0 3px">|</span>');
@@ -1282,43 +1286,44 @@ function renderUserList(){
   el.innerHTML='';
   let idx=0;   // 上から時間差で現れるアニメ用の順番
 
-  // ピル共通：テーマ色のグラデ背景＋時間差
-  const pillStyle=t=>`background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid||t.pri});animation-delay:${idx*45}ms`;
+  // ユーザーピルを1つ作る（No.0・通常ユーザー共通）
+  // opts: {avatar, nameHTML, sub, active, onTap, editUserId}
+  const addPill=(t,opts)=>{
+    const item=document.createElement('div');
+    item.className='ud-user-item'+(opts.active?' active':'');
+    item.style.cssText=`background:${themeGrad(t)};animation-delay:${idx++*45}ms`;
+    item.onclick=opts.onTap;
+    item.innerHTML=`${avatarOf(opts.avatar,t)}
+      <div class="ud-uinfo">
+        <div class="ud-uname">${opts.nameHTML}</div>
+        <div class="ud-ledger-count">${opts.sub}</div>
+      </div>
+      ${opts.active?'<span class="ud-check">✓</span>':''}
+      ${opts.editUserId?`<button class="ud-edit-btn" onclick="event.stopPropagation();openEditUser('${opts.editUserId}')">✏️</button>`:''}`;
+    el.appendChild(item);
+  };
 
   // No.0メインユーザー（2人以上かつ有効時のみ表示）
   if(DB.mainUser.enabled && DB.users.length>=2){
-    const t=getTheme(DB.mainUser.theme||'indigo');
-    const item=document.createElement('div');
-    item.className='ud-user-item'+(UI.isMainMode?' active':'');
-    item.style.cssText=pillStyle(t); idx++;
-    item.onclick=()=>switchToMainMode();
-    const av=renderAvatarSVG('person',t.g1||t.pri,40,t.g2||null);
-    item.innerHTML=`${av}
-      <div class="ud-uinfo">
-        <div class="ud-uname">${esc(DB.mainUser.name)} <span class="ud-no0">No.0</span></div>
-        <div class="ud-ledger-count">全ユーザーの管理画面</div>
-      </div>
-      ${UI.isMainMode?'<span class="ud-check">✓</span>':''}`;
-    el.appendChild(item);
+    addPill(getTheme(DB.mainUser.theme||'indigo'),{
+      avatar:'person',
+      nameHTML:`${esc(DB.mainUser.name)} <span class="ud-no0">No.0</span>`,
+      sub:'全ユーザーの管理画面',
+      active:UI.isMainMode,
+      onTap:()=>switchToMainMode()
+    });
   }
 
   // 通常ユーザー
   DB.users.forEach(u=>{
-    const t=getTheme(u.theme);
-    const item=document.createElement('div');
-    const isActive=!UI.isMainMode&&u.id===DB.activeUser;
-    item.className='ud-user-item'+(isActive?' active':'');
-    item.style.cssText=pillStyle(t); idx++;
-    item.onclick=()=>switchUser(u.id);
-    const avatarHTML=renderAvatarSVG(u.avatar||'person', t.g1||t.pri, 40, t.g2||null);
-    item.innerHTML=`${avatarHTML}
-      <div class="ud-uinfo">
-        <div class="ud-uname">${esc(u.name)}</div>
-        <div class="ud-ledger-count">${u.ledgers.length}帳簿 · ${u.transactions.length}件</div>
-      </div>
-      ${isActive?'<span class="ud-check">✓</span>':''}
-      <button class="ud-edit-btn" onclick="event.stopPropagation();openEditUser('${u.id}')">✏️</button>`;
-    el.appendChild(item);
+    addPill(getTheme(u.theme),{
+      avatar:u.avatar,
+      nameHTML:esc(u.name),
+      sub:`${u.ledgers.length}帳簿 · ${u.transactions.length}件`,
+      active:!UI.isMainMode&&u.id===DB.activeUser,
+      onTap:()=>switchUser(u.id),
+      editUserId:u.id
+    });
   });
 }
 
@@ -1370,7 +1375,7 @@ function closeUserEdit(){document.getElementById('user-edit-overlay').classList.
 
 function buildAvatarPicker(){
   const t=getTheme(UI.selThemeId);
-  const avatarHTML=renderAvatarSVG('person', t.g1||t.pri, 56, t.g2||null);
+  const avatarHTML=avatarOf('person', t, 56);
   document.getElementById('avatar-picker').innerHTML=
     `<div style="display:flex;align-items:center;gap:12px;padding:8px 0">
       ${avatarHTML}
@@ -1384,7 +1389,7 @@ function buildThemePicker(prefix){
   const gridId=prefix+'-theme-grid';
   document.getElementById(gridId).innerHTML=themesInDisplayOrder().map(t=>
     `<div class="theme-swatch${t.id===UI.selThemeId?' active':''}"
-      style="background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid})"
+      style="background:${themeGrad(t)}"
       onclick="pickTheme('${t.id}','${prefix}')" title="${t.name}">
       <span style="font-size:14px">${t.icon}</span>
       <span class="ts-name">${t.name}</span>
@@ -1751,7 +1756,7 @@ function renderLedgerColorUI(){
         <div class="theme-swatch${!l.theme?' active':''}" style="background:var(--border);width:36px;height:36px" onclick="setLedgerTheme('${l.id}',null)" title="ユーザー設定に従う">
           <span style="font-size:12px">自動</span><div class="check">✓</div>
         </div>
-        ${themesInDisplayOrder().map(t=>`<div class="theme-swatch${l.theme===t.id?' active':''}" style="background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid});width:36px;height:36px" onclick="setLedgerTheme('${l.id}','${t.id}')" title="${t.name}">
+        ${themesInDisplayOrder().map(t=>`<div class="theme-swatch${l.theme===t.id?' active':''}" style="background:${themeGrad(t)};width:36px;height:36px" onclick="setLedgerTheme('${l.id}','${t.id}')" title="${t.name}">
           <span style="font-size:12px">${t.icon}</span><div class="check">✓</div>
         </div>`).join('')}
       </div>
@@ -2860,7 +2865,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.15.8';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.15.9';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2959,7 +2964,7 @@ function buildMainThemePicker(){
   if(!grid)return;
   const cur=DB.mainUser.theme||'indigo';
   grid.innerHTML=themesInDisplayOrder().map(t=>
-    `<div class="theme-swatch-sm${t.id===cur?' active':''}" style="background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid})" onclick="pickMainTheme('${t.id}')" title="${t.name}"><div class="check">✓</div></div>`
+    `<div class="theme-swatch-sm${t.id===cur?' active':''}" style="background:${themeGrad(t)}" onclick="pickMainTheme('${t.id}')" title="${t.name}"><div class="check">✓</div></div>`
   ).join('');
 }
 function pickMainTheme(id){
@@ -3081,7 +3086,7 @@ function showPinScreen(mode='unlock'){
   screen.classList.remove('hidden');
   // テーマカラーのグラデーション背景
   const t=getTheme(secState.pinHash?currentTheme():'green');
-  screen.style.background=`linear-gradient(160deg,${t.g1||t.pri} 0%,${t.g2||t.prid} 100%)`;
+  screen.style.background=themeGrad(t,160);
   document.body.classList.add('locked');
   secState.isLocked=true;
   _updatePinUI();

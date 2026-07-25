@@ -33,7 +33,7 @@ body.locked .app,.locked .fab,.locked .user-drawer{filter:blur(8px);pointer-even
   --text:#1A2233;--text-sub:#6B7A90;--text-hint:#B0BBC8;
   --border:#E8EBF0;--border-l:#F0F2F5;
   --shadow:0 1px 4px rgba(0,0,0,0.06),0 0 1px rgba(0,0,0,0.04);
-  --r4:4px;--r8:8px;--r12:12px;--r16:16px;--r24:24px;
+  --r4:4px;--r8:8px;--r12:12px;--r16:16px;
   --font:'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
   /* 数字表示用：丸ゴシック系（参考アプリ風）。iOSはSF Rounded、他は近い丸文字にフォールバック */
   --font-num:ui-rounded,'SF Pro Rounded','Hiragino Maru Gothic ProN','Arial Rounded MT Bold','M PLUS Rounded 1c',var(--font);
