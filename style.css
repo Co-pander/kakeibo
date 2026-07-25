@@ -175,19 +175,26 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .user-drawer.open{pointer-events:auto}
 .ud-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0);transition:background 0.25s}
 .user-drawer.open .ud-backdrop{background:rgba(0,0,0,0.4)}
-.ud-panel{position:absolute;top:0;left:-300px;bottom:0;width:280px;background:var(--bg-card);display:flex;flex-direction:column;transition:left 0.25s cubic-bezier(.4,0,.2,1);box-shadow:4px 0 20px rgba(0,0,0,0.15)}
-.user-drawer.open .ud-panel{left:0}
-.ud-header{background:var(--pri);padding:calc(var(--safe-top)+20px) 16px 20px;transition:background 0.3s}
-.ud-title{font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:12px;font-weight:600;letter-spacing:0.05em}
-.ud-user-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;padding:12px}
-.ud-user-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r12);border:1.5px solid var(--border);background:var(--bg);cursor:pointer;transition:all 0.12s;position:relative}
-.ud-user-item.active{border-color:var(--pri);background:var(--pri-l)}
+/* トップバー（管理者名）から下に向かって展開するドロップダウン */
+.ud-panel{position:absolute;top:0;left:0;right:0;bottom:auto;max-height:88dvh;background:var(--bg-card);display:flex;flex-direction:column;transform:translateY(-105%);transition:transform 0.28s cubic-bezier(.4,0,.2,1);box-shadow:0 8px 24px rgba(0,0,0,0.2);border-radius:0 0 20px 20px;overflow:hidden}
+.user-drawer.open .ud-panel{transform:translateY(0)}
+.ud-header{background:var(--pri);padding:calc(var(--safe-top)+14px) 16px 12px;transition:background 0.3s}
+.ud-title{font-size:13px;color:rgba(255,255,255,0.7);font-weight:600;letter-spacing:0.05em}
+.ud-user-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;padding:14px 16px}
+/* ユーザーピル：各ユーザーのテーマ色グラデ（背景はJSで指定）＋白文字 */
+.ud-user-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:28px;border:none;color:#fff;cursor:pointer;transition:transform 0.12s,box-shadow 0.12s;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.12)}
+.ud-user-item.active{box-shadow:inset 0 0 0 2.5px rgba(255,255,255,0.9),0 2px 8px rgba(0,0,0,0.12)}
 /* 長押しスライド中、指の下のユーザーを強調 */
-.ud-user-item.slide-hover{border-color:var(--pri);background:var(--pri-l);transform:scale(1.03);box-shadow:0 2px 10px rgba(0,0,0,0.12)}
+.ud-user-item.slide-hover{transform:scale(1.04);box-shadow:inset 0 0 0 2.5px #fff,0 4px 14px rgba(0,0,0,0.25)}
+/* 開いたとき上から順にふわっと現れる（各ピルの遅延はJSでanimation-delay指定） */
+.user-drawer.open .ud-user-item{animation:udPop 0.3s cubic-bezier(.34,1.3,.5,1) both}
+@keyframes udPop{from{opacity:0;transform:translateY(-10px) scale(0.95)}to{opacity:1;transform:translateY(0) scale(1)}}
 .ud-uinfo{flex:1;min-width:0}
-.ud-uname{font-size:14px;font-weight:700}
-.ud-ledger-count{font-size:11px;color:var(--text-sub);margin-top:1px}
-.ud-check{color:var(--pri);font-size:16px;font-weight:700}
+.ud-uname{font-size:14px;font-weight:700;color:#fff}
+.ud-no0{font-size:10px;background:rgba(255,255,255,0.28);color:#fff;border-radius:10px;padding:1px 7px;margin-left:4px}
+.ud-ledger-count{font-size:11px;color:rgba(255,255,255,0.85);margin-top:1px}
+.ud-check{color:#fff;font-size:16px;font-weight:700}
+.ud-edit-btn{background:rgba(255,255,255,0.22);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:13px;padding:0;display:flex;align-items:center;justify-content:center;flex:none}
 .ud-add-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--r12);border:1.5px dashed var(--border);background:transparent;cursor:pointer;color:var(--text-sub);font-size:13px;font-family:var(--font);width:100%;margin-top:4px;transition:all 0.12s}
 .ud-add-btn:active{background:var(--pri-l);border-color:var(--pri);color:var(--pri)}
 .ud-footer{padding:12px;border-top:1px solid var(--border-l)}

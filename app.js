@@ -1280,26 +1280,26 @@ function closeUserDrawer(){document.getElementById('user-drawer').classList.remo
 function renderUserList(){
   const el=document.getElementById('ud-user-list');
   el.innerHTML='';
+  let idx=0;   // 上から時間差で現れるアニメ用の順番
+
+  // ピル共通：テーマ色のグラデ背景＋時間差
+  const pillStyle=t=>`background:linear-gradient(135deg,${t.g1||t.pri},${t.g2||t.prid||t.pri});animation-delay:${idx*45}ms`;
 
   // No.0メインユーザー（2人以上かつ有効時のみ表示）
   if(DB.mainUser.enabled && DB.users.length>=2){
     const t=getTheme(DB.mainUser.theme||'indigo');
     const item=document.createElement('div');
     item.className='ud-user-item'+(UI.isMainMode?' active':'');
+    item.style.cssText=pillStyle(t); idx++;
     item.onclick=()=>switchToMainMode();
     const av=renderAvatarSVG('person',t.g1||t.pri,40,t.g2||null);
     item.innerHTML=`${av}
       <div class="ud-uinfo">
-        <div class="ud-uname">${esc(DB.mainUser.name)} <span style="font-size:10px;background:${t.pri};color:#fff;border-radius:10px;padding:1px 6px;margin-left:4px">No.0</span></div>
+        <div class="ud-uname">${esc(DB.mainUser.name)} <span class="ud-no0">No.0</span></div>
         <div class="ud-ledger-count">全ユーザーの管理画面</div>
       </div>
       ${UI.isMainMode?'<span class="ud-check">✓</span>':''}`;
     el.appendChild(item);
-
-    // 区切り線
-    const sep=document.createElement('div');
-    sep.style.cssText='height:1px;background:var(--border-l);margin:4px 0';
-    el.appendChild(sep);
   }
 
   // 通常ユーザー
@@ -1308,6 +1308,7 @@ function renderUserList(){
     const item=document.createElement('div');
     const isActive=!UI.isMainMode&&u.id===DB.activeUser;
     item.className='ud-user-item'+(isActive?' active':'');
+    item.style.cssText=pillStyle(t); idx++;
     item.onclick=()=>switchUser(u.id);
     const avatarHTML=renderAvatarSVG(u.avatar||'person', t.g1||t.pri, 40, t.g2||null);
     item.innerHTML=`${avatarHTML}
@@ -1316,7 +1317,7 @@ function renderUserList(){
         <div class="ud-ledger-count">${u.ledgers.length}帳簿 · ${u.transactions.length}件</div>
       </div>
       ${isActive?'<span class="ud-check">✓</span>':''}
-      <button style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--text-hint);padding:4px" onclick="event.stopPropagation();openEditUser('${u.id}')">✏️</button>`;
+      <button class="ud-edit-btn" onclick="event.stopPropagation();openEditUser('${u.id}')">✏️</button>`;
     el.appendChild(item);
   });
 }
@@ -2859,7 +2860,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.15.3';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.15.4';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
