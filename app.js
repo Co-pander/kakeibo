@@ -264,6 +264,8 @@ function resolveIconId(cat){
 }
 // 取引からアイコンIDを解決（旧データは絵文字から変換、不明は'other'）
 function txIconId(t){return t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';}
+// 取引の新規ID（重複しないよう時刻＋乱数。suffixは同一ミリ秒で複数作るCSV取込用）
+function newTxId(suffix=''){return 't'+Date.now()+suffix+Math.random().toString(36).slice(2);}
 const PAY_META={
   cash:{icon:'💴',label:'現金',cls:'pb-cash',chipCls:'cash',barcol:'#E07B2E'},
   bank:{icon:'🏦',label:'銀行',cls:'pb-bank',chipCls:'bank',barcol:'#3B82C4'},
@@ -1546,20 +1548,25 @@ function setType(t){
   document.getElementById('pk-card').className='pk-btn';
   document.getElementById('f-payee-wrap').classList.add('hidden');
 }
+// 費目ボタン1個ぶんのHTML（入力画面・取引編集・ウィザードで共用）
+// onclickOf(iid,name,color) で押したときの処理だけを差し替える
+function catBtnHTML(c,isSel,onclickOf){
+  const iid=resolveIconId(c);
+  const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
+  const color=c.color||ic.color;
+  return `<button class="cat-btn${isSel?' sel':''}" onclick="${onclickOf(iid,c.n,color)}" style="${isSel?'border-color:'+color:''}">
+    <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1px solid ${isSel?'transparent':'var(--border-l)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
+      <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
+    </div>
+    <span class="cn">${esc(c.n)}</span>
+  </button>`;
+}
 function buildCatGrid(gridId,type,selIconId,selName,pickFn){
   const cats=type==='income'?getINC_CATS():getEXP_CATS();
   document.getElementById(gridId).innerHTML=cats.map(c=>{
-    const iid=resolveIconId(c);
-    const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
-    const color=c.color||ic.color;
     // 費目の同一判定は「名前」で行う（アイコンは複数費目で共用できるため、IDだけだと同時選択になる）
-    const isSel=selName?c.n===selName:iid===selIconId;
-    return `<button class="cat-btn${isSel?' sel':''}" onclick="${pickFn}('${iid}','${escAttr(escJs(c.n))}',this,'${color}')" style="${isSel?'border-color:'+color:''}">
-      <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1px solid ${isSel?'transparent':'var(--border-l)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
-        <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
-      </div>
-      <span class="cn">${esc(c.n)}</span>
-    </button>`;
+    const isSel=selName?c.n===selName:resolveIconId(c)===selIconId;
+    return catBtnHTML(c,isSel,(iid,n,color)=>`${pickFn}('${iid}','${escAttr(escJs(n))}',this,'${color}')`);
   }).join('');
 }
 function pickCat(iconId,n,btn,color){
@@ -1618,7 +1625,7 @@ function addTx(){
   }
 
   const tx={
-    id:'t'+Date.now()+Math.random().toString(36).slice(2),
+    id:newTxId(),
     ledger, type:UI.txType, amount, iconId, emoji:iconId, emojiName, memo, memo2, date
   };
   if(UI.txType==='expense'){
@@ -1643,6 +1650,9 @@ function addTx(){
    ・既存の費目/履歴/支払い先/保存の仕組みをそのまま使う
 ========================================================= */
 const WZ={date:'',amount:0,type:'expense',userId:'',ledgerId:'',iconId:'',catName:'',memo:'',memo2:'',payKind:'cash',payeeId:null};
+// ウィザードの保存先ユーザー／帳簿
+function wzUser(){return DB.users.find(x=>x.id===WZ.userId);}
+function wzLedger(){return wzUser()?.ledgers.find(x=>x.id===WZ.ledgerId);}
 
 function openWizard(){
   const n=new Date();
@@ -1666,7 +1676,7 @@ function wizGoStep(n){
   if(n===2){
     document.getElementById('wz-amt-label').textContent=fmt(WZ.amount);
     wizRenderCats();
-    const u=DB.users.find(x=>x.id===WZ.userId);
+    const u=wzUser();
     if(u)renderMemoHistPair('wz',u,WZ.ledgerId);
   }
   if(n===3){
@@ -1731,7 +1741,7 @@ function wizRenderDest(){
   wizRenderLedgers();
 }
 function wizRenderLedgers(){
-  const u=DB.users.find(x=>x.id===WZ.userId);
+  const u=wzUser();
   const lEl=document.getElementById('wz-ledgers');
   if(!u){lEl.innerHTML='';return;}
   if(!u.ledgers.some(l=>l.id===WZ.ledgerId))WZ.ledgerId=u.ledgers[0]?.id||'';
@@ -1758,24 +1768,14 @@ function wizAfterDest(){
 }
 // 費目グリッド（保存先の帳簿の費目を使う）
 function wizRenderCats(){
-  const u=DB.users.find(x=>x.id===WZ.userId);
-  const l=u?.ledgers.find(x=>x.id===WZ.ledgerId);
+  const u=wzUser(), l=wzLedger();
   // どのユーザー・帳簿の費目を編集するのかを明示（No.0から他ユーザーの費目も編集できるため）
   const destEl=document.getElementById('wz-cat-dest');
   if(destEl)destEl.textContent=u&&l?`${u.name}／${l.name}`:'';
   const cats=l?.customCats?.[WZ.type]||(WZ.type==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS);
-  document.getElementById('wz-cat-grid').innerHTML=cats.map(c=>{
-    const iid=resolveIconId(c);
-    const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
-    const color=c.color||ic.color;
-    const sel=c.n===WZ.catName;
-    return `<button class="cat-btn${sel?' sel':''}" onclick="wizPickCat('${iid}','${escAttr(escJs(c.n))}')" style="${sel?'border-color:'+color:''}">
-      <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1px solid ${sel?'transparent':'var(--border-l)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
-        <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
-      </div>
-      <span class="cn">${esc(c.n)}</span>
-    </button>`;
-  }).join('');
+  document.getElementById('wz-cat-grid').innerHTML=cats.map(c=>
+    catBtnHTML(c,c.n===WZ.catName,(iid,n)=>`wizPickCat('${iid}','${escAttr(escJs(n))}')`)
+  ).join('');
 }
 function wizPickCat(iid,name){
   WZ.iconId=iid;WZ.catName=name;
@@ -1809,7 +1809,7 @@ function wizPickPay(k){
 function wizRenderPayees(){
   const wrap=document.getElementById('wz-payee-wrap');
   const el=document.getElementById('wz-payee-pills');
-  const u=DB.users.find(x=>x.id===WZ.userId);
+  const u=wzUser();
   if(!u||(WZ.payKind!=='bank'&&WZ.payKind!=='card')){wrap.classList.add('hidden');return;}
   const list=WZ.payKind==='bank'?(u.payees.bank||[]):(u.payees.card||[]);
   wrap.classList.remove('hidden');
@@ -1821,13 +1821,13 @@ function wizPickPayee(id){WZ.payeeId=id;wizRenderPayees();}
 
 // 登録（again=true なら続けて入力）
 function wizSave(again){
-  const u=DB.users.find(x=>x.id===WZ.userId);
+  const u=wzUser();
   if(!u){showToast('⚠️ 保存先ユーザーを選んでください');return;}
   const ledger=WZ.ledgerId||u.ledgers[0]?.id;
   if(!ledger){showToast('⚠️ 保存先の帳簿がありません');return;}
   if(!WZ.amount){showToast('⚠️ 金額を入力してください');return;}
   if(!WZ.date){showToast('⚠️ 日付を選んでください');return;}
-  const tx={id:'t'+Date.now()+Math.random().toString(36).slice(2),
+  const tx={id:newTxId(),
     ledger, type:WZ.type, amount:WZ.amount, iconId:WZ.iconId||'other', emoji:WZ.iconId||'other',
     emojiName:WZ.catName||(WZ.type==='income'?'収入':'支出'),
     memo:WZ.memo||WZ.catName, memo2:WZ.memo2, date:WZ.date};
@@ -2382,7 +2382,7 @@ function doImportCSV(mode){
     let payKind='cash',payeeId=null;
     if(r.payLabel==='銀行'){payKind='bank';if(r.payeeName){let p=u.payees.bank.find(x=>x.name===r.payeeName);if(!p){p={id:'b'+Date.now()+i,name:r.payeeName};u.payees.bank.push(p);}payeeId=p.id;}}
     else if(r.payLabel==='カード'){payKind='card';if(r.payeeName){let p=u.payees.card.find(x=>x.name===r.payeeName);if(!p){p={id:'c'+Date.now()+i,name:r.payeeName};u.payees.card.push(p);}payeeId=p.id;}}
-    u.transactions.push({id:'t'+Date.now()+i+Math.random().toString(36).slice(2),ledger:r.ledger,type:r.type,amount:r.amount,iconId:r.iconId,emoji:r.iconId,emojiName:r.catName,memo:r.memo,date:r.date,payKind,payeeId});
+    u.transactions.push({id:newTxId(i),ledger:r.ledger,type:r.type,amount:r.amount,iconId:r.iconId,emoji:r.iconId,emojiName:r.catName,memo:r.memo,date:r.date,payKind,payeeId});
     seen.add(dupKey(r));
     added++;
   });
@@ -2807,8 +2807,7 @@ function closeCatMgrToTx(){
   UI.catMgrUserId=null;
   if(caller==='wiz'){
     // 編集結果をウィザードの費目グリッドに反映（選択中の費目が消えていたら解除）
-    const u=DB.users.find(x=>x.id===WZ.userId);
-    const l=u?.ledgers.find(x=>x.id===WZ.ledgerId);
+    const u=wzUser(), l=wzLedger();
     const cats=l?.customCats?.[WZ.type]||[];
     if(WZ.catName&&!cats.some(c=>c.n===WZ.catName)){WZ.catName='';WZ.iconId='';}
     wizRenderCats();
@@ -3116,7 +3115,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.4';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.5';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3853,7 +3852,7 @@ function sheetQuickAdd(){
   const iconId=cat?resolveIconId(cat):'other';
   const memoRaw=document.getElementById('sh-memo').value;
   const memo2=document.getElementById('sh-memo2').value||'';
-  u.transactions.push({id:'t'+Date.now()+Math.random().toString(36).slice(2),
+  u.transactions.push({id:newTxId(),
     ledger:UI.activeLedger, type:'expense', amount, iconId, emoji:iconId,
     emojiName:catName, memo:memoRaw||catName, memo2, date, payKind:'cash', payeeId:null});
   pushMemoHistory(u,UI.activeLedger,'memo',memoRaw);
@@ -4419,7 +4418,7 @@ function confirmDateSel(){
   const newDate=ymd(dateselY,dateselM,dateselD);
   if(ctxAction_==='copy'){
     // コピー：同じ内容で新しいIDの取引を作成
-    const copy={...t, id:'t'+Date.now()+Math.random().toString(36).slice(2), date:newDate};
+    const copy={...t, id:newTxId(), date:newDate};
     u.transactions.push(copy);
     showToast(`📋 ${t.memo||t.emojiName||'取引'} を ${dateselM+1}月${dateselD}日にコピーしました`);
   } else {
