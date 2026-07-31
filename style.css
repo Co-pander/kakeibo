@@ -337,8 +337,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* 費目管理は取引の追加/編集モーダル（z-index:60）から呼び出す子モーダルなので、
    常にその前面に重ねる（DOM順だけだと裏に隠れて操作できなかった）。
    費目編集(cat-edit)はさらに費目管理の上に開くので一段上。 */
-#cat-overlay{z-index:64}
-#cat-edit-overlay{z-index:66}
+#cat-overlay{z-index:88}      /* ウィザード(85)からも開くため、その前面に重ねる */
+#cat-edit-overlay{z-index:90}
 .overlay.hidden{display:none}
 @keyframes oFade{from{opacity:0}to{opacity:1}}
 .sheet{background:var(--bg-card);border-radius:20px 20px 0 0;padding:0 0 calc(24px + var(--safe-bot));width:100%;max-height:92dvh;overflow-y:auto;animation:sUp 0.22s cubic-bezier(.4,0,.2,1)}
@@ -524,6 +524,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .wiz-pill.pay.card{background:linear-gradient(135deg,#C86FD8,#AB47BC)}
 .wiz-body{flex:1;overflow-y:auto;padding:8px 16px 16px;min-height:0}
 .wiz-inp{width:100%;padding:12px 4px;border:none;border-bottom:1.5px solid var(--border);background:transparent;color:var(--text);font-size:16px;font-family:var(--font);outline:none;box-sizing:border-box}
+/* ステップ2の費目ヘッダ（保存先の表示＋費目編集ボタン） */
+.wiz-cat-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 8px}
+.wiz-cat-lbl{font-size:12px;color:var(--text-sub);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.wiz-cat-edit{font-size:11px;color:var(--pri);font-weight:600;background:none;cursor:pointer;font-family:var(--font);padding:3px 8px;border-radius:4px;border:1px solid var(--pri);flex:none}
 .wiz-pay-title{font-size:13px;font-weight:700;color:var(--text-sub);margin:20px 0 12px;text-align:center}
 .wiz-pay-pills{display:flex;flex-direction:column;gap:12px;align-items:center}
 .wiz-pay-pills .wiz-pill{width:min(78%,320px)}

@@ -219,8 +219,13 @@ function activeLedgerObj(){
   return u.ledgers.find(l=>l.id===UI.activeLedger)||u.ledgers[0];
 }
 // 費目管理モーダルで編集中の帳簿を返す
+// 費目管理の対象ユーザー。通常は表示中のユーザーだが、
+// ウィザードから開いた場合は保存先ユーザー（No.0では自分以外）を対象にする
+function catMgrUserObj(){
+  return (UI.catMgrUserId&&DB.users.find(u=>u.id===UI.catMgrUserId))||activeUser();
+}
 function catMgrLedgerObj(){
-  const u=activeUser();
+  const u=catMgrUserObj();
   return u.ledgers.find(l=>l.id===UI.catMgrLedgerId)||u.ledgers[0];
 }
 // 帳簿のcustomCatsを初期化して返す（未設定ならデフォルトで初期化）
@@ -306,7 +311,8 @@ let UI={
   txEditEmoji:null,txEditEmojiName:null,
   txEditKind:null,txEditPayeeId:null,
   isMainMode:false,   // メインユーザー(No.0)として表示中か
-  catMgrLedgerId:null // 費目管理モーダルで編集中の帳簿ID
+  catMgrLedgerId:null, // 費目管理モーダルで編集中の帳簿ID
+  catMgrUserId:null    // 同・対象ユーザーID（ウィザードから開いたときは保存先ユーザー。nullなら表示中ユーザー）
 };
 
 /* =========================================================
@@ -1754,6 +1760,9 @@ function wizAfterDest(){
 function wizRenderCats(){
   const u=DB.users.find(x=>x.id===WZ.userId);
   const l=u?.ledgers.find(x=>x.id===WZ.ledgerId);
+  // どのユーザー・帳簿の費目を編集するのかを明示（No.0から他ユーザーの費目も編集できるため）
+  const destEl=document.getElementById('wz-cat-dest');
+  if(destEl)destEl.textContent=u&&l?`${u.name}／${l.name}`:'';
   const cats=l?.customCats?.[WZ.type]||(WZ.type==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS);
   document.getElementById('wz-cat-grid').innerHTML=cats.map(c=>{
     const iid=resolveIconId(c);
@@ -2730,7 +2739,7 @@ function catTouchEnd(e,i){
 let catMgrCaller=null; // 'add' | 'edit' | null
 
 function renderCatLedgerSel(){
-  const u=activeUser();
+  const u=catMgrUserObj();
   const wrap=document.getElementById('cat-ledger-sel');
   const sel=document.getElementById('cat-ledger-select');
   if(!wrap||!sel)return;
@@ -2751,6 +2760,7 @@ function openCatMgr(){
   document.getElementById('cat-back-bar').classList.add('hidden');
   document.getElementById('cat-overlay').classList.remove('hidden');
   UI.selCatEmoji=null;
+  UI.catMgrUserId=null;            // 表示中ユーザーを対象に戻す
   UI.catMgrLedgerId=UI.activeLedger;
   renderCatLedgerSel();
   setCatTab('expense');
@@ -2758,10 +2768,19 @@ function openCatMgr(){
 
 function openCatMgrFromTx(caller){
   catMgrCaller=caller;
-  const type=caller==='edit'?UI.txEditType:UI.txType;
+  const type=caller==='wiz'?WZ.type:(caller==='edit'?UI.txEditType:UI.txType);
   document.getElementById('cat-back-bar').classList.remove('hidden');
   document.getElementById('cat-overlay').classList.remove('hidden');
   UI.selCatEmoji=null;
+  UI.catMgrUserId=null;
+  // ウィザード：保存先のユーザー・帳簿を対象にする（No.0から他ユーザーの費目も編集できる）
+  if(caller==='wiz'){
+    UI.catMgrUserId=WZ.userId;
+    UI.catMgrLedgerId=WZ.ledgerId;
+    renderCatLedgerSel();
+    setCatTab(type);
+    return;
+  }
   // isMainMode時は保存先帳簿、通常はアクティブ帳簿
   if(UI.isMainMode&&caller==='add'){
     const destLid=document.getElementById('f-dest-ledger')?.value;
@@ -2785,6 +2804,16 @@ function closeCatMgrToTx(){
   document.getElementById('cat-overlay').classList.add('hidden');
   const caller=catMgrCaller;
   catMgrCaller=null;
+  UI.catMgrUserId=null;
+  if(caller==='wiz'){
+    // 編集結果をウィザードの費目グリッドに反映（選択中の費目が消えていたら解除）
+    const u=DB.users.find(x=>x.id===WZ.userId);
+    const l=u?.ledgers.find(x=>x.id===WZ.ledgerId);
+    const cats=l?.customCats?.[WZ.type]||[];
+    if(WZ.catName&&!cats.some(c=>c.n===WZ.catName)){WZ.catName='';WZ.iconId='';}
+    wizRenderCats();
+    return;
+  }
   if(caller==='add'){
     buildCatGrid('cat-grid', UI.txType, UI.selEmoji, UI.selEmojiName, 'pickCat');
   } else if(caller==='edit'){
@@ -3087,7 +3116,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.3';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.4';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){

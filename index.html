@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.16.3">
+<link rel="stylesheet" href="style.css?v=3.16.4">
 <title>家計簿</title>
 </head>
 <body>
@@ -433,6 +433,10 @@
       <button class="wiz-close" onclick="closeWizard()">✕</button>
     </div>
     <div class="wiz-body">
+      <div class="wiz-cat-head">
+        <span class="wiz-cat-lbl" id="wz-cat-dest"></span>
+        <button class="wiz-cat-edit" onclick="openCatMgrFromTx('wiz')">＋ 費目を編集</button>
+      </div>
       <div class="cat-grid" id="wz-cat-grid"></div>
       <input type="text" id="wz-memo" class="wiz-inp" placeholder="内訳" style="margin-top:12px">
       <div class="memo-hist" id="wz-memo-hist"></div>
@@ -986,6 +990,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.16.3"></script>
+<script src="app.js?v=3.16.4"></script>
 </body>
 </html>
