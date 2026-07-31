@@ -316,7 +316,9 @@ function load(){
   let _raw=null;
   try{
     _raw=localStorage.getItem('kb-v5');
-    if(_raw){const p=JSON.parse(_raw);DB=p.DB||DB;UI.year=p.UIyear||UI.year;UI.month=p.UImonth||UI.month;DB.activeUser=p.activeUser||DB.activeUser||DB.users[0].id;}
+    // 表示月は復元せず常に当月から開始（他の月を見たまま閉じても、次回起動時に誤入力しないため）。
+    // UI.year/UI.month は宣言時に今日の年月で初期化済み
+    if(_raw){const p=JSON.parse(_raw);DB=p.DB||DB;DB.activeUser=p.activeUser||DB.activeUser||DB.users[0].id;}
   }catch(e){
     // 破損データを退避してから初期状態で続行（次のsave()で上書き消失するのを防ぐ）
     try{if(_raw)localStorage.setItem('kb-v5-broken',_raw);}catch(_){}
@@ -324,6 +326,7 @@ function load(){
   // migration（tryの外で必ず実行）
   if(!DB.mainUser)DB.mainUser={enabled:true,name:'マスター',theme:'indigo'};
   if(DB.mainUser.startupMain===undefined)DB.mainUser.startupMain=false;
+  if(DB.mainUser.wizardInput===undefined)DB.mainUser.wizardInput=false;
   // migration: 入力履歴を全体共有(DB.memoHistory)→ユーザーの帳簿ごと(ledger.memoHistory)へ。
   // 既存の履歴は各帳簿に引き継ぐ（移行後は共有履歴を削除）
   const _legacyHist=DB.memoHistory;
@@ -364,7 +367,8 @@ function load(){
   if(!u.ledgers.find(l=>l.id===UI.activeLedger))UI.activeLedger=u.ledgers[0].id;
 }
 function save(){
-  try{localStorage.setItem('kb-v5',JSON.stringify({DB,UIyear:UI.year,UImonth:UI.month,activeUser:DB.activeUser}));}
+  // 表示月は保存しない（起動時は常に当月から。load()参照）
+  try{localStorage.setItem('kb-v5',JSON.stringify({DB,activeUser:DB.activeUser}));}
   catch(e){showToast('⚠️ 保存に失敗しました（空き容量を確認してください）','',4000);}
 }
 
@@ -1427,6 +1431,12 @@ function deleteUser(){
    取引追加
 /* =========================================================
 ========================================================= */
+// ＋ボタン：No.0画面かつウィザード設定ONならウィザード、それ以外は従来の入力画面
+function onAddTap(){
+  if(UI.isMainMode && DB.mainUser.wizardInput) openWizard();
+  else openAddModal();
+}
+
 let addPresetDate=null;   // 追加モーダルの日付プリセット（帳票の支出欄タップ等で使用）
 function openAddModal(){
   document.getElementById('add-overlay').classList.remove('hidden');
@@ -1619,6 +1629,178 @@ function addTx(){
   const[ay,am,ad]=date.split('-').map(Number);
   UI.year=ay;UI.month=am-1;UI.selDay=ad;UI.expandList=false;
   save();closeAddModal();renderAll();
+}
+
+/* =========================================================
+   No.0 ウィザード入力（金額→費目→支払方法の3ステップ）
+   ・設定「No.0の入力をウィザード形式に」がONのとき、No.0画面の＋から開く
+   ・既存の費目/履歴/支払い先/保存の仕組みをそのまま使う
+========================================================= */
+const WZ={date:'',amount:0,type:'expense',userId:'',ledgerId:'',iconId:'',catName:'',memo:'',memo2:'',payKind:'cash',payeeId:null};
+
+function openWizard(){
+  const n=new Date();
+  WZ.date=ymd(n.getFullYear(),n.getMonth(),n.getDate());   // 当日をプリセット（タップで変更可）
+  WZ.amount=0;WZ.type='expense';WZ.iconId='';WZ.catName='';WZ.memo='';WZ.memo2='';WZ.payKind='cash';WZ.payeeId=null;
+  const u=DB.users[0];
+  WZ.userId=u?.id||'';WZ.ledgerId=u?.ledgers[0]?.id||'';
+  document.getElementById('wz-date').value=WZ.date;
+  document.getElementById('wz-amount').value='';
+  document.getElementById('wz-memo').value='';
+  document.getElementById('wz-memo2').value='';
+  wizPickType('expense');
+  wizRenderDest();
+  wizGoStep(1);
+  document.getElementById('wiz-overlay').classList.remove('hidden');
+}
+function closeWizard(){document.getElementById('wiz-overlay').classList.add('hidden');}
+
+function wizGoStep(n){
+  [1,2,3].forEach(i=>document.getElementById('wiz-step'+i).classList.toggle('hidden',i!==n));
+  if(n===2){
+    document.getElementById('wz-amt-label').textContent=fmt(WZ.amount);
+    wizRenderCats();
+    const u=DB.users.find(x=>x.id===WZ.userId);
+    if(u)renderMemoHistPair('wz',u,WZ.ledgerId);
+  }
+  if(n===3){
+    document.getElementById('wz-amt-label3').textContent=fmt(WZ.amount);
+    wizRenderPay();
+  }
+}
+function wizDateChanged(){WZ.date=document.getElementById('wz-date').value;}
+function wizPickType(t){
+  WZ.type=t;WZ.iconId='';WZ.catName='';
+  document.getElementById('wz-t-inc').classList.toggle('on',t==='income');
+  document.getElementById('wz-t-exp').classList.toggle('on',t==='expense');
+}
+// 保存先（ユーザー・帳簿）をピルで選択。選ぶと自動でステップ2へ
+function wizRenderDest(){
+  const uEl=document.getElementById('wz-users');
+  uEl.innerHTML=DB.users.map(u=>{
+    const t=getTheme(u.theme);
+    return `<button class="wiz-pill${u.id===WZ.userId?' on':''}" style="background:${themeGrad(t)}" onclick="wizPickUser('${u.id}')">${esc(u.name)}</button>`;
+  }).join('');
+  wizRenderLedgers();
+}
+function wizRenderLedgers(){
+  const u=DB.users.find(x=>x.id===WZ.userId);
+  const lEl=document.getElementById('wz-ledgers');
+  if(!u){lEl.innerHTML='';return;}
+  if(!u.ledgers.some(l=>l.id===WZ.ledgerId))WZ.ledgerId=u.ledgers[0]?.id||'';
+  lEl.innerHTML=u.ledgers.map(l=>{
+    const t=getTheme(l.theme||u.theme);
+    return `<button class="wiz-pill${l.id===WZ.ledgerId?' on':''}" style="background:${themeGrad(t)}" onclick="wizPickLedger('${l.id}')">${esc(l.name)}</button>`;
+  }).join('');
+}
+function wizPickUser(id){
+  WZ.userId=id;WZ.ledgerId='';
+  wizRenderDest();
+  const u=DB.users.find(x=>x.id===id);
+  if(u&&u.ledgers.length===1){WZ.ledgerId=u.ledgers[0].id;wizAfterDest();}  // 帳簿1つなら即次へ
+}
+function wizPickLedger(id){
+  WZ.ledgerId=id;wizRenderLedgers();wizAfterDest();
+}
+// 保存先が決まったら金額を確定してステップ2へ
+function wizAfterDest(){
+  const amt=parseAmountInput('wz-amount');
+  if(!amt){showToast('⚠️ 金額を入力してください');return;}
+  WZ.amount=amt;
+  wizGoStep(2);
+}
+// 費目グリッド（保存先の帳簿の費目を使う）
+function wizRenderCats(){
+  const u=DB.users.find(x=>x.id===WZ.userId);
+  const l=u?.ledgers.find(x=>x.id===WZ.ledgerId);
+  const cats=l?.customCats?.[WZ.type]||(WZ.type==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS);
+  document.getElementById('wz-cat-grid').innerHTML=cats.map(c=>{
+    const iid=resolveIconId(c);
+    const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
+    const color=c.color||ic.color;
+    const sel=c.n===WZ.catName;
+    return `<button class="cat-btn${sel?' sel':''}" onclick="wizPickCat('${iid}','${escAttr(escJs(c.n))}')" style="${sel?'border-color:'+color:''}">
+      <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1px solid ${sel?'transparent':'var(--border-l)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
+        <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
+      </div>
+      <span class="cn">${esc(c.n)}</span>
+    </button>`;
+  }).join('');
+}
+function wizPickCat(iid,name){
+  WZ.iconId=iid;WZ.catName=name;
+  const m=document.getElementById('wz-memo');
+  if(!m.value)m.value=name;
+  wizRenderCats();
+}
+// ステップ2 → 収入はそのまま登録画面(ステップ3)へ、支出は支払方法選択へ
+function wizFromStep2(){
+  if(!WZ.catName){showToast('⚠️ 費目を選んでください');return;}
+  WZ.memo=document.getElementById('wz-memo').value;
+  WZ.memo2=document.getElementById('wz-memo2').value;
+  wizGoStep(3);
+}
+// 支払方法（支出のみ）。収入のときは登録ボタンだけを見せる
+function wizRenderPay(){
+  const isInc=WZ.type==='income';
+  document.getElementById('wz-pay-title').textContent=isInc?'内容を確認して登録してください':'支払方法';
+  const el=document.getElementById('wz-pay-pills');
+  if(isInc){el.innerHTML='';document.getElementById('wz-payee-wrap').classList.add('hidden');return;}
+  el.innerHTML=Object.entries(PAY_META).map(([k,m])=>
+    `<button class="wiz-pill pay ${m.chipCls}${WZ.payKind===k?' on':''}" onclick="wizPickPay('${k}')">${m.icon} ${m.label}</button>`
+  ).join('');
+  wizRenderPayees();
+}
+function wizPickPay(k){
+  WZ.payKind=k;WZ.payeeId=null;
+  wizRenderPay();
+}
+// 銀行・カードのときは支払い先も選ぶ（カードは請求月の計算に必要）
+function wizRenderPayees(){
+  const wrap=document.getElementById('wz-payee-wrap');
+  const el=document.getElementById('wz-payee-pills');
+  const u=DB.users.find(x=>x.id===WZ.userId);
+  if(!u||(WZ.payKind!=='bank'&&WZ.payKind!=='card')){wrap.classList.add('hidden');return;}
+  const list=WZ.payKind==='bank'?(u.payees.bank||[]):(u.payees.card||[]);
+  wrap.classList.remove('hidden');
+  el.innerHTML=list.length
+    ? list.map(p=>`<button class="wiz-pill pay ${WZ.payKind==='bank'?'bank':'card'}${WZ.payeeId===p.id?' on':''}" onclick="wizPickPayee('${p.id}')">${esc(p.name)}</button>`).join('')
+    : `<div class="csv-note" style="padding:4px 0">登録がありません。「支払い方法」画面から追加してください。</div>`;
+}
+function wizPickPayee(id){WZ.payeeId=id;wizRenderPayees();}
+
+// 登録（again=true なら続けて入力）
+function wizSave(again){
+  const u=DB.users.find(x=>x.id===WZ.userId);
+  if(!u){showToast('⚠️ 保存先ユーザーを選んでください');return;}
+  const ledger=WZ.ledgerId||u.ledgers[0]?.id;
+  if(!ledger){showToast('⚠️ 保存先の帳簿がありません');return;}
+  if(!WZ.amount){showToast('⚠️ 金額を入力してください');return;}
+  if(!WZ.date){showToast('⚠️ 日付を選んでください');return;}
+  const tx={id:'t'+Date.now()+Math.random().toString(36).slice(2),
+    ledger, type:WZ.type, amount:WZ.amount, iconId:WZ.iconId||'other', emoji:WZ.iconId||'other',
+    emojiName:WZ.catName||(WZ.type==='income'?'収入':'支出'),
+    memo:WZ.memo||WZ.catName, memo2:WZ.memo2, date:WZ.date};
+  if(WZ.type==='expense'){
+    tx.payKind=WZ.payKind||'cash';
+    if((tx.payKind==='bank'||tx.payKind==='card')&&!WZ.payeeId){showToast('⚠️ 支払い先を選んでください');return;}
+    tx.payeeId=WZ.payeeId||null;
+  }
+  u.transactions.push(tx);
+  pushMemoHistory(u,ledger,'memo',WZ.memo);
+  pushMemoHistory(u,ledger,'memo2',WZ.memo2);
+  const[ay,am,ad]=WZ.date.split('-').map(Number);
+  UI.year=ay;UI.month=am-1;UI.selDay=ad;UI.expandList=false;
+  save();renderAll();
+  showToast('✅ 登録しました');
+  if(again){
+    // 日付・保存先は引き継ぎ、金額から入力し直す
+    WZ.amount=0;WZ.iconId='';WZ.catName='';WZ.memo='';WZ.memo2='';WZ.payKind='cash';WZ.payeeId=null;
+    document.getElementById('wz-amount').value='';
+    document.getElementById('wz-memo').value='';
+    document.getElementById('wz-memo2').value='';
+    wizGoStep(1);
+  }else closeWizard();
 }
 
 /* =========================================================
@@ -2058,8 +2240,7 @@ function importBackup(ev){
         const txCount=db.users.reduce((s,u)=>s+((u.transactions||[]).length),0);
         if(!confirm(`全体バックアップ（ユーザー${userCount}人 / 取引${txCount}件）で現在のデータをすべて置き換えます。\n今の端末のデータは消えます。よろしいですか？`)){ev.target.value='';return;}
         // localStorageへ書いてリロード → load()のマイグレーションを通して安全に初期化
-        const cur=new Date();
-        localStorage.setItem('kb-v5',JSON.stringify({DB:db,UIyear:cur.getFullYear(),UImonth:cur.getMonth(),activeUser:db.users[0].id}));
+        localStorage.setItem('kb-v5',JSON.stringify({DB:db,activeUser:db.users[0].id}));
         alert('✅ 全体を復元しました。画面を更新します。');
         location.reload();
         return;
@@ -2865,7 +3046,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.15.9';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -2952,6 +3133,16 @@ function updateMainUserSettingUI(){
   if(sChk)sChk.checked=su;
   if(sTrack)sTrack.style.background=su?'var(--pri)':'var(--border)';
   if(sThumb)sThumb.style.left=su?'23px':'3px';
+  // ウィザード入力トグル（メインユーザー有効時のみ表示）
+  const wRow=document.getElementById('main-user-wizard-row');
+  const wChk=document.getElementById('setting-wizard');
+  const wTrack=document.getElementById('smw-track');
+  const wThumb=document.getElementById('smw-thumb');
+  if(wRow)wRow.style.display=en?'flex':'none';
+  const wz=!!DB.mainUser.wizardInput;
+  if(wChk)wChk.checked=wz;
+  if(wTrack)wTrack.style.background=wz?'var(--pri)':'var(--border)';
+  if(wThumb)wThumb.style.left=wz?'23px':'3px';
   // No.0のカラー選択（メインユーザー有効時のみ表示）
   const colorRow=document.getElementById('main-user-color-row');
   if(colorRow)colorRow.style.display=en?'block':'none';
@@ -2989,6 +3180,12 @@ function toggleMainUser(){
 function toggleStartupMain(){
   const chk=document.getElementById('setting-startup-main');
   DB.mainUser.startupMain=chk?.checked||false;
+  save();updateMainUserSettingUI();
+}
+// No.0の入力をウィザード形式にするか（＋ボタンの動作が変わる）
+function toggleWizardMode(){
+  const chk=document.getElementById('setting-wizard');
+  DB.mainUser.wizardInput=chk?.checked||false;
   save();updateMainUserSettingUI();
 }
 

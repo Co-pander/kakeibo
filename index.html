@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.15.9">
+<link rel="stylesheet" href="style.css?v=3.16.1">
 <title>家計簿</title>
 </head>
 <body>
@@ -137,7 +137,7 @@
     <div class="cal-section" style="position:relative" id="cal-section"
          ontouchstart="swipeStart(event)" ontouchend="swipeEnd(event,changeMonth)">
       <div class="cal-grid" id="cal-grid"></div>
-      <button class="cal-fab" onclick="openAddModal()" id="cal-fab">＋</button>
+      <button class="cal-fab" onclick="onAddTap()" id="cal-fab">＋</button>
     </div>
 
     <!-- カレンダー下の集計バー（1行目=選択日までの累計／2行目=その日。日付行タップで明細の遡り展開を切替） -->
@@ -387,6 +387,69 @@
 </div>
 
 <!-- ===== 取引追加モーダル ===== -->
+<!-- ===== No.0 ウィザード入力（金額→費目→支払方法の3ステップ） ===== -->
+<div class="wiz hidden" id="wiz-overlay">
+  <!-- ステップ1：日付・金額・収入/支出・保存先 -->
+  <div class="wiz-step" id="wiz-step1">
+    <div class="wiz-head">
+      <input type="date" id="wz-date" class="wiz-date" onchange="wizDateChanged()">
+      <button class="wiz-close" onclick="closeWizard()">✕</button>
+    </div>
+    <div class="wiz-amount-row">
+      <span class="wiz-yen">¥</span>
+      <input type="text" id="wz-amount" class="wiz-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)">
+    </div>
+    <div class="wiz-type-row">
+      <button class="wiz-type-btn inc" id="wz-t-inc" onclick="wizPickType('income')">収入</button>
+      <button class="wiz-type-btn exp" id="wz-t-exp" onclick="wizPickType('expense')">支出</button>
+    </div>
+    <div class="wiz-dest">
+      <div class="wiz-dest-lbl">保存先</div>
+      <div class="wiz-pills" id="wz-users"></div>
+      <div class="wiz-dest-lbl" style="margin-top:10px">帳簿</div>
+      <div class="wiz-pills" id="wz-ledgers"></div>
+    </div>
+  </div>
+
+  <!-- ステップ2：費目・内訳・メモ -->
+  <div class="wiz-step hidden" id="wiz-step2">
+    <div class="wiz-head">
+      <button class="wiz-back" onclick="wizGoStep(1)">←</button>
+      <span class="wiz-amt-label" id="wz-amt-label">¥0</span>
+      <button class="wiz-close" onclick="closeWizard()">✕</button>
+    </div>
+    <div class="wiz-body">
+      <div class="cat-grid" id="wz-cat-grid"></div>
+      <input type="text" id="wz-memo" class="wiz-inp" placeholder="内訳" style="margin-top:12px">
+      <div class="memo-hist" id="wz-memo-hist"></div>
+      <input type="text" id="wz-memo2" class="wiz-inp" placeholder="メモ" style="margin-top:10px">
+      <div class="memo-hist" id="wz-memo2-hist"></div>
+    </div>
+    <button class="wiz-next" id="wz-next2" onclick="wizFromStep2()">→</button>
+  </div>
+
+  <!-- ステップ3：支払方法（支出のみ）／支払い先 -->
+  <div class="wiz-step hidden" id="wiz-step3">
+    <div class="wiz-head">
+      <button class="wiz-back" onclick="wizGoStep(2)">←</button>
+      <span class="wiz-amt-label" id="wz-amt-label3">¥0</span>
+      <button class="wiz-close" onclick="closeWizard()">✕</button>
+    </div>
+    <div class="wiz-body">
+      <div class="wiz-pay-title" id="wz-pay-title">支払方法</div>
+      <div class="wiz-pay-pills" id="wz-pay-pills"></div>
+      <div id="wz-payee-wrap" class="hidden">
+        <div class="wiz-pay-title" style="margin-top:18px">支払い先</div>
+        <div class="wiz-pay-pills" id="wz-payee-pills"></div>
+      </div>
+    </div>
+    <div class="wiz-actions">
+      <button class="wiz-save" onclick="wizSave(false)">登録</button>
+      <button class="wiz-save alt" onclick="wizSave(true)">続けて追加</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay hidden" id="add-overlay">
   <div class="sheet">
     <div class="sheet-drag"></div>
@@ -825,6 +888,18 @@
           <span id="sms-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span>
         </label>
       </div>
+      <div class="mgr-item" id="main-user-wizard-row">
+        <span class="mgr-icon">🪄</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">No.0の入力をウィザード形式に</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px">金額→費目→支払方法を1画面ずつ選んで登録します</div>
+        </div>
+        <label style="position:relative;width:44px;height:24px;flex:none;cursor:pointer">
+          <input type="checkbox" id="setting-wizard" onchange="toggleWizardMode()" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="smw-track" style="position:absolute;inset:0;border-radius:12px;background:var(--border);transition:all 0.2s;display:block"></span>
+          <span id="smw-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span>
+        </label>
+      </div>
       <div class="mgr-item" id="main-user-color-row" style="display:block">
         <div style="display:flex;align-items:center;gap:8px">
           <span class="mgr-icon">🎨</span>
@@ -897,6 +972,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.15.9"></script>
+<script src="app.js?v=3.16.1"></script>
 </body>
 </html>

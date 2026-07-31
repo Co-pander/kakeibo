@@ -476,6 +476,42 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* 内訳グラフ：支払別／カテゴリ別の小見出し */
 .chart-sub{font-size:11px;font-weight:700;color:var(--text-sub);padding:6px 16px;letter-spacing:0.03em}
 
+/* ===== No.0 ウィザード入力（金額→費目→支払方法） ===== */
+.wiz{position:fixed;inset:0;z-index:85;background:var(--bg-card);display:flex;flex-direction:column;animation:oFade 0.15s}
+.wiz.hidden{display:none}
+.wiz-step{flex:1;display:flex;flex-direction:column;min-height:0}
+.wiz-step.hidden{display:none}
+.wiz-head{display:flex;align-items:center;gap:10px;padding:calc(var(--safe-top)+12px) 16px 8px}
+.wiz-date{border:none;background:transparent;color:var(--text-sub);font-size:15px;font-family:var(--font);padding:4px 0;flex:1}
+.wiz-back,.wiz-close{background:none;border:none;font-size:22px;color:var(--text-sub);cursor:pointer;padding:4px 8px;line-height:1;font-family:var(--font)}
+.wiz-amt-label{flex:1;text-align:left;font-size:20px;font-weight:800;color:var(--red);font-family:var(--font-num)}
+.wiz-amount-row{display:flex;align-items:center;gap:14px;padding:22px 22px 6px}
+.wiz-yen{font-size:40px;font-weight:800;color:var(--text-sub)}
+.wiz-amount{flex:1;border:none;background:transparent;text-align:right;font-size:52px;font-weight:800;color:var(--blue);font-family:var(--font-num);outline:none;min-width:0;padding:0}
+.wiz-type-row{display:flex;gap:14px;padding:22px}
+.wiz-type-btn{flex:1;padding:22px 0;border:none;border-radius:var(--r12);font-size:18px;font-weight:700;color:#fff;font-family:var(--font);cursor:pointer;opacity:0.45;transition:opacity 0.15s,transform 0.1s}
+.wiz-type-btn.inc{background:linear-gradient(135deg,#2ECC8F,#22B37A)}
+.wiz-type-btn.exp{background:linear-gradient(135deg,#F2647F,#E8506C)}
+.wiz-type-btn.on{opacity:1;transform:scale(1.02)}
+.wiz-dest{padding:4px 22px 22px;overflow-y:auto}
+.wiz-dest-lbl{font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px}
+.wiz-pills{display:flex;flex-wrap:wrap;gap:8px}
+.wiz-pill{padding:12px 22px;border-radius:26px;border:none;color:#fff;font-size:15px;font-weight:700;font-family:var(--font);cursor:pointer;opacity:0.5;transition:opacity 0.15s,transform 0.1s;box-shadow:0 2px 8px rgba(0,0,0,0.12)}
+.wiz-pill.on{opacity:1;transform:scale(1.03);box-shadow:inset 0 0 0 2.5px rgba(255,255,255,0.9),0 2px 8px rgba(0,0,0,0.12)}
+.wiz-pill.pay{color:#fff}
+.wiz-pill.pay.cash{background:linear-gradient(135deg,#F0A249,#E07B2E)}
+.wiz-pill.pay.bank{background:linear-gradient(135deg,#5CA3DE,#3B82C4)}
+.wiz-pill.pay.card{background:linear-gradient(135deg,#C86FD8,#AB47BC)}
+.wiz-body{flex:1;overflow-y:auto;padding:8px 16px 16px;min-height:0}
+.wiz-inp{width:100%;padding:12px 4px;border:none;border-bottom:1.5px solid var(--border);background:transparent;color:var(--text);font-size:16px;font-family:var(--font);outline:none;box-sizing:border-box}
+.wiz-pay-title{font-size:13px;font-weight:700;color:var(--text-sub);margin:20px 0 12px;text-align:center}
+.wiz-pay-pills{display:flex;flex-direction:column;gap:12px;align-items:center}
+.wiz-pay-pills .wiz-pill{width:min(78%,320px)}
+.wiz-next{margin:0 16px calc(16px + var(--safe-bot));padding:14px;border:none;border-radius:var(--r12);background:var(--pri);color:#fff;font-size:20px;font-weight:800;font-family:var(--font);cursor:pointer;flex:none}
+.wiz-actions{display:flex;gap:10px;margin:0 16px calc(16px + var(--safe-bot));flex:none}
+.wiz-save{flex:1;padding:15px;border:none;border-radius:var(--r12);background:var(--pri);color:#fff;font-size:16px;font-weight:800;font-family:var(--font);cursor:pointer}
+.wiz-save.alt{background:var(--bg);color:var(--pri);border:1.5px solid var(--pri)}
+
 /* ===== 帳票タブ（予算・支出・残高） ===== */
 .sh-card{background:var(--bg-card);margin:0 0 8px;padding:12px 16px}
 .sh-title{font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:8px}
