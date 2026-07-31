@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.16.1">
+<link rel="stylesheet" href="style.css?v=3.16.3">
 <title>家計簿</title>
 </head>
 <body>
@@ -387,12 +387,26 @@
 </div>
 
 <!-- ===== 取引追加モーダル ===== -->
+<!-- ===== ウィザードの日付選択カレンダー（年移動・左右フリック対応） ===== -->
+<div class="wcal-overlay hidden" id="wcal-overlay" onclick="if(event.target===this)closeWizCal()">
+  <div class="wcal-sheet" ontouchstart="swipeStart(event)" ontouchend="swipeEnd(event,wcalMonth)">
+    <div class="wcal-nav">
+      <button class="wcal-btn" onclick="wcalYear(-1)" title="前年">«</button>
+      <button class="wcal-btn" onclick="wcalMonth(-1)" title="前月">‹</button>
+      <span class="wcal-title" id="wcal-title"></span>
+      <button class="wcal-btn" onclick="wcalMonth(1)" title="翌月">›</button>
+      <button class="wcal-btn" onclick="wcalYear(1)" title="翌年">»</button>
+    </div>
+    <div class="wcal-grid" id="wcal-grid"></div>
+  </div>
+</div>
+
 <!-- ===== No.0 ウィザード入力（金額→費目→支払方法の3ステップ） ===== -->
 <div class="wiz hidden" id="wiz-overlay">
   <!-- ステップ1：日付・金額・収入/支出・保存先 -->
   <div class="wiz-step" id="wiz-step1">
-    <div class="wiz-head">
-      <input type="date" id="wz-date" class="wiz-date" onchange="wizDateChanged()">
+    <div class="wiz-head wiz-head-1">
+      <button type="button" id="wz-date" class="wiz-date" onclick="openWizCal()"></button>
       <button class="wiz-close" onclick="closeWizard()">✕</button>
     </div>
     <div class="wiz-amount-row">
@@ -972,6 +986,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.16.1"></script>
+<script src="app.js?v=3.16.3"></script>
 </body>
 </html>

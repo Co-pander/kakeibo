@@ -1644,7 +1644,7 @@ function openWizard(){
   WZ.amount=0;WZ.type='expense';WZ.iconId='';WZ.catName='';WZ.memo='';WZ.memo2='';WZ.payKind='cash';WZ.payeeId=null;
   const u=DB.users[0];
   WZ.userId=u?.id||'';WZ.ledgerId=u?.ledgers[0]?.id||'';
-  document.getElementById('wz-date').value=WZ.date;
+  wizRenderDate();
   document.getElementById('wz-amount').value='';
   document.getElementById('wz-memo').value='';
   document.getElementById('wz-memo2').value='';
@@ -1668,7 +1668,48 @@ function wizGoStep(n){
     wizRenderPay();
   }
 }
-function wizDateChanged(){WZ.date=document.getElementById('wz-date').value;}
+// 日付ボタンの表示（YYYY/MM/DD）
+function wizRenderDate(){
+  const el=document.getElementById('wz-date');
+  if(el&&WZ.date)el.textContent=WZ.date.replace(/-/g,'/');
+}
+
+/* ---- ウィザードの日付選択カレンダー（‹›=月移動 / «»=年移動 / 左右フリック=月移動） ---- */
+let wcalY=null,wcalM=null;
+function openWizCal(){
+  const[y,m]=WZ.date.split('-').map(Number);
+  wcalY=y;wcalM=m-1;
+  buildWizCal();
+  document.getElementById('wcal-overlay').classList.remove('hidden');
+}
+function closeWizCal(){document.getElementById('wcal-overlay').classList.add('hidden');}
+function wcalMonth(d){ ({y:wcalY,m:wcalM}=rollMonth(wcalY,wcalM,d)); buildWizCal(); }
+function wcalYear(d){ wcalY+=d; buildWizCal(); }
+function buildWizCal(){
+  document.getElementById('wcal-title').textContent=`${wcalY}年${wcalM+1}月`;
+  const first=new Date(wcalY,wcalM,1).getDay();
+  const dim=new Date(wcalY,wcalM+1,0).getDate();
+  const prevDim=new Date(wcalY,wcalM,0).getDate();     // 前月の日数（先頭の薄い日付用）
+  const today=new Date();
+  const sel=WZ.date.split('-').map(Number);            // 選択中の日
+  const dows=['日','月','火','水','木','金','土'];
+  let h=dows.map((d,i)=>`<div class="wcal-dow${i===0?' sun':''}${i===6?' sat':''}">${d}</div>`).join('');
+  for(let i=first-1;i>=0;i--)h+=`<div class="wcal-day other">${prevDim-i}</div>`;   // 前月末
+  for(let d=1;d<=dim;d++){
+    const dow=new Date(wcalY,wcalM,d).getDay();
+    const isToday=today.getFullYear()===wcalY&&today.getMonth()===wcalM&&today.getDate()===d;
+    const isSel=sel[0]===wcalY&&sel[1]===wcalM+1&&sel[2]===d;
+    h+=`<div class="wcal-day${dow===0?' sun':''}${dow===6?' sat':''}${isToday?' today':''}${isSel?' selected':''}" onclick="wcalPick(${d})">${d}</div>`;
+  }
+  const rest=(7-((first+dim)%7))%7;
+  for(let d=1;d<=rest;d++)h+=`<div class="wcal-day other">${d}</div>`;              // 翌月頭
+  document.getElementById('wcal-grid').innerHTML=h;
+}
+function wcalPick(d){
+  WZ.date=ymd(wcalY,wcalM,d);
+  wizRenderDate();
+  closeWizCal();
+}
 function wizPickType(t){
   WZ.type=t;WZ.iconId='';WZ.catName='';
   document.getElementById('wz-t-inc').classList.toggle('on',t==='income');
@@ -3046,7 +3087,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.1';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.3';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){

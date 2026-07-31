@@ -184,7 +184,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   .ud-panel{background:var(--bg-card-tr);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 }
 .user-drawer.open .ud-panel{transform:translateY(0)}
-.ud-header{background:var(--pri);padding:calc(var(--safe-top)+14px) 16px 12px;transition:background 0.3s}
+.ud-header{background:var(--pri);padding:calc(var(--safe-top) + 14px) 16px 12px;transition:background 0.3s}
 .ud-title{font-size:13px;color:rgba(255,255,255,0.7);font-weight:600;letter-spacing:0.05em}
 .ud-user-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;padding:14px 16px}
 /* ユーザーピル：各ユーザーのテーマ色グラデ（背景はJSで指定）＋白文字 */
@@ -481,8 +481,28 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .wiz.hidden{display:none}
 .wiz-step{flex:1;display:flex;flex-direction:column;min-height:0}
 .wiz-step.hidden{display:none}
-.wiz-head{display:flex;align-items:center;gap:10px;padding:calc(var(--safe-top)+12px) 16px 8px}
-.wiz-date{border:none;background:transparent;color:var(--text-sub);font-size:15px;font-family:var(--font);padding:4px 0;flex:1}
+.wiz-head{display:flex;align-items:center;gap:10px;padding:calc(var(--safe-top) + 12px) 16px 8px}
+/* ステップ1の日付：上に1行分の余白／文字1.5倍／フォーカス枠なし（タップで自作カレンダー） */
+.wiz-head-1{padding-top:calc(var(--safe-top) + 34px)}
+.wiz-date{border:none;background:transparent;color:var(--text-sub);font-size:23px;font-family:var(--font);padding:4px 0;flex:1;text-align:left;cursor:pointer;outline:none;-webkit-appearance:none;-webkit-tap-highlight-color:transparent}
+.wiz-date:focus,.wiz-date:focus-visible{outline:none;box-shadow:none}
+/* ウィザードの日付選択カレンダー */
+.wcal-overlay{position:fixed;inset:0;z-index:95;background:rgba(0,0,0,0.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(var(--safe-top) + 16px) 12px 12px;animation:oFade 0.15s}
+.wcal-overlay.hidden{display:none}
+.wcal-sheet{background:var(--bg-card);border-radius:var(--r16);width:100%;max-width:460px;padding:14px 12px 18px;box-shadow:0 12px 32px rgba(0,0,0,0.25)}
+.wcal-nav{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:0 2px 10px}
+.wcal-btn{background:none;border:none;font-size:24px;color:var(--text-sub);cursor:pointer;padding:6px 10px;line-height:1;font-family:var(--font)}
+.wcal-btn:active{color:var(--pri)}
+.wcal-title{flex:1;text-align:center;font-size:20px;font-weight:700;color:var(--text)}
+.wcal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.wcal-dow{text-align:center;font-size:12px;color:var(--text-sub);padding:6px 0}
+.wcal-dow.sun{color:var(--red)}.wcal-dow.sat{color:#3B82C4}
+.wcal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--text);border-radius:50%;cursor:pointer}
+.wcal-day.sun{color:var(--red)}.wcal-day.sat{color:#3B82C4}
+.wcal-day.other{color:var(--text-hint);pointer-events:none}
+.wcal-day.today{outline:2px solid var(--pri);outline-offset:-3px}
+.wcal-day.selected{background:var(--pri);color:#fff;font-weight:700;outline:none}
+.wcal-day:active{background:var(--bg)}
 .wiz-back,.wiz-close{background:none;border:none;font-size:22px;color:var(--text-sub);cursor:pointer;padding:4px 8px;line-height:1;font-family:var(--font)}
 .wiz-amt-label{flex:1;text-align:left;font-size:20px;font-weight:800;color:var(--red);font-family:var(--font-num)}
 .wiz-amount-row{display:flex;align-items:center;gap:14px;padding:22px 22px 6px}
