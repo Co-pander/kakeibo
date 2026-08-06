@@ -266,6 +266,10 @@ function resolveIconId(cat){
 function txIconId(t){return t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';}
 // 取引の新規ID（重複しないよう時刻＋乱数。suffixは同一ミリ秒で複数作るCSV取込用）
 function newTxId(suffix=''){return 't'+Date.now()+suffix+Math.random().toString(36).slice(2);}
+// 支払い先（銀行・カード）を引く。kind:'bank'|'card'
+function payeeOf(u,kind,payeeId){return (u?.payees?.[kind]||[]).find(p=>p.id===payeeId);}
+// 支払い先の表示名（未登録なら fallback）
+function payeeName(u,kind,payeeId,fallback){return payeeOf(u,kind,payeeId)?.name||fallback;}
 const PAY_META={
   cash:{icon:'💴',label:'現金',cls:'pb-cash',chipCls:'cash',barcol:'#E07B2E'},
   bank:{icon:'🏦',label:'銀行',cls:'pb-bank',chipCls:'bank',barcol:'#3B82C4'},
@@ -959,7 +963,7 @@ function renderMainUserList(){
     const cell=dateMap[dateStr][key];
     if(t.type==='income')cell.inc+=t.amount; else cell.exp+=t.amount;
     if(isCardUse&&!cell.cardName){
-      cell.cardName=(usr.payees.card||[]).find(c=>c.id===t.payeeId)?.name||'カード';
+      cell.cardName=payeeName(usr,'card',t.payeeId,'カード');
     }
   };
   DB.users.forEach(usr=>{
@@ -1034,7 +1038,7 @@ function switchToUserLedgerOnDate(userId,ledgerId,dateStr){
 // カードに締め日/請求日の設定がなければ取引日（即時扱い）。
 function effectiveExpDate(t, u){
   if(t.type!=='expense'||t.payKind!=='card')return t.date;
-  const card=(u.payees.card||[]).find(c=>c.id===t.payeeId);
+  const card=payeeOf(u,'card',t.payeeId);
   if(!card||!card.closeDay||!card.billingDay)return t.date;
   const d=new Date(t.date);
   let cy=d.getFullYear(), cm=d.getMonth();
@@ -1054,7 +1058,7 @@ function genBillingEntries(u, yr=UI.year, mo=UI.month){
   const groups={};
   u.transactions.forEach(t=>{
     if(t.type!=='expense'||t.payKind!=='card')return;
-    const card=(u.payees.card||[]).find(c=>c.id===t.payeeId);
+    const card=payeeOf(u,'card',t.payeeId);
     if(!card||!card.closeDay||!card.billingDay)return;
     const ed=effectiveExpDate(t,u);
     const[ey,em]=ed.split('-').map(Number);
@@ -1079,7 +1083,7 @@ function genBillingEntries(u, yr=UI.year, mo=UI.month){
 // クレジット請求の薄字HTML
 function billingHTML(e){
   const u=activeUser();
-  const cardName=u.payees.card.find(c=>c.id===e.payeeId)?.name||e.cardName||'カード';
+  const cardName=payeeName(u,'card',e.payeeId,e.cardName||'カード');
   // 請求ベース：カード請求は実際の支払い＝通常字で表示
   return `<div class="tx-item">
     <div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none;font-size:20px">💳</div>
@@ -1136,8 +1140,7 @@ function txHTML(t, billed){
 function payBadge(t){
   const k=t.payKind||'cash';const m=PAY_META[k];if(!m)return '';
   const u=activeUser();
-  let name=k==='bank'?(u.payees.bank.find(x=>x.id===t.payeeId)||{name:m.label}).name
-           :k==='card'?(u.payees.card.find(x=>x.id===t.payeeId)||{name:m.label}).name:m.label;
+  let name=(k==='bank'||k==='card')?payeeName(u,k,t.payeeId,m.label):m.label;
   return `<span class="pay-badge ${m.cls}">${m.icon} ${esc(name)}</span>`;
 }
 
@@ -1149,7 +1152,7 @@ function payBreakdownFor(yr,mo,scope){
   (scope||scopeTxs('all')).forEach(({t,usr})=>{
     if(t.type!=='expense')return;
     if(t.payKind==='card'&&t.date.startsWith(mk)){
-      const c=(usr.payees.card||[]).find(x=>x.id===t.payeeId);
+      const c=payeeOf(usr,'card',t.payeeId);
       const k=t.payeeId||'card';
       (cardUse[k]=cardUse[k]||{name:c?c.name:'カード',amt:0}).amt+=t.amount;
     }
@@ -1162,13 +1165,13 @@ function payBreakdownFor(yr,mo,scope){
   if(cash>0)payItems.push({label:'現金',amt:cash,color:'#E07B2E',emoji:'💴'});
   const bankMap={};
   effExp.filter(x=>x.t.payKind==='bank').forEach(x=>{
-    const c=(x.usr.payees.bank||[]).find(b=>b.id===x.t.payeeId);
+    const c=payeeOf(x.usr,'bank',x.t.payeeId);
     const k=x.t.payeeId||'bank';(bankMap[k]=bankMap[k]||{name:c?c.name:'銀行',amt:0}).amt+=x.t.amount;
   });
   Object.values(bankMap).forEach(b=>{if(b.amt>0)payItems.push({label:b.name,amt:b.amt,color:'#3B82C4',emoji:'🏦'});});
   const cardBill={};
   effExp.filter(x=>x.t.payKind==='card').forEach(x=>{
-    const c=(x.usr.payees.card||[]).find(cc=>cc.id===x.t.payeeId);
+    const c=payeeOf(x.usr,'card',x.t.payeeId);
     const k=x.t.payeeId||'card';
     const g=cardBill[k]||(cardBill[k]={name:c?c.name:'カード',amt:0,months:new Set()});
     g.amt+=x.t.amount; g.months.add(x.t.date.slice(0,7));
@@ -2066,7 +2069,7 @@ function addPayee(k){
 /* ---- 銀行 編集 ---- */
 let editingBankId=null;
 function openBankEdit(id){
-  const u=activeUser();const p=u.payees.bank.find(x=>x.id===id);if(!p)return;
+  const u=activeUser();const p=payeeOf(u,'bank',id);if(!p)return;
   editingBankId=id;
   document.getElementById('be-name').value=p.name;
   document.getElementById('bank-edit-overlay').classList.remove('hidden');
@@ -2074,7 +2077,7 @@ function openBankEdit(id){
 function closeBankEdit(){document.getElementById('bank-edit-overlay').classList.add('hidden');editingBankId=null;}
 function saveBankEdit(){
   const name=document.getElementById('be-name').value.trim();if(!name)return;
-  const u=activeUser();const p=u.payees.bank.find(x=>x.id===editingBankId);
+  const u=activeUser();const p=payeeOf(u,'bank',editingBankId);
   if(p)p.name=name;
   closeBankEdit();save();renderPayUI();renderAll();
 }
@@ -2101,7 +2104,7 @@ function dayOptions(selVal){
 }
 
 function openCardEdit(id){
-  const u=activeUser();const p=u.payees.card.find(x=>x.id===id);if(!p)return;
+  const u=activeUser();const p=payeeOf(u,'card',id);if(!p)return;
   editingCardId=id;
   document.getElementById('ce2-name').value=p.name;
   // selectオプションをJSで生成してから値をセット
@@ -2113,7 +2116,7 @@ function openCardEdit(id){
 function closeCardEdit(){document.getElementById('card-edit-overlay').classList.add('hidden');editingCardId=null;}
 function saveCardEdit(){
   const name=document.getElementById('ce2-name').value.trim();if(!name)return;
-  const u=activeUser();const p=u.payees.card.find(x=>x.id===editingCardId);
+  const u=activeUser();const p=payeeOf(u,'card',editingCardId);
   if(p){
     p.name=name;
     p.closeDay=parseInt(document.getElementById('ce2-close').value)||'';
@@ -2214,8 +2217,8 @@ function doExportCSV(){
     const k = t.payKind||'cash';
     const pLabel = PAY_META[k]?.label||k;
     let pName = '';
-    if(k==='bank') pName = u.payees.bank.find(p=>p.id===t.payeeId)?.name||'';
-    if(k==='card') pName = u.payees.card.find(p=>p.id===t.payeeId)?.name||'';
+    if(k==='bank') pName = payeeName(u,'bank',t.payeeId,'');
+    if(k==='card') pName = payeeName(u,'card',t.payeeId,'');
     allTx.push([t.date, t.type==='income'?'収入':'支出', t.amount,
       t.emojiName||t.emoji, t.memo, pLabel, pName, l, u.name]);
   });
@@ -3129,7 +3132,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.6';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.7';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
