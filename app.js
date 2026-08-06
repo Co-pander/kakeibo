@@ -940,28 +940,39 @@ function renderMainUserList(){
   const yr=UI.year, mo=UI.month;
 
   // {date: {userId__ledgerId: {userId, ledgerId, userName, ledgerName, avatar, theme, inc, exp}}}
+  const mk=ymKey(yr,mo);
   const dateMap={};
+  // 各ユーザー画面と同じ扱い：カード払いは「購入日（薄字）」と「請求日（通常表示）」の両方に出す
+  const addEntry=(usr,t,dateStr,isCardUse)=>{
+    const lid=t.ledger||usr.ledgers[0]?.id||'';
+    const key=`${usr.id}__${lid}__${isCardUse?'use':'main'}`;
+    if(!dateMap[dateStr])dateMap[dateStr]={};
+    if(!dateMap[dateStr][key]){
+      const ledger=usr.ledgers.find(l=>l.id===lid);
+      dateMap[dateStr][key]={
+        userId:usr.id, ledgerId:lid,
+        userName:usr.name, ledgerName:ledger?.name||'',
+        avatar:usr.avatar||'person', theme:usr.theme||'green',
+        inc:0, exp:0, date:dateStr, cardUse:isCardUse, cardName:''
+      };
+    }
+    const cell=dateMap[dateStr][key];
+    if(t.type==='income')cell.inc+=t.amount; else cell.exp+=t.amount;
+    if(isCardUse&&!cell.cardName){
+      cell.cardName=(usr.payees.card||[]).find(c=>c.id===t.payeeId)?.name||'カード';
+    }
+  };
   DB.users.forEach(usr=>{
     usr.transactions.forEach(t=>{
-      const td=new Date(t.date);
-      if(td.getFullYear()!==yr||td.getMonth()!==mo)return;
       // No.0は折りたたみ・日選択に関係なく、常にその月の全履歴を表示
       if(UI.payFilter==='income'&&t.type!=='income')return;
       if(UI.payFilter==='expense'&&t.type!=='expense')return;
-      const lid=t.ledger||usr.ledgers[0]?.id||'';
-      const key=`${usr.id}__${lid}`;
-      if(!dateMap[t.date])dateMap[t.date]={};
-      if(!dateMap[t.date][key]){
-        const ledger=usr.ledgers.find(l=>l.id===lid);
-        dateMap[t.date][key]={
-          userId:usr.id, ledgerId:lid,
-          userName:usr.name, ledgerName:ledger?.name||'',
-          avatar:usr.avatar||'person', theme:usr.theme||'green',
-          inc:0, exp:0, date:t.date
-        };
+      const ed=effDateOf(t,usr);                       // 収入=取引日／支出=請求日（カードは請求月）
+      if(ed.startsWith(mk))addEntry(usr,t,ed,false);   // 請求月（通常表示）
+      // カード払いで購入日が当月なら、購入日にも薄字で表示
+      if(t.type==='expense'&&t.payKind==='card'&&t.date!==ed&&t.date.startsWith(mk)){
+        addEntry(usr,t,t.date,true);
       }
-      if(t.type==='income')dateMap[t.date][key].inc+=t.amount;
-      else dateMap[t.date][key].exp+=t.amount;
     });
   });
 
@@ -975,8 +986,9 @@ function renderMainUserList(){
     const entries=Object.values(dateMap[dt]);
     const ds=dt.split('-');
     const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
-    const totalInc=entries.reduce((s,e)=>s+e.inc,0);
-    const totalExp=entries.reduce((s,e)=>s+e.exp,0);
+    // 日付見出しの合計は請求ベース（購入日の薄字ぶんは二重計上しない）
+    const totalInc=entries.reduce((s,e)=>s+(e.cardUse?0:e.inc),0);
+    const totalExp=entries.reduce((s,e)=>s+(e.cardUse?0:e.exp),0);
 
     const rows=entries.map(e=>{
       const ut=getTheme(e.theme);
@@ -984,11 +996,13 @@ function renderMainUserList(){
       const incPart=e.inc>0?`<span style="color:var(--inc);font-size:12px;font-weight:700">${fmt(e.inc)}</span>`:'';
       const expPart=e.exp>0?`<span style="color:var(--red);font-size:12px;font-weight:700">${fmt(e.exp)}</span>`:'';
       const amounts=[incPart,expPart].filter(Boolean).join('<span style="color:var(--border-l);margin:0 3px">|</span>');
-      return `<div class="tx-item tx-item-tap" style="padding:10px 14px;gap:10px;align-items:center"
+      // カード利用（購入日）の行は薄字＋カード名バッジ。請求日の行は通常表示
+      const cardTag=e.cardUse?`<span class="credit-tag" style="margin-left:4px">💳 ${esc(e.cardName)}利用</span>`:'';
+      return `<div class="tx-item tx-item-tap${e.cardUse?' tx-card-use':''}" style="padding:10px 14px;gap:10px;align-items:center"
         onclick="switchToUserLedgerOnDate('${e.userId}','${e.ledgerId}','${e.date}')">
         <div style="flex:none">${av}</div>
         <div style="flex:1;min-width:0;overflow:hidden">
-          <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.userName)}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.userName)}${cardTag}</div>
           <div style="font-size:11px;color:var(--text-sub);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.ledgerName)}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:none">${amounts||`<span style="color:var(--text-hint);font-size:11px">-</span>`}</div>
@@ -3115,7 +3129,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.5';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.6';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
