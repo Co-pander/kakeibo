@@ -1594,13 +1594,17 @@ function buildCatGrid(gridId,type,selIconId,selName,pickFn){
     return catBtnHTML(c,isSel,(iid,n,color)=>`${pickFn}('${iid}','${escAttr(escJs(n))}',this,'${color}')`);
   }).join('');
 }
+// 費目グリッドの選択状態を更新（枠の付け替え）。
+// 選択枠は費目のカスタム色（グリッド描画と同じ色）を使う。アイコン標準色だと枠だけ違う色になる
+function markCatBtn(gridId,btn,iconId,color){
+  document.querySelectorAll(`#${gridId} .cat-btn`).forEach(b=>{b.classList.remove('sel');b.style.borderColor='';});
+  btn.classList.add('sel');
+  btn.style.borderColor=color||(CAT_ICONS[iconId]||CAT_ICONS['other']).color;
+}
 function pickCat(iconId,n,btn,color){
   const prev=UI.selEmojiName;
   UI.selEmoji=iconId;UI.selEmojiName=n;
-  document.querySelectorAll('#cat-grid .cat-btn').forEach(b=>{b.classList.remove('sel');b.style.borderColor='';});
-  btn.classList.add('sel');
-  // 選択枠は費目のカスタム色（グリッド描画と同じ色）を使う。アイコン標準色だと枠だけ違う色になる
-  btn.style.borderColor=color||(CAT_ICONS[iconId]||CAT_ICONS['other']).color;
+  markCatBtn('cat-grid',btn,iconId,color);
   syncMemoToCat('f-memo',n,prev);   // 費目を変えたら内訳も追従（手入力した内訳は保護）
 }
 function selectKind(k){
@@ -2501,10 +2505,7 @@ function buildTxEditCatGrid(type,selIconId,selName){
 function pickTxEditCat(iconId,n,btn,color){
   const prev=UI.txEditEmojiName;
   UI.txEditEmoji=iconId;UI.txEditEmojiName=n;
-  document.querySelectorAll('#te-cat-grid .cat-btn').forEach(b=>{b.classList.remove('sel');b.style.borderColor='';});
-  btn.classList.add('sel');
-  // 選択枠は費目のカスタム色（グリッド描画と同じ色）を使う
-  btn.style.borderColor=color||(CAT_ICONS[iconId]||CAT_ICONS['other']).color;
+  markCatBtn('te-cat-grid',btn,iconId,color);
   syncMemoToCat('te-memo',n,prev);   // 費目を変えたら内訳も追従（手入力した内訳は保護）
 }
 function setTxEditKind(k){
@@ -3143,7 +3144,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.8';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.9';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
