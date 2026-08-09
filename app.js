@@ -266,6 +266,14 @@ function resolveIconId(cat){
 function txIconId(t){return t.iconId||resolveIconId({id:t.iconId,e:t.emoji})||'other';}
 // 取引の新規ID（重複しないよう時刻＋乱数。suffixは同一ミリ秒で複数作るCSV取込用）
 function newTxId(suffix=''){return 't'+Date.now()+suffix+Math.random().toString(36).slice(2);}
+// 費目タップ時の内訳の自動追従：空、または「前に選んだ費目名のまま」なら新しい費目名に差し替える。
+// 手で書き換えた内訳は上書きしない
+function syncMemoToCat(inputId,newName,prevName){
+  const el=document.getElementById(inputId);
+  if(!el)return;
+  const v=el.value.trim();
+  if(!v||v===(prevName||''))el.value=newName;
+}
 // 支払い先（銀行・カード）を引く。kind:'bank'|'card'
 function payeeOf(u,kind,payeeId){return (u?.payees?.[kind]||[]).find(p=>p.id===payeeId);}
 // 支払い先の表示名（未登録なら fallback）
@@ -1587,12 +1595,13 @@ function buildCatGrid(gridId,type,selIconId,selName,pickFn){
   }).join('');
 }
 function pickCat(iconId,n,btn,color){
+  const prev=UI.selEmojiName;
   UI.selEmoji=iconId;UI.selEmojiName=n;
   document.querySelectorAll('#cat-grid .cat-btn').forEach(b=>{b.classList.remove('sel');b.style.borderColor='';});
   btn.classList.add('sel');
   // 選択枠は費目のカスタム色（グリッド描画と同じ色）を使う。アイコン標準色だと枠だけ違う色になる
   btn.style.borderColor=color||(CAT_ICONS[iconId]||CAT_ICONS['other']).color;
-  const m=document.getElementById('f-memo');if(!m.value)m.value=n;
+  syncMemoToCat('f-memo',n,prev);   // 費目を変えたら内訳も追従（手入力した内訳は保護）
 }
 function selectKind(k){
   UI.selKind=k;UI.selPayeeId=null;
@@ -1795,9 +1804,9 @@ function wizRenderCats(){
   ).join('');
 }
 function wizPickCat(iid,name){
+  const prev=WZ.catName;
   WZ.iconId=iid;WZ.catName=name;
-  const m=document.getElementById('wz-memo');
-  if(!m.value)m.value=name;
+  syncMemoToCat('wz-memo',name,prev);   // 費目を変えたら内訳も追従（手入力した内訳は保護）
   wizRenderCats();
 }
 // ステップ2 → 収入はそのまま登録画面(ステップ3)へ、支出は支払方法選択へ
@@ -2490,11 +2499,13 @@ function buildTxEditCatGrid(type,selIconId,selName){
   document.getElementById('te-pay-section').style.display=type==='expense'?'block':'none';
 }
 function pickTxEditCat(iconId,n,btn,color){
+  const prev=UI.txEditEmojiName;
   UI.txEditEmoji=iconId;UI.txEditEmojiName=n;
   document.querySelectorAll('#te-cat-grid .cat-btn').forEach(b=>{b.classList.remove('sel');b.style.borderColor='';});
   btn.classList.add('sel');
   // 選択枠は費目のカスタム色（グリッド描画と同じ色）を使う
   btn.style.borderColor=color||(CAT_ICONS[iconId]||CAT_ICONS['other']).color;
+  syncMemoToCat('te-memo',n,prev);   // 費目を変えたら内訳も追従（手入力した内訳は保護）
 }
 function setTxEditKind(k){
   UI.txEditKind=k;UI.txEditPayeeId=null;
@@ -3132,7 +3143,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.7';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.8';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
