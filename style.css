@@ -32,7 +32,6 @@ body.locked .app,.locked .fab,.locked .user-drawer{filter:blur(8px);pointer-even
   --bg-card-tr:rgba(255,255,255,0.9);   /* 半透明パネル用（すりガラス）。白90%=明るく・ごくうっすら透ける */
   --text:#1A2233;--text-sub:#6B7A90;--text-hint:#B0BBC8;
   --border:#E8EBF0;--border-l:#F0F2F5;
-  --shadow:0 1px 4px rgba(0,0,0,0.06),0 0 1px rgba(0,0,0,0.04);
   --r4:4px;--r8:8px;--r12:12px;--r16:16px;
   --font:'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
   /* 数字表示用：丸ゴシック系（参考アプリ風）。iOSはSF Rounded、他は近い丸文字にフォールバック */
@@ -49,7 +48,6 @@ body.locked .app,.locked .fab,.locked .user-drawer{filter:blur(8px);pointer-even
     --border:#2A3340;--border-l:#232B36;
     --pri-l:#0D3328;--pri-ll:#0A2820;
     --red-l:#2D1515;--blue-l:#132038;--orange-l:#2D1E0D;
-    --shadow:0 1px 4px rgba(0,0,0,0.3);
   }
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overscroll-behavior:none;font-size:14px}
@@ -218,7 +216,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .month-label{flex:1;text-align:center;font-size:15px;font-weight:700;letter-spacing:-0.2px}
 .mnav-today{font-size:12px;color:var(--pri);font-weight:600;cursor:pointer;padding:4px 8px;border-radius:var(--r4);border:1px solid var(--pri);background:var(--pri-l);font-family:var(--font)}
 .memo-hist{display:none;flex-wrap:wrap;gap:6px;margin-top:7px}
-.memo-hist-chip{padding:5px 11px;border-radius:16px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:12px;font-family:var(--font);color:var(--text-sub);transition:all 0.12s;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* メモ履歴チップ：長押し削除のため文字選択・OSメニューを抑止 */
+.memo-hist-chip{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;padding:5px 11px;border-radius:16px;border:1px solid var(--border);background:var(--bg);cursor:pointer;font-size:12px;font-family:var(--font);color:var(--text-sub);transition:all 0.12s;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .memo-hist-chip:active{background:var(--pri);color:#fff;border-color:var(--pri)}
 
 /* ===== SUMMARY ===== */
@@ -270,13 +269,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .day-amt{font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38px;line-height:1.4;text-align:center}
 .day-amt.inc{color:#3B82C4}.day-amt.exp{color:var(--red)}.day-amt.crd{color:var(--red);opacity:0.45;font-weight:500}
 
-/* ===== TX LIST ===== */
+/* ===== TX LIST（カード枠なし・仕切り線のみ） ===== */
 .tx-section{flex:1}
-.tx-date-header{display:flex;align-items:center;gap:8px;padding:10px 16px 5px;font-size:11px;color:var(--text-hint);font-weight:700;letter-spacing:0.05em}
-.tdh-line{flex:1;height:1px;background:var(--border-l)}
-.tx-list{padding:0 12px}
-.tx-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-card);border-radius:var(--r12);margin-bottom:6px;box-shadow:var(--shadow);border:1px solid var(--border-l);transition:transform 0.1s}
-.tx-item:active{transform:scale(0.98)}
+.tx-list{padding:0}
+.tx-item{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg-card);border-bottom:1px solid var(--border-l);transition:background 0.1s}
+.tx-item:active{background:var(--border-l)}
+/* 日付ヘッダー：明細内の見出し（tdh-line は幅を詰めるだけの透明スペーサー） */
+.tx-date-header{display:flex;align-items:center;gap:8px;padding:12px 16px 6px;font-size:12px;font-weight:600;color:var(--text);letter-spacing:0;background:var(--bg)}
+.tdh-line{flex:1;height:1px}
 .tx-info{flex:1;min-width:0}
 .tx-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 内訳(tx-name)とメモ(tx-memo2)を横並び。メモは内訳の右に左揃え。長い場合は各2行まで折り返し（…はその後） */
@@ -297,15 +297,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* 空メッセージ：カレンダーに連続するシンプル表示 */
 .empty-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;color:var(--text-hint);font-size:13px;background:var(--bg-card)}
 
-/* 明細リスト：カード枠なし・仕切り線のみ */
-.tx-list{padding:0 0 0 0}
-.tx-item{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg-card);border-bottom:1px solid var(--border-l);border-radius:0;box-shadow:none;border-left:none;border-right:none;border-top:none;transition:background 0.1s}
-.tx-item:active{background:var(--border-l);transform:none}
-.tx-date-header{display:flex;align-items:center;gap:8px;padding:8px 16px 5px;font-size:11px;color:var(--text-hint);font-weight:700;letter-spacing:0.05em;background:var(--bg)}
-.tdh-line{flex:1;height:1px;background:var(--border-l)}
-
 /* ===== 費目管理 ===== */
-.cat-mgr-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-l)}
+.cat-mgr-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-l);transition:opacity 0.15s,transform 0.15s}
 .cat-mgr-name{flex:1;font-size:14px}
 .cat-mgr-btns{display:flex;gap:4px}
 .cat-mgr-btn{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;color:var(--text-hint);font-family:var(--font)}
@@ -385,7 +378,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* 並び替えハンドル */
 .drag-handle{cursor:grab;color:var(--text-hint);font-size:18px;padding:4px 6px;flex:none;touch-action:none;line-height:1;user-select:none}
 .drag-handle:active{cursor:grabbing}
-.cat-mgr-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-l);transition:opacity 0.15s,transform 0.15s}
 .cat-mgr-item.dragging{opacity:0.35;transform:scale(0.97)}
 .cat-mgr-item.drag-over{border-top:2.5px solid var(--pri)}
 /* 費目選択ピッカー（管理画面）*/
@@ -462,17 +454,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tx-amount,.day-amt,.cal-info-balance,.cal-info-day-bal,.cal-info-inc,.cal-info-exp,.tdh-inout,.cat-sum-amt,.amount-wrap input{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .cal-info-inc{font-size:12px;font-weight:700;color:#3B82C4;white-space:nowrap}
 .cal-info-exp{font-size:12px;font-weight:700;color:var(--red);white-space:nowrap}
-.tdh-inout{display:inline-flex;gap:8px;white-space:nowrap}
-.tdh-inc{color:#3B82C4;font-weight:700}
-.tdh-exp{color:var(--red);font-weight:700}
-/* メモ履歴チップ：長押し削除のため文字選択・OSメニューを抑止 */
-.memo-hist-chip{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-
-/* 明細内の日付ヘッダーも同じトーンに統一 */
-.tx-date-header{font-size:12px;font-weight:600;color:var(--text);letter-spacing:0;padding:12px 16px 6px}
-.tdh-inout{gap:10px}
-.tdh-inc,.tdh-exp{font-weight:600}
-.tdh-line{background:transparent}
+.tdh-inout{display:inline-flex;gap:10px;white-space:nowrap}
+.tdh-inc{color:#3B82C4;font-weight:600}
+.tdh-exp{color:var(--red);font-weight:600}
 /* 内訳グラフ：支払別／カテゴリ別の小見出し */
 .chart-sub{font-size:11px;font-weight:700;color:var(--text-sub);padding:6px 16px;letter-spacing:0.03em}
 
@@ -555,8 +539,8 @@ input[type="date"].sh-inp{min-width:150px}
 .sh-gauge-nums b{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .sh-gauge-empty{font-size:12px;color:var(--text-hint);padding:8px 0 2px;line-height:1.6}
 .sh-bud-chip{padding:6px 10px;border-radius:14px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-family:var(--font-num);cursor:pointer}
-.sh-row{display:grid;grid-template-columns:58px 1fr 1fr 1.1fr;gap:6px;padding:7px 14px;border-bottom:1px solid var(--border-l);font-size:13px;align-items:center}
-.sh-row.head{font-size:11px;font-weight:700;color:var(--text-hint);background:var(--bg);border-bottom:1px solid var(--border)}
+.sh-row{display:grid;grid-template-columns:58px 1fr 1fr 1.1fr;gap:6px;padding:7px 14px;border-bottom:1px solid var(--border-l);font-size:13px;align-items:center;cursor:pointer}
+.sh-row.head{font-size:11px;font-weight:700;color:var(--text-hint);background:var(--bg);border-bottom:1px solid var(--border);cursor:default}
 .sh-row.quiet .sh-c-day,.sh-row.quiet .sh-c-bal{color:var(--text-hint)}
 .sh-row.today{background:var(--pri-l)}
 .sh-c-day{font-size:12px}
@@ -567,14 +551,11 @@ input[type="date"].sh-inp{min-width:150px}
 .sh-c-exp{color:var(--red)}
 .sh-c-bal{font-weight:700}
 .sh-c-bal.neg{color:var(--red)}
-.sh-row{cursor:pointer}
-.sh-row.head{cursor:default}
 .sh-add-mini{color:var(--text-hint);opacity:0.5;font-size:12px}
 .sh-c-exp.tapable,.sh-c-bud.tapable{cursor:pointer}
 /* 帳票「まとめて入力」ボタン（タップでモーダル） */
 .sh-forms-btn{display:block;width:calc(100% - 32px);margin:12px 16px 20px;padding:12px;border-radius:var(--r8);border:1.5px dashed var(--border);background:var(--bg-card);color:var(--pri);font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer}
 .sh-forms-btn:active{background:var(--bg)}
-.sh-row.has-exp{cursor:pointer}
 .sh-row.has-exp:active{background:var(--bg)}
 .sh-chev{font-size:10px;color:var(--text-hint);margin-left:3px}
 .sh-sub-row{display:flex;align-items:center;gap:8px;padding:8px 14px 8px 28px;border-bottom:1px solid var(--border-l);background:var(--bg);font-size:13px;cursor:pointer}

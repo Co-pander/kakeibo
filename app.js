@@ -477,6 +477,10 @@ function filtered(){
   const[k,id]=UI.payFilter.split(':');
   return txs.filter(t=>t.type==='expense'&&t.payKind===k&&t.payeeId===id);
 }
+// モーダル等の表示/非表示。要素が無くても落ちないので ensure〇〇Modal 前でも安全に呼べる
+function showEl(id){document.getElementById(id)?.classList.remove('hidden');}
+function hideEl(id){document.getElementById(id)?.classList.add('hidden');}
+
 // 日付キーの組み立て（月:'YYYY-MM' / 日:'YYYY-MM-DD'）。mは0始まり
 const _p2=n=>String(n).padStart(2,'0');
 function ymKey(y,m){return `${y}-${_p2(m+1)}`;}
@@ -1271,15 +1275,15 @@ function swipeEnd(e,onSwipe){
 let monthPickerYearVal=null, monthPickerTarget='home';
 function openMonthPicker(){
   monthPickerTarget='home'; monthPickerYearVal=UI.year;
-  document.getElementById('monthpicker-overlay').classList.remove('hidden');
+  showEl('monthpicker-overlay');
   renderMonthPicker();
 }
 function openSheetMonthPicker(){
   monthPickerTarget='sheet'; monthPickerYearVal=shY;
-  document.getElementById('monthpicker-overlay').classList.remove('hidden');
+  showEl('monthpicker-overlay');
   renderMonthPicker();
 }
-function closeMonthPicker(){document.getElementById('monthpicker-overlay').classList.add('hidden');}
+function closeMonthPicker(){hideEl('monthpicker-overlay');}
 function monthPickerYear(d){monthPickerYearVal+=d;renderMonthPicker();}
 function renderMonthPicker(){
   const curY=monthPickerTarget==='sheet'?shY:UI.year, curM=monthPickerTarget==='sheet'?shM:UI.month;
@@ -1390,10 +1394,10 @@ function openAddUser(){
   UI.editingUserId=null;
   document.getElementById('user-edit-title').textContent='ユーザーを追加';
   document.getElementById('ue-name').value='';
-  document.getElementById('ue-del-btn').classList.add('hidden');
+  hideEl('ue-del-btn');
   UI.selAvatarIdx=0;UI.selThemeId='green';
   buildAvatarPicker();buildThemePicker('ue');
-  document.getElementById('user-edit-overlay').classList.remove('hidden');
+  showEl('user-edit-overlay');
 }
 function openEditUser(id){
   closeUserDrawer();
@@ -1406,9 +1410,9 @@ function openEditUser(id){
   if(UI.selAvatarIdx<0)UI.selAvatarIdx=0;
   document.getElementById('ue-del-btn').classList.toggle('hidden',DB.users.length<=1);
   buildAvatarPicker();buildThemePicker('ue');
-  document.getElementById('user-edit-overlay').classList.remove('hidden');
+  showEl('user-edit-overlay');
 }
-function closeUserEdit(){document.getElementById('user-edit-overlay').classList.add('hidden');}
+function closeUserEdit(){hideEl('user-edit-overlay');}
 
 function buildAvatarPicker(){
   const t=getTheme(UI.selThemeId);
@@ -1472,7 +1476,7 @@ function onAddTap(){
 
 let addPresetDate=null;   // 追加モーダルの日付プリセット（帳票の支出欄タップ等で使用）
 function openAddModal(){
-  document.getElementById('add-overlay').classList.remove('hidden');
+  showEl('add-overlay');
   // 前回のスクロール位置を引き継がず、必ず先頭から表示
   const _sheet=document.querySelector('#add-overlay .sheet');
   if(_sheet)_sheet.scrollTop=0;
@@ -1506,41 +1510,46 @@ function openAddModal(){
   // 履歴は保存先（ユーザー・帳簿）が確定した後に描画
   renderAddMemoHist();
 }
-function closeAddModal(){document.getElementById('add-overlay').classList.add('hidden');}
+function closeAddModal(){hideEl('add-overlay');}
 
 // 保存先ユーザー変更時：帳簿リスト・費目グリッド・支払い方法をそのユーザーに合わせて更新
+/* 入力画面の費目グリッドを組み直す。
+   No.0では保存先(f-dest-user/f-dest-ledger)の費目を使うため、組み立ての間だけ活性ユーザー・帳簿を
+   差し替える。try/finally なので途中で例外が出ても活性ユーザーが保存先のまま残ることはない。
+   保存先セレクトが無い＝通常ユーザーの入力では、今の帳簿のまま組み立てる。
+   戻り値：保存先ユーザー（特定できなければ null） */
+function rebuildDestCatGrid(type){
+  const t=type||UI.txType;
+  const u=DB.users.find(x=>x.id===document.getElementById('f-dest-user')?.value);
+  if(!u){buildCatGrid('cat-grid',t,null,null,'pickCat');return null;}
+  const savedId=DB.activeUser, savedLid=UI.activeLedger;
+  DB.activeUser=u.id;
+  UI.activeLedger=document.getElementById('f-dest-ledger')?.value||u.ledgers[0]?.id||'';
+  try{buildCatGrid('cat-grid',t,null,null,'pickCat');}
+  finally{DB.activeUser=savedId;UI.activeLedger=savedLid;}
+  return u;
+}
+
 function onDestUserChange(){
   const uid=document.getElementById('f-dest-user')?.value;
   const u=DB.users.find(x=>x.id===uid);
   if(!u)return;
-  // 帳簿セレクト更新
+  // 帳簿セレクトを保存先ユーザーのものへ差し替えてから、その費目でグリッドを再構築
   const sel=document.getElementById('f-dest-ledger');
   if(sel)sel.innerHTML=u.ledgers.map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('');
-  // 費目グリッドを保存先ユーザー・帳簿のカテゴリで再構築
-  const destLid=document.getElementById('f-dest-ledger')?.value||u.ledgers[0]?.id||'';
-  const savedId=DB.activeUser, savedLid=UI.activeLedger;
-  DB.activeUser=u.id; UI.activeLedger=destLid;
-  buildCatGrid('cat-grid',UI.txType,null,null,'pickCat');
-  DB.activeUser=savedId; UI.activeLedger=savedLid;
+  rebuildDestCatGrid();
   // 支払い方法リセット
   UI.selKind='cash';UI.selPayeeId=null;
   ['pk-cash','pk-bank','pk-card'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='pk-btn';});
   const pkc=document.getElementById('pk-cash');if(pkc)pkc.className='pk-btn sel-cash';
-  const pw=document.getElementById('f-payee-wrap');if(pw)pw.classList.add('hidden');
+  hideEl('f-payee-wrap');
   // 履歴も保存先ユーザーの帳簿のものに切替
   renderAddMemoHist();
 }
 
 // 保存先帳簿変更時：その帳簿の費目で費目グリッドを再構築
 function onDestLedgerChange(){
-  const uid=document.getElementById('f-dest-user')?.value;
-  const u=DB.users.find(x=>x.id===uid);
-  if(!u)return;
-  const destLid=document.getElementById('f-dest-ledger')?.value||u.ledgers[0]?.id||'';
-  const savedId=DB.activeUser, savedLid=UI.activeLedger;
-  DB.activeUser=u.id; UI.activeLedger=destLid;
-  buildCatGrid('cat-grid',UI.txType,null,null,'pickCat');
-  DB.activeUser=savedId; UI.activeLedger=savedLid;
+  if(!rebuildDestCatGrid())return;
   UI.selEmoji=null;UI.selEmojiName=null;
   // 履歴も保存先帳簿のものに切替
   renderAddMemoHist();
@@ -1550,28 +1559,14 @@ function setType(t){
   UI.txType=t;UI.selEmoji=null;UI.selEmojiName=null;UI.selKind='cash';UI.selPayeeId=null;
   document.getElementById('tb-inc').className='tt-btn'+(t==='income'?' a-inc':'');
   document.getElementById('tb-exp').className='tt-btn'+(t==='expense'?' a-exp':'');
-  // isMainMode時は保存先ユーザーのカテゴリで構築
-  if(UI.isMainMode){
-    const uid=document.getElementById('f-dest-user')?.value;
-    const destUser=DB.users.find(x=>x.id===uid);
-    const destLid=document.getElementById('f-dest-ledger')?.value||destUser?.ledgers[0]?.id||'';
-    if(destUser){
-      const savedId=DB.activeUser, savedLid=UI.activeLedger;
-      DB.activeUser=destUser.id; UI.activeLedger=destLid;
-      buildCatGrid('cat-grid',t,null,null,'pickCat');
-      DB.activeUser=savedId; UI.activeLedger=savedLid;
-    } else {
-      buildCatGrid('cat-grid',t,null,null,'pickCat');
-    }
-  } else {
-    buildCatGrid('cat-grid',t,null,null,'pickCat');
-  }
+  // No.0では保存先ユーザーの費目で構築（通常ユーザーは今の帳簿のまま）
+  rebuildDestCatGrid(t);
   document.getElementById('f-pay-section').style.display=t==='expense'?'block':'none';
   // 支払い方法はデフォルトで現金を選択状態（枠表示）に統一
   document.getElementById('pk-cash').className='pk-btn sel-cash';
   document.getElementById('pk-bank').className='pk-btn';
   document.getElementById('pk-card').className='pk-btn';
-  document.getElementById('f-payee-wrap').classList.add('hidden');
+  hideEl('f-payee-wrap');
 }
 // 費目ボタン1個ぶんのHTML（入力画面・取引編集・ウィザードで共用）
 // onclickOf(iid,name,color) で押したときの処理だけを差し替える
@@ -1697,9 +1692,9 @@ function openWizard(){
   wizPickType('expense');
   wizRenderDest();
   wizGoStep(1);
-  document.getElementById('wiz-overlay').classList.remove('hidden');
+  showEl('wiz-overlay');
 }
-function closeWizard(){document.getElementById('wiz-overlay').classList.add('hidden');}
+function closeWizard(){hideEl('wiz-overlay');}
 
 function wizGoStep(n){
   [1,2,3].forEach(i=>document.getElementById('wiz-step'+i).classList.toggle('hidden',i!==n));
@@ -1726,9 +1721,9 @@ function openWizCal(){
   const[y,m]=WZ.date.split('-').map(Number);
   wcalY=y;wcalM=m-1;
   buildWizCal();
-  document.getElementById('wcal-overlay').classList.remove('hidden');
+  showEl('wcal-overlay');
 }
-function closeWizCal(){document.getElementById('wcal-overlay').classList.add('hidden');}
+function closeWizCal(){hideEl('wcal-overlay');}
 function wcalMonth(d){ ({y:wcalY,m:wcalM}=rollMonth(wcalY,wcalM,d)); buildWizCal(); }
 function wcalYear(d){ wcalY+=d; buildWizCal(); }
 function buildWizCal(){
@@ -1825,7 +1820,7 @@ function wizRenderPay(){
   const isInc=WZ.type==='income';
   document.getElementById('wz-pay-title').textContent=isInc?'内容を確認して登録してください':'支払方法';
   const el=document.getElementById('wz-pay-pills');
-  if(isInc){el.innerHTML='';document.getElementById('wz-payee-wrap').classList.add('hidden');return;}
+  if(isInc){el.innerHTML='';hideEl('wz-payee-wrap');return;}
   el.innerHTML=Object.entries(PAY_META).map(([k,m])=>
     `<button class="wiz-pill pay ${m.chipCls}${WZ.payKind===k?' on':''}" onclick="wizPickPay('${k}')">${m.icon} ${m.label}</button>`
   ).join('');
@@ -1888,11 +1883,10 @@ function wizSave(again){
 /* =========================================================
 ========================================================= */
 function openLedgerMgr(){
-  document.getElementById('ledger-overlay').classList.remove('hidden');
-  navHilite('ledger');
+  openNavModal('ledger','ledger-overlay');
   renderLedgerUI();renderLedgerColorUI();
 }
-function closeLedgerMgr(){document.getElementById('ledger-overlay').classList.add('hidden');navHilite(currentTab);}
+function closeLedgerMgr(){closeNavModal('ledger-overlay');}
 
 function renderLedgerUI(){
   const u=activeUser();
@@ -2036,8 +2030,8 @@ function setLedgerTheme(ledgerId,themeId){
    支払い管理
 /* =========================================================
 ========================================================= */
-function openPayMgr(){document.getElementById('pay-overlay').classList.remove('hidden');navHilite('pay');renderPayUI();}
-function closePayMgr(){document.getElementById('pay-overlay').classList.add('hidden');navHilite(currentTab);}
+function openPayMgr(){openNavModal('pay','pay-overlay');renderPayUI();}
+function closePayMgr(){closeNavModal('pay-overlay');}
 
 function renderPayUI(){
   const u=activeUser();
@@ -2086,9 +2080,9 @@ function openBankEdit(id){
   const u=activeUser();const p=payeeOf(u,'bank',id);if(!p)return;
   editingBankId=id;
   document.getElementById('be-name').value=p.name;
-  document.getElementById('bank-edit-overlay').classList.remove('hidden');
+  showEl('bank-edit-overlay');
 }
-function closeBankEdit(){document.getElementById('bank-edit-overlay').classList.add('hidden');editingBankId=null;}
+function closeBankEdit(){hideEl('bank-edit-overlay');editingBankId=null;}
 function saveBankEdit(){
   const name=document.getElementById('be-name').value.trim();if(!name)return;
   const u=activeUser();const p=payeeOf(u,'bank',editingBankId);
@@ -2099,7 +2093,7 @@ function deleteBankFromEdit(){
   if(!confirm('登録情報も消えますが削除しますか？'))return;
   const u=activeUser();
   const id=editingBankId;
-  document.getElementById('bank-edit-overlay').classList.add('hidden');
+  hideEl('bank-edit-overlay');
   editingBankId=null;
   u.payees.bank=u.payees.bank.filter(p=>p.id!==id);
   u.transactions.forEach(t=>{if(t.payKind==='bank'&&t.payeeId===id){t.payKind='cash';t.payeeId=null;}});
@@ -2125,9 +2119,9 @@ function openCardEdit(id){
   document.getElementById('ce2-close').innerHTML=dayOptions(p.closeDay||'');
   document.getElementById('ce2-billing-month').value=p.billingMonth||1;
   document.getElementById('ce2-billing-day').innerHTML=dayOptions(p.billingDay||'');
-  document.getElementById('card-edit-overlay').classList.remove('hidden');
+  showEl('card-edit-overlay');
 }
-function closeCardEdit(){document.getElementById('card-edit-overlay').classList.add('hidden');editingCardId=null;}
+function closeCardEdit(){hideEl('card-edit-overlay');editingCardId=null;}
 function saveCardEdit(){
   const name=document.getElementById('ce2-name').value.trim();if(!name)return;
   const u=activeUser();const p=payeeOf(u,'card',editingCardId);
@@ -2143,7 +2137,7 @@ function deleteCardFromEdit(){
   if(!confirm('登録情報も消えますが削除しますか？'))return;
   const u=activeUser();
   const id=editingCardId;
-  document.getElementById('card-edit-overlay').classList.add('hidden');
+  hideEl('card-edit-overlay');
   editingCardId=null;
   u.payees.card=u.payees.card.filter(p=>p.id!==id);
   u.transactions.forEach(t=>{if(t.payKind==='card'&&t.payeeId===id){t.payKind='cash';t.payeeId=null;}});
@@ -2157,7 +2151,7 @@ function deleteCardFromEdit(){
 // エクスポート対象の帳簿ID集合
 let exportSelLedgers = new Set(); // 'all' or ledgerId set
 
-function closeSettings(){document.getElementById('settings-overlay').classList.add('hidden');navHilite(currentTab);}
+function closeSettings(){closeNavModal('settings-overlay');}
 
 function buildExportLedgerList(){
   const u = activeUser();
@@ -2391,9 +2385,9 @@ function openCSVImportDialog(count, existing){
   document.getElementById('csvimp-existing').textContent=existing;
   const rb=document.getElementById('csvimp-replace');
   rb.textContent='♻️ 置き換え（この帳簿を消して取り込み）'; delete rb.dataset.arm;
-  document.getElementById('csv-import-overlay').classList.remove('hidden');
+  showEl('csv-import-overlay');
 }
-function closeCSVImportDialog(){ document.getElementById('csv-import-overlay').classList.add('hidden'); pendingCSV=null; }
+function closeCSVImportDialog(){ hideEl('csv-import-overlay'); pendingCSV=null; }
 function confirmReplaceImport(){   // 置き換えは誤操作防止の2段階タップ
   const rb=document.getElementById('csvimp-replace');
   if(!rb.dataset.arm){ rb.dataset.arm='1'; rb.textContent='⚠️ もう一度タップで置き換え'; return; }
@@ -2486,11 +2480,11 @@ function openTxEdit(id){
   buildTxEditCatGrid(t.type, UI.txEditEmoji, UI.txEditEmojiName);
   // 支払い方法（オーナーユーザーの支払い先を参照）
   setTxEditKindUI(t.type,t.payKind||'cash',t.payeeId,u);
-  document.getElementById('tx-edit-overlay').classList.remove('hidden');
+  showEl('tx-edit-overlay');
   const _sheet=document.querySelector('#tx-edit-overlay .sheet');
   if(_sheet)_sheet.scrollTop=0;
 }
-function closeTxEdit(){document.getElementById('tx-edit-overlay').classList.add('hidden');}
+function closeTxEdit(){hideEl('tx-edit-overlay');}
 
 function setTxEditType(type){
   UI.txEditType=type;UI.txEditEmoji=null;UI.txEditEmojiName=null;
@@ -2787,8 +2781,8 @@ function setCatMgrLedger(id){
 
 function openCatMgr(){
   catMgrCaller=null;
-  document.getElementById('cat-back-bar').classList.add('hidden');
-  document.getElementById('cat-overlay').classList.remove('hidden');
+  hideEl('cat-back-bar');
+  showEl('cat-overlay');
   UI.selCatEmoji=null;
   UI.catMgrUserId=null;            // 表示中ユーザーを対象に戻す
   UI.catMgrLedgerId=UI.activeLedger;
@@ -2799,8 +2793,8 @@ function openCatMgr(){
 function openCatMgrFromTx(caller){
   catMgrCaller=caller;
   const type=caller==='wiz'?WZ.type:(caller==='edit'?UI.txEditType:UI.txType);
-  document.getElementById('cat-back-bar').classList.remove('hidden');
-  document.getElementById('cat-overlay').classList.remove('hidden');
+  showEl('cat-back-bar');
+  showEl('cat-overlay');
   UI.selCatEmoji=null;
   UI.catMgrUserId=null;
   // ウィザード：保存先のユーザー・帳簿を対象にする（No.0から他ユーザーの費目も編集できる）
@@ -2826,12 +2820,12 @@ function openCatMgrFromTx(caller){
 }
 
 function closeCatMgr(){
-  document.getElementById('cat-overlay').classList.add('hidden');
+  hideEl('cat-overlay');
   catMgrCaller=null;
 }
 
 function closeCatMgrToTx(){
-  document.getElementById('cat-overlay').classList.add('hidden');
+  hideEl('cat-overlay');
   const caller=catMgrCaller;
   catMgrCaller=null;
   UI.catMgrUserId=null;
@@ -2970,13 +2964,13 @@ function openCatEdit(idx){
   UI.catEditSelColor=c.color||null;
   document.getElementById('ce-name').value=c.n;
   // 先にモーダルを表示し、重いグリッド構築は次フレームに回す（タップの反応を即時に）
-  document.getElementById('cat-edit-overlay').classList.remove('hidden');
+  showEl('cat-edit-overlay');
   requestAnimationFrame(()=>{
     buildCatEditEmojiGrid();
     buildCatColorUI();
   });
 }
-function closeCatEdit(){document.getElementById('cat-edit-overlay').classList.add('hidden');}
+function closeCatEdit(){hideEl('cat-edit-overlay');}
 
 function buildCatColorUI(){
   const defaultColor=CAT_ICONS[UI.catEditSelEmoji]?.color||'#8D8D8D';
@@ -3036,10 +3030,9 @@ function onHexInput(val){
 ========================================================= */
 function openForecast(){
   renderForecast();
-  document.getElementById('forecast-overlay').classList.remove('hidden');
-  navHilite('forecast');
+  openNavModal('forecast','forecast-overlay');
 }
-function closeForecast(){document.getElementById('forecast-overlay').classList.add('hidden');navHilite(currentTab);}
+function closeForecast(){closeNavModal('forecast-overlay');}
 
 function _forecastFromTxs(txs){
   const months={};
@@ -3146,7 +3139,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.12';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.13';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3193,8 +3186,7 @@ function openSettings(){
   updateBackupSectionUI();
   const el=document.getElementById('ver-lbl');
   if(el) el.textContent=`v${APP_VERSION}`;
-  document.getElementById('settings-overlay').classList.remove('hidden');
-  navHilite('settings');
+  openNavModal('settings','settings-overlay');
 }
 
 // バックアップ／CSVセクションの出し分け：No.0（管理者）=全体バックアップのみ、各ユーザー=個人バックアップ＋CSV
@@ -3390,7 +3382,7 @@ function showPinScreen(mode='unlock'){
   _updatePinUI();
 }
 function hidePinScreen(){
-  document.getElementById('pin-screen').classList.add('hidden');
+  hideEl('pin-screen');
   document.body.classList.remove('locked');
   secState.isLocked=false;
   secState.pinInput='';
@@ -3530,9 +3522,9 @@ function openPinSetup(){
       <button class="submit-btn" onclick="startPinSetupFlow()">🔐 PINを設定する</button>
     `;
   }
-  document.getElementById('pin-setup-overlay').classList.remove('hidden');
+  showEl('pin-setup-overlay');
 }
-function closePinSetup(){document.getElementById('pin-setup-overlay').classList.add('hidden');}
+function closePinSetup(){hideEl('pin-setup-overlay');}
 function startPinSetupFlow(){closePinSetup();showPinScreen('setup');}
 function startPinChange(){closePinSetup();showPinScreen('change');}
 function startPinDisable(){closePinSetup();showPinScreen('disable');}
@@ -3591,6 +3583,9 @@ function navHilite(id){
   const b=document.getElementById('navBtn-'+id);
   if(b)b.classList.add('active');
 }
+// ナビから開くモーダル。開いている間だけそのアイコンを点灯し、閉じたら現在のタブへ戻す
+function openNavModal(navId,overlayId){showEl(overlayId);navHilite(navId);}
+function closeNavModal(overlayId){hideEl(overlayId);navHilite(currentTab);}
 
 function switchTab(tab){
   currentTab=tab;
@@ -3654,8 +3649,8 @@ function refreshSheetForms(){
   renderMemoHistPair('sh',activeUser(),UI.activeLedger);
 }
 // まとめて入力モーダルの開閉
-function openSheetForms(){ refreshSheetForms(); const o=document.getElementById('sh-forms-overlay'); if(o){o.classList.remove('hidden');const s=o.querySelector('.sheet');if(s)s.scrollTop=0;} }
-function closeSheetForms(){ const o=document.getElementById('sh-forms-overlay'); if(o)o.classList.add('hidden'); }
+function openSheetForms(){ refreshSheetForms(); showEl('sh-forms-overlay'); const s=document.querySelector('#sh-forms-overlay .sheet'); if(s)s.scrollTop=0; }
+function closeSheetForms(){ hideEl('sh-forms-overlay'); }
 
 // 表示月の予算・支出データ
 function sheetMonthData(){
@@ -3828,7 +3823,7 @@ function openSheetBudgetEdit(id){
   document.querySelector('#sh-budget-overlay .sheet-title').textContent='💰 予算を編集';
   const del=document.getElementById('sh-be-del');
   del.textContent='🗑️ 削除'; delete del.dataset.arm; del.style.display='';
-  document.getElementById('sh-budget-overlay').classList.remove('hidden');
+  showEl('sh-budget-overlay');
 }
 // 新規予算（日付プリセット）。shEditBudgetId=null で「新規」を表す
 function openSheetBudgetNew(dateStr){
@@ -3838,10 +3833,10 @@ function openSheetBudgetNew(dateStr){
   document.getElementById('sh-be-amount').value='';
   document.querySelector('#sh-budget-overlay .sheet-title').textContent='💰 予算を追加';
   document.getElementById('sh-be-del').style.display='none';   // 新規は削除ボタン非表示
-  document.getElementById('sh-budget-overlay').classList.remove('hidden');
+  showEl('sh-budget-overlay');
 }
 function closeSheetBudgetEdit(){
-  document.getElementById('sh-budget-overlay').classList.add('hidden');
+  hideEl('sh-budget-overlay');
   shEditBudgetId=null;
 }
 function saveSheetBudgetEdit(){
@@ -3967,10 +3962,11 @@ function renderGraphTab(){
   renderGraphUserChips();
   renderGraphLedgerChips();
   renderGraphMonthLabel();
-  renderBarChart();
-  renderDonutAndList();
-  renderPayBreakdown();
+  renderGraphBody();
 }
+// グラフタブ本体（棒グラフ・ドーナツ+一覧・支払別内訳）をまとめて描き直す
+function renderGraphBody(){renderBarChart();renderDonutAndList();renderPayBreakdown();}
+
 // No.0モード：グラフタブのユーザー選択チップ
 function renderGraphUserChips(){
   const el=document.getElementById('graph-user-chips');
@@ -3983,9 +3979,7 @@ function setGraphUser(id){
   gLedger='all';            // ユーザーを変えたら帳簿は全帳簿に戻す
   renderGraphUserChips();
   renderGraphLedgerChips();
-  renderBarChart();
-  renderDonutAndList();
-  renderPayBreakdown();
+  renderGraphBody();
 }
 // グラフタブの帳簿選択チップ（対象ユーザーが帳簿2つ以上のときだけ表示）
 function renderGraphLedgerChips(){
@@ -4001,18 +3995,14 @@ function renderGraphLedgerChips(){
 function setGraphLedger(id){
   gLedger=id;
   renderGraphLedgerChips();
-  renderBarChart();
-  renderDonutAndList();
-  renderPayBreakdown();
+  renderGraphBody();
 }
 
 // グラフタブの月◀▶ナビ（前月/翌月）。ホームの表示月(UI.year/month)は変えない
 function gChangeMonth(d){
   ({y:gSelY,m:gSelM}=rollMonth(gSelY??UI.year,gSelM??UI.month,d));
   renderGraphMonthLabel();
-  renderBarChart();
-  renderDonutAndList();
-  renderPayBreakdown();
+  renderGraphBody();
 }
 function renderGraphMonthLabel(){
   const y=(gSelY??UI.year), m=(gSelM??UI.month);
@@ -4077,9 +4067,7 @@ function renderBarChart(){
 function selectBarMonth(y,m){
   gSelY=y;gSelM=m;
   renderGraphMonthLabel();
-  renderBarChart();
-  renderDonutAndList();
-  renderPayBreakdown();
+  renderGraphBody();
 }
 
 function updateBarSummary(data){
@@ -4214,7 +4202,7 @@ function openCatDetail(name){
   catDetailName=name;
   cdSelY=(gSelY??UI.year); cdSelM=(gSelM??UI.month);
   renderCatDetail();
-  document.getElementById('cat-detail-overlay').classList.remove('hidden');
+  showEl('cat-detail-overlay');
   const sheet=document.querySelector('#cat-detail-overlay .sheet');
   if(sheet)sheet.scrollTop=0;
 }
@@ -4223,7 +4211,7 @@ function cdSelectMonth(y,m){
   renderCatDetail();
 }
 function closeCatDetail(){
-  document.getElementById('cat-detail-overlay').classList.add('hidden');
+  hideEl('cat-detail-overlay');
   catDetailName=null;
 }
 // 費目明細モーダルを開いたまま編集・削除したとき、明細と背後のグラフを最新化
@@ -4232,7 +4220,7 @@ function refreshCatDetailIfOpen(){
   if(!ov||ov.classList.contains('hidden'))return;
   const graphTab=document.getElementById('tab-graph');
   if(graphTab&&graphTab.classList.contains('active')){
-    renderBarChart();renderDonutAndList();renderPayBreakdown();
+    renderGraphBody();
   }
   renderCatDetail();
 }
@@ -4391,10 +4379,10 @@ function openCtxMenu(e,id){
   ctxTxId=id;
   const label=t.memo||t.emojiName||'取引';
   document.getElementById('ctx-title').textContent=`${label}  ${t.type==='income'?'+':'-'}${fmt(t.amount)}`;
-  document.getElementById('ctx-overlay').classList.remove('hidden');
+  showEl('ctx-overlay');
 }
 function closeCtxMenu(){
-  document.getElementById('ctx-overlay').classList.add('hidden');
+  hideEl('ctx-overlay');
   ctxTxId=null;ctxAction_='';
 }
 
@@ -4402,7 +4390,7 @@ function closeCtxMenu(){
 function ctxAction(action){
   const savedId=ctxTxId; // closeCtxMenuより前に退避
   ctxAction_=action;
-  document.getElementById('ctx-overlay').classList.add('hidden'); // ctxTxIdをリセットせずに閉じる
+  hideEl('ctx-overlay'); // ctxTxIdをリセットせずに閉じる
   ctxTxId=savedId; // 退避したIDを復元
 
   const u=activeUser();
@@ -4412,10 +4400,10 @@ function ctxAction(action){
   dateselY=d.getFullYear();dateselM=d.getMonth();dateselD=d.getDate();
   document.getElementById('datesel-title').textContent=action==='copy'?'コピー先の日付を選択':'移動先の日付を選択';
   buildDateSelCal();
-  document.getElementById('datesel-overlay').classList.remove('hidden');
+  showEl('datesel-overlay');
 }
 function closeDateSel(){
-  document.getElementById('datesel-overlay').classList.add('hidden');
+  hideEl('datesel-overlay');
 }
 
 // 日付選択カレンダー描画
