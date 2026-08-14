@@ -165,12 +165,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 /* ===== TOPBAR ===== */
 .topbar{background:var(--pri);padding:calc(var(--safe-top) + 10px) 14px 10px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:50;transition:background 0.3s}
-.topbar-user{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.topbar-user{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:1;min-width:0;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .topbar-user *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .user-info{min-width:0;display:flex;align-items:center}
 .user-name{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
-.topbar-btns{display:flex;gap:5px;flex:none}
-.tib{background:rgba(255,255,255,0.18);border:none;border-radius:var(--r8);padding:7px 8px;cursor:pointer;font-size:14px;color:#fff;font-family:var(--font);line-height:1;display:flex;align-items:center;justify-content:center}
+.topbar-btns{display:flex;gap:2px;flex:none}
+.tib{background:rgba(255,255,255,0.18);border:none;border-radius:var(--r8);padding:7px 5px;cursor:pointer;font-size:14px;color:#fff;font-family:var(--font);line-height:1;display:flex;align-items:center;justify-content:center}
 
 /* ===== USER SWITCHER (ドロワー) ===== */
 .user-drawer{position:fixed;top:0;left:0;right:0;bottom:0;z-index:80;display:flex;flex-direction:column;pointer-events:none}

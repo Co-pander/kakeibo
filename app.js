@@ -1889,9 +1889,10 @@ function wizSave(again){
 ========================================================= */
 function openLedgerMgr(){
   document.getElementById('ledger-overlay').classList.remove('hidden');
+  navHilite('ledger');
   renderLedgerUI();renderLedgerColorUI();
 }
-function closeLedgerMgr(){document.getElementById('ledger-overlay').classList.add('hidden');}
+function closeLedgerMgr(){document.getElementById('ledger-overlay').classList.add('hidden');navHilite(currentTab);}
 
 function renderLedgerUI(){
   const u=activeUser();
@@ -2035,8 +2036,8 @@ function setLedgerTheme(ledgerId,themeId){
    支払い管理
 /* =========================================================
 ========================================================= */
-function openPayMgr(){document.getElementById('pay-overlay').classList.remove('hidden');renderPayUI();}
-function closePayMgr(){document.getElementById('pay-overlay').classList.add('hidden');}
+function openPayMgr(){document.getElementById('pay-overlay').classList.remove('hidden');navHilite('pay');renderPayUI();}
+function closePayMgr(){document.getElementById('pay-overlay').classList.add('hidden');navHilite(currentTab);}
 
 function renderPayUI(){
   const u=activeUser();
@@ -2156,7 +2157,7 @@ function deleteCardFromEdit(){
 // エクスポート対象の帳簿ID集合
 let exportSelLedgers = new Set(); // 'all' or ledgerId set
 
-function closeSettings(){document.getElementById('settings-overlay').classList.add('hidden');}
+function closeSettings(){document.getElementById('settings-overlay').classList.add('hidden');navHilite(currentTab);}
 
 function buildExportLedgerList(){
   const u = activeUser();
@@ -3036,8 +3037,9 @@ function onHexInput(val){
 function openForecast(){
   renderForecast();
   document.getElementById('forecast-overlay').classList.remove('hidden');
+  navHilite('forecast');
 }
-function closeForecast(){document.getElementById('forecast-overlay').classList.add('hidden');}
+function closeForecast(){document.getElementById('forecast-overlay').classList.add('hidden');navHilite(currentTab);}
 
 function _forecastFromTxs(txs){
   const months={};
@@ -3144,7 +3146,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.9';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.11';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3192,6 +3194,7 @@ function openSettings(){
   const el=document.getElementById('ver-lbl');
   if(el) el.textContent=`v${APP_VERSION}`;
   document.getElementById('settings-overlay').classList.remove('hidden');
+  navHilite('settings');
 }
 
 // バックアップ／CSVセクションの出し分け：No.0（管理者）=全体バックアップのみ、各ユーザー=個人バックアップ＋CSV
@@ -3581,14 +3584,20 @@ setInterval(checkAutoLock,30000);
 ========================================================= */
 let currentTab='home';
 
+/* ナビバーのハイライト。タブは選択中、モーダル系は開いている間だけ点灯し、
+   閉じたら navHilite(currentTab) で元のタブへ戻す */
+function navHilite(id){
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const b=document.getElementById('navBtn-'+id);
+  if(b)b.classList.add('active');
+}
+
 function switchTab(tab){
   currentTab=tab;
   document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   const page=document.getElementById('tab-'+tab);
-  const btn=document.getElementById('navBtn-'+tab);
   if(page)page.classList.add('active');
-  if(btn)btn.classList.add('active');
+  navHilite(tab);
   if(tab==='graph')renderGraphTab();
   if(tab==='sheet')renderSheetTab();
   // グラフタブでは上部の帳簿バーを隠す（グラフ内に帳簿チップがあるため二重表示を防ぐ）
@@ -4473,8 +4482,7 @@ renderAll();
 updateSecurityUI();
 checkVersion();
 // 起動時ホームをactive
-const _nb=document.getElementById('navBtn-home');
-if(_nb)_nb.classList.add('active');
+navHilite('home');
 // PIN設定済みなら起動時にロック画面を表示
 if(secState.pinHash){
   showPinScreen('unlock');
