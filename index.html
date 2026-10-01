@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.16.13">
+<link rel="stylesheet" href="style.css?v=3.16.14">
 <title>家計簿</title>
 </head>
 <body>
@@ -116,6 +116,10 @@
         <div class="s2-col">
           <div class="s2-line"><span class="s2-lbl">収入</span><span class="s2-val inc" id="s-inc">¥0</span></div>
           <div class="s2-line"><span class="s2-lbl">収支</span><span class="s2-val bal" id="s-bal">¥0</span></div>
+          <!-- 収支(繰越含む)＝収支＋前月繰越（繰越ONの帳簿のみ。下部サマリーの残高と一致） -->
+          <div class="s2-break hidden" id="s2-balc-wrap">
+            <div class="s2-bline"><span class="s2-blbl">収支(繰越含む)</span><span class="s2-bval" id="s-bal-carry">¥0</span></div>
+          </div>
           <!-- 前月繰越（繰越ONの帳簿のみ。収支下の余白に内訳と同じ大きさで常時表示） -->
           <div class="s2-break hidden" id="s2-carry-wrap">
             <div class="s2-bline"><span class="s2-blbl">前月繰越</span><span class="s2-bval" id="s-carry">¥0</span></div>
@@ -990,6 +994,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.16.13"></script>
+<script src="app.js?v=3.16.14"></script>
 </body>
 </html>

@@ -629,8 +629,20 @@ function renderSummary(){
   document.getElementById('s-cash').textContent=fmt(cashAmt);
   document.getElementById('s-card').textContent=fmt(cardAmt);
   document.getElementById('s-bank').textContent=fmt(bankAmt);
-  // 前月繰越：繰越ONの帳簿のみ、収支の下に常時表示（プラス=通常色／マイナス=赤字）
   const carry=carryoverBefore(UI.year,UI.month);
+  // 収支(繰越含む)＝当月の収支＋前月繰越。繰越ONの帳簿のみ表示（繰越額0の初月も表示）。
+  // カレンダー下部サマリーの残高と同じ値になる（下部は選択日までの累計なので、
+  // 選択日より後の取引が当月にある場合だけ一致しない）
+  const bcw=document.getElementById('s2-balc-wrap'), bce=document.getElementById('s-bal-carry');
+  if(bcw&&bce){
+    if(carryEnabled()){
+      const balc=bal+carry;
+      bce.textContent=sfmt(balc);
+      bce.style.color=balc<0?'var(--red)':'var(--text)';
+      bcw.classList.remove('hidden');
+    }else bcw.classList.add('hidden');
+  }
+  // 前月繰越：繰越ONの帳簿のみ、収支の下に常時表示（プラス=通常色／マイナス=赤字）
   const cw=document.getElementById('s2-carry-wrap'), ce=document.getElementById('s-carry');
   if(cw&&ce){
     if(carry!==0){
@@ -840,6 +852,13 @@ function _updateExpandTri(){
 }
 
 // 前月までの繰り越し残高。帳簿の「前月の残高を繰り越す」設定(carry)が有効な場合のみ計上、無効なら0
+// 表示中の帳簿が「繰越を含む」設定かどうか（No.0は繰越ONの帳簿が1つでもあれば true）。
+// 繰越額が0でも設定がONなら true を返すので、繰越初月でも「収支(繰越含む)」を出せる
+function carryEnabled(){
+  if(UI.isMainMode)return DB.users.some(u=>(u.ledgers||[]).some(l=>l.carry));
+  return !!activeUser()?.ledgers.find(x=>x.id===UI.activeLedger)?.carry;
+}
+
 function carryoverBefore(yr,mo){
   const firstStr=ymd(yr,mo,1);
   // 請求ベース：収入は取引日、支出はeffectiveExpDate（カードは請求日）が当月より前なら計上
@@ -3139,7 +3158,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.13';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.14';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
