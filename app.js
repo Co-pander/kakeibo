@@ -487,6 +487,10 @@ function ymKey(y,m){return `${y}-${_p2(m+1)}`;}
 function ymd(y,m,d){return `${ymKey(y,m)}-${_p2(d)}`;}
 // 'YYYY-MM-DD' → 'M/D'（購入日の注記などの表示用）
 function mdLabel(s){return `${parseInt(s.slice(5,7))}/${parseInt(s.slice(8))}`;}
+// 曜日。カレンダーの見出し・日付ラベルで共用（表記ゆれを防ぐため定義はここだけ）
+const DOW=['日','月','火','水','木','金','土'];
+// 'YYYY-MM-DD' → 'M月D日（曜）'
+function mdwLabel(s){return `${parseInt(s.slice(5,7))}月${parseInt(s.slice(8,10))}日（${DOW[new Date(s).getDay()]}）`;}
 // 各種日付表記を 'YYYY-MM-DD'（ハイフン・ゼロ埋め）に正規化。
 // ExcelでCSVを編集すると 2026/07/05 や 2026/7/5、シリアル値(46023)等になり、
 // アプリの日付処理（ハイフン前提）が壊れる（月日NaN・集計0）ため取り込み時／起動時に正規化する
@@ -509,7 +513,6 @@ function normalizeDate(s){
 }
 
 function fmt(n){return '¥'+Math.abs(n).toLocaleString('ja-JP')}
-function fmtS(n){return n>=10000?'¥'+(n/10000).toFixed(1)+'万':'¥'+n.toLocaleString('ja-JP')}
 // カレンダー用：数字のみカンマ区切り（¥なし・単位なし）
 function fmtN(n){return Math.abs(n).toLocaleString('ja-JP')}
 // 符号付き金額（マイナスのみ「-」を前置。残高・収支などの表示に使用）
@@ -536,7 +539,6 @@ function renderAll(){
   renderTopbar();      // トップバーはユーザーカラー
   renderLedgerBar();   // 帳簿バーは帳簿カラー
   renderSummary();
-  renderPayMini();
   renderFilterBar();
   renderCalendar();
   renderTxArea();
@@ -664,49 +666,27 @@ function applySummaryBreakState(){
   if(ch)ch.style.transform=summaryBreakOpen?'':'rotate(-90deg)';
 }
 
-function renderPayMini(){
-  const el=document.getElementById('pay-mini');
-  if(!el)return; // pay-mini非表示時はスキップ
-  if(UI.isMainMode){el.innerHTML='';return;}  // No.0モードでは非表示
-  const u=activeUser();
-  const txs=monthTxs().filter(t=>t.type==='expense');
-  const billing=genBillingEntries(u);   // 請求ベース：カードは当月請求額
-  const cashA=txs.filter(t=>!t.payKind||t.payKind==='cash').reduce((s,t)=>s+t.amount,0);
-  let h=`<div class="pm-chip cash${UI.payFilter==='cash'?' active-f':''}" onclick="togglePF('cash')">💴 ${fmtS(cashA)}</div>`;
-  u.payees.bank.forEach(b=>{
-    const a=txs.filter(t=>t.payKind==='bank'&&t.payeeId===b.id).reduce((s,t)=>s+t.amount,0);
-    const k=`bank:${b.id}`;
-    h+=`<div class="pm-chip bank${UI.payFilter===k?' active-f':''}" onclick="togglePF('${k}')">🏦 ${esc(b.name)} ${fmtS(a)}</div>`;
-  });
-  u.payees.card.forEach(c=>{
-    const a=billing.filter(e=>e.payeeId===c.id).reduce((s,e)=>s+e.amount,0);
-    const k=`card:${c.id}`;
-    h+=`<div class="pm-chip card${UI.payFilter===k?' active-f':''}" onclick="togglePF('${k}')">💳 ${esc(c.name)} ${fmtS(a)}</div>`;
-  });
-  el.innerHTML=h;
-}
-function togglePF(v){UI.payFilter=UI.payFilter===v?'all':v;renderAll();}
 
+// フィルタバーのボタン1個ぶん（選択中は active）
+function fbBtn(key,label){
+  return `<button class="fb-btn${UI.payFilter===key?' active':''}" onclick="setFilter('${key}')">${label}</button>`;
+}
 function renderFilterBar(){
   const el=document.getElementById('filter-bar');
   if(!el)return;
+  let h=fbBtn('all','すべて')+fbBtn('income','💚 収入');
   if(UI.isMainMode){
-    // No.0モード：全件/収入/支出のみ
-    let h=`<button class="fb-btn${UI.payFilter==='all'?' active':''}" onclick="setFilter('all')">すべて</button>`;
-    h+=`<button class="fb-btn${UI.payFilter==='income'?' active':''}" onclick="setFilter('income')">💚 収入</button>`;
-    h+=`<button class="fb-btn${UI.payFilter==='expense'?' active':''}" onclick="setFilter('expense')">🔴 支出</button>`;
-    el.innerHTML=h;
+    // No.0モード：全件/収入/支出のみ（支払い先はユーザーごとなので出さない）
+    el.innerHTML=h+fbBtn('expense','🔴 支出');
     return;
   }
   const u=activeUser();
-  let h=`<button class="fb-btn${UI.payFilter==='all'?' active':''}" onclick="setFilter('all')">すべて</button>`;
-  h+=`<button class="fb-btn${UI.payFilter==='income'?' active':''}" onclick="setFilter('income')">💚 収入</button>`;
-  h+=`<button class="fb-btn${UI.payFilter==='cash'?' active':''}" onclick="setFilter('cash')">💴 現金</button>`;
-  u.payees.bank.forEach(b=>{const k=`bank:${b.id}`;h+=`<button class="fb-btn${UI.payFilter===k?' active':''}" onclick="setFilter('${k}')">🏦 ${esc(b.name)}</button>`;});
-  u.payees.card.forEach(c=>{const k=`card:${c.id}`;h+=`<button class="fb-btn${UI.payFilter===k?' active':''}" onclick="setFilter('${k}')">💳 ${esc(c.name)}</button>`;});
+  h+=fbBtn('cash','💴 現金');
+  u.payees.bank.forEach(b=>{h+=fbBtn(`bank:${b.id}`,`🏦 ${esc(b.name)}`);});
+  u.payees.card.forEach(c=>{h+=fbBtn(`card:${c.id}`,`💳 ${esc(c.name)}`);});
   el.innerHTML=h;
 }
-function setFilter(v){UI.payFilter=v;UI.selDay=null;renderCalendar();renderTxArea();renderPayMini();}
+function setFilter(v){UI.payFilter=v;UI.selDay=null;renderFilterBar();renderCalendar();renderTxArea();}
 
 function renderCalendar(){
   const u=activeUser();
@@ -747,8 +727,7 @@ function renderCalendar(){
     });
   }
 
-  const dows=['日','月','火','水','木','金','土'];
-  let h=dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  let h=DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('');
   for(let i=0;i<first;i++)h+=`<div class="cal-day other"><div class="day-n"></div></div>`;
   for(let d=1;d<=days;d++){
     const dow=(first+d-1)%7;
@@ -775,8 +754,7 @@ function renderCalInfoBar(){
   const bar=dateEl.closest('.cal-info-bar');
   const yr=UI.year, mo=UI.month;
   const d=UI.selDay||new Date().getDate();
-  const dows=['日','月','火','水','木','金','土'];
-  const dateLabel=`${mo+1}月${d}日（${dows[new Date(yr,mo,d).getDay()]}）`;
+  const dateLabel=mdwLabel(ymd(yr,mo,d));
 
   // 請求ベースで集計：収入は取引日、支出はeffectiveExpDate（カードは請求日）でその月に計上
   let cumInc=0,cumExp=0,dayInc=0,dayExp=0;
@@ -956,8 +934,7 @@ function renderTxArea(){
       const ra=rankOf(a), rb=rankOf(b);
       return (ra[0]-rb[0])||(ra[1]-rb[1])||(a._oi-b._oi);
     });
-    const ds=dt.split('-');
-    const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
+    const label=mdwLabel(dt);
     const di=list.filter(t=>t.type==='income'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
     const de=list.filter(t=>t.type==='expense'&&!t._isBilling).reduce((s,t)=>s+t.amount,0);
     const header=showHeaders?dateHeaderHTML(label,di,de):'';
@@ -1019,8 +996,7 @@ function renderMainUserList(){
 
   el.innerHTML=dates.map(dt=>{
     const entries=Object.values(dateMap[dt]);
-    const ds=dt.split('-');
-    const label=`${parseInt(ds[1])}月${parseInt(ds[2])}日（${['日','月','火','水','木','金','土'][new Date(dt).getDay()]}）`;
+    const label=mdwLabel(dt);
     // 日付見出しの合計は請求ベース（購入日の薄字ぶんは二重計上しない）
     const totalInc=entries.reduce((s,e)=>s+(e.cardUse?0:e.inc),0);
     const totalExp=entries.reduce((s,e)=>s+(e.cardUse?0:e.exp),0);
@@ -1756,8 +1732,7 @@ function buildWizCal(){
   const prevDim=new Date(wcalY,wcalM,0).getDate();     // 前月の日数（先頭の薄い日付用）
   const today=new Date();
   const sel=WZ.date.split('-').map(Number);            // 選択中の日
-  const dows=['日','月','火','水','木','金','土'];
-  let h=dows.map((d,i)=>`<div class="wcal-dow${i===0?' sun':''}${i===6?' sat':''}">${d}</div>`).join('');
+  let h=DOW.map((d,i)=>`<div class="wcal-dow${i===0?' sun':''}${i===6?' sat':''}">${d}</div>`).join('');
   for(let i=first-1;i>=0;i--)h+=`<div class="wcal-day other">${prevDim-i}</div>`;   // 前月末
   for(let d=1;d<=dim;d++){
     const dow=new Date(wcalY,wcalM,d).getDay();
@@ -2320,33 +2295,37 @@ function exportUserBackup(){
   const tx=(u.transactions||[]).length;
   saveFile(blob, fname, 'バックアップファイル', {'application/json':['.json']}, `✅ 「${u.name}」のバックアップを保存しました（取引${tx}件）`);
 }
+// <input type="file"> の読み込み定型。読めたテキストを onText(text) に渡し、例外は onErr(err) へ。
+// 同じファイルを選び直せるよう、呼び出し側で ev.target.value='' を忘れないこと
+function readTextFile(ev,onText,onErr){
+  const file=ev.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{try{onText(e.target.result);}catch(err){onErr(err);}};
+  reader.readAsText(file,'UTF-8');
+}
 // 復元：ファイル種別（全体／個人）を自動判別
 function importBackup(ev){
-  const file=ev.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const obj=JSON.parse(e.target.result);
-      // 個人バックアップ
-      if(obj && obj.type==='user-backup' && obj.user && obj.user.name && Array.isArray(obj.user.ledgers)){
-        restoreUserBackup(obj.user); ev.target.value=''; return;
-      }
-      // 全体バックアップ
-      const db=obj&&obj.DB;
-      if(db&&Array.isArray(db.users)&&db.users.length){
-        const userCount=db.users.length;
-        const txCount=db.users.reduce((s,u)=>s+((u.transactions||[]).length),0);
-        if(!confirm(`全体バックアップ（ユーザー${userCount}人 / 取引${txCount}件）で現在のデータをすべて置き換えます。\n今の端末のデータは消えます。よろしいですか？`)){ev.target.value='';return;}
-        // localStorageへ書いてリロード → load()のマイグレーションを通して安全に初期化
-        localStorage.setItem('kb-v5',JSON.stringify({DB:db,activeUser:db.users[0].id}));
-        alert('✅ 全体を復元しました。画面を更新します。');
-        location.reload();
-        return;
-      }
-      alert('バックアップファイルの形式が正しくありません');ev.target.value='';
-    }catch(err){alert('読み込みエラー：'+err.message);ev.target.value='';}
-  };
-  reader.readAsText(file,'UTF-8');
+  readTextFile(ev,text=>{
+    const obj=JSON.parse(text);
+    // 個人バックアップ
+    if(obj && obj.type==='user-backup' && obj.user && obj.user.name && Array.isArray(obj.user.ledgers)){
+      restoreUserBackup(obj.user); ev.target.value=''; return;
+    }
+    // 全体バックアップ
+    const db=obj&&obj.DB;
+    if(db&&Array.isArray(db.users)&&db.users.length){
+      const userCount=db.users.length;
+      const txCount=db.users.reduce((s,u)=>s+((u.transactions||[]).length),0);
+      if(!confirm(`全体バックアップ（ユーザー${userCount}人 / 取引${txCount}件）で現在のデータをすべて置き換えます。\n今の端末のデータは消えます。よろしいですか？`)){ev.target.value='';return;}
+      // localStorageへ書いてリロード → load()のマイグレーションを通して安全に初期化
+      localStorage.setItem('kb-v5',JSON.stringify({DB:db,activeUser:db.users[0].id}));
+      alert('✅ 全体を復元しました。画面を更新します。');
+      location.reload();
+      return;
+    }
+    alert('バックアップファイルの形式が正しくありません');ev.target.value='';
+  },err=>{alert('読み込みエラー：'+err.message);ev.target.value='';});
 }
 // 個人バックアップの復元：同名ユーザーがいれば上書き／いなければ新規作成
 function restoreUserBackup(imp){
@@ -2366,11 +2345,8 @@ function restoreUserBackup(imp){
 }
 
 function importCSV(ev){
-  const file=ev.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const text=e.target.result.replace(/^\uFEFF/,'');
+  readTextFile(ev,raw=>{
+      const text=raw.replace(/^\uFEFF/,'');
       const lines=text.split(/\r?\n/).filter(l=>l.trim());
       if(lines.length<2){showToast('⚠️ データが見つかりません');ev.target.value='';return;}
       const u=activeUser();
@@ -2396,10 +2372,8 @@ function importCSV(ev){
       const existing=u.transactions.filter(t=>targetLedgers.has(t.ledger)).length;
       if(existing===0){ doImportCSV('append'); }        // 既存が無ければそのまま追加
       else openCSVImportDialog(rows.length, existing);   // あれば方法を選ばせる
-    }catch(err){showToast('⚠️ 読み込みエラー: '+err.message);}
-    ev.target.value='';
-  };
-  reader.readAsText(file,'UTF-8');
+      ev.target.value='';
+  },err=>{showToast('⚠️ 読み込みエラー: '+err.message);ev.target.value='';});
 }
 let pendingCSV=null;
 function openCSVImportDialog(count, existing){
@@ -3162,7 +3136,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.15';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.17';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
@@ -3412,6 +3386,10 @@ function hidePinScreen(){
   secState.lastActivity=Date.now();
 }
 
+// PIN誤入力：4つのドットを赤くして知らせる
+function pinFlashError(){for(let i=0;i<4;i++)document.getElementById('pd'+i).className='pin-dot error';}
+// 誤入力の共通あと始末：赤表示→入力クリア→0.5秒後に通常表示へ戻す
+function pinResetAfterError(){pinFlashError();secState.pinInput='';setTimeout(_updatePinUI,500);}
 function _updatePinUI(){
   const dots=document.getElementById('pin-dots');
   const sub=document.getElementById('pin-sub');
@@ -3488,9 +3466,7 @@ async function _pinSubmit(){
       }
       saveSecCfg();
       // エラーアニメーション
-      for(let i=0;i<4;i++)document.getElementById('pd'+i).className='pin-dot error';
-      secState.pinInput='';
-      setTimeout(_updatePinUI,500);
+      pinResetAfterError();
     }
 
   } else if(secState.mode==='setup'||secState.mode==='change'){
@@ -3504,7 +3480,7 @@ async function _pinSubmit(){
         saveSecCfg();closePinSetup();hidePinScreen();
         updateSecurityUI();alert('PINを設定しました');
       } else {
-        for(let i=0;i<4;i++)document.getElementById('pd'+i).className='pin-dot error';
+        pinFlashError();
         secState.pinInput='';secState.setupStep=0;secState.setupFirst='';
         setTimeout(()=>{_updatePinUI();document.getElementById('pin-sub').textContent='PINが一致しません。最初から入力してください';},500);
       }
@@ -3516,9 +3492,7 @@ async function _pinSubmit(){
       saveSecCfg();closePinSetup();hidePinScreen();
       updateSecurityUI();alert('PINロックを解除しました');
     } else {
-      for(let i=0;i<4;i++)document.getElementById('pd'+i).className='pin-dot error';
-      secState.pinInput='';
-      setTimeout(_updatePinUI,500);
+      pinResetAfterError();
     }
   }
 }
@@ -4302,12 +4276,11 @@ function renderCatDetail(){
   const listEl=document.getElementById('cd-list');
   const dates=Object.keys(byDate).sort();
   if(!dates.length){listEl.innerHTML=`<div class="empty-msg" style="padding:16px">この月の明細はありません</div>`;return;}
-  const WD=['日','月','火','水','木','金','土'];
   const sign=catGraphType==='expense'?'-':'+';
   listEl.innerHTML=dates.map(d=>{
     const dt=new Date(d);
     const daySum=byDate[d].reduce((s,x)=>s+x.t.amount,0);
-    const head=`<div class="cd-date-head"><span>${dt.getMonth()+1}月${dt.getDate()}日（${WD[dt.getDay()]}）</span><span class="cd-dh-amt">${sign}${fmt(daySum)}</span></div>`;
+    const head=`<div class="cd-date-head"><span>${dt.getMonth()+1}月${dt.getDate()}日（${DOW[dt.getDay()]}）</span><span class="cd-dh-amt">${sign}${fmt(daySum)}</span></div>`;
     const rows=byDate[d].map(({t,usr})=>{
       const k=t.payKind||'cash';
       const isCardShift=t.date!==d;   // カード請求で購入日と発生日がズレている
@@ -4435,8 +4408,7 @@ function buildDateSelCal(){
   const first=new Date(dateselY,dateselM,1).getDay();
   const days=new Date(dateselY,dateselM+1,0).getDate();
   const today=new Date();
-  const dows=['日','月','火','水','木','金','土'];
-  let h=dows.map(d=>`<div class="datesel-dow">${d}</div>`).join('');
+  let h=DOW.map(d=>`<div class="datesel-dow">${d}</div>`).join('');
   for(let i=0;i<first;i++)h+=`<div class="datesel-day empty"></div>`;
   for(let d=1;d<=days;d++){
     const isT=today.getFullYear()===dateselY&&today.getMonth()===dateselM&&today.getDate()===d;

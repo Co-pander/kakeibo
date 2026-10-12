@@ -21,7 +21,7 @@
 .pin-setup-step{font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:16px}
 .pin-link{font-size:13px;color:rgba(255,255,255,0.65);cursor:pointer;text-decoration:underline;text-underline-offset:2px;margin-top:8px}
 /* ロック中のコンテンツ非表示 */
-body.locked .app,.locked .fab,.locked .user-drawer{filter:blur(8px);pointer-events:none;user-select:none}
+body.locked .app,.locked .user-drawer{filter:blur(8px);pointer-events:none;user-select:none}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
   --pri:#2EBD8F;--pri-d:#239870;--pri-l:#E8F8F3;--pri-ll:#F2FCF8;
@@ -239,14 +239,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .s2-bval.cash{color:#E07B2E}.s2-bval.card-c{color:#AB47BC}.s2-bval.bank{color:#42A5F5}
 /* 前月繰越（日別バー1行目） */
 .cal-info-carry{font-size:12px;font-weight:600;font-family:var(--font-num);font-variant-numeric:tabular-nums}
-.pm-chip{flex:none;display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all 0.12s}
-.pm-chip.cash{background:var(--orange-l);color:var(--orange);border-color:rgba(224,123,46,0.2)}
-.pm-chip.bank{background:var(--blue-l);color:var(--blue);border-color:rgba(59,130,196,0.2)}
-.pm-chip.card{background:var(--red-l);color:var(--red);border-color:rgba(224,82,82,0.2)}
-.pm-chip.active-f{outline:2px solid currentColor;outline-offset:1px}
 
 /* ===== FILTER BAR ===== */
-.filter-bar{display:none;gap:6px;overflow-x:auto;padding:8px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);scrollbar-width:none}
+.filter-bar{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:8px 16px;background:var(--bg-card);border-bottom:1px solid var(--border);scrollbar-width:none}
 .filter-bar::-webkit-scrollbar{display:none}
 .fb-btn{flex:none;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-family:var(--font);transition:all 0.12s}
 .fb-btn.active{background:var(--pri);color:#fff;border-color:var(--pri)}
@@ -322,8 +317,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .chart-pct{font-size:11px;font-weight:600;color:var(--text-sub);width:32px;text-align:right;flex:none}
 
 /* ===== FAB ===== */
-.fab{position:fixed;bottom:calc(20px + var(--safe-bot));right:18px;width:56px;height:56px;border-radius:50%;background:var(--pri);color:#fff;border:none;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,0.25);z-index:30;font-family:var(--font);transition:transform 0.1s,background 0.3s}
-.fab:active{transform:scale(0.93)}
 
 /* ===== OVERLAY / SHEET ===== */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;z-index:60;animation:oFade 0.15s}
@@ -405,7 +398,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .mgr-stitle{font-size:12px;font-weight:700;color:var(--text-sub);letter-spacing:0.05em;margin-bottom:10px}
 .mgr-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-l)}
 .mgr-icon{font-size:16px;width:24px;text-align:center}
-.mgr-name{flex:1;font-size:14px}
 .add-row{display:flex;gap:8px;margin-top:10px;align-items:center}
 .add-row input,.add-row select{flex:1;padding:9px 12px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--font);outline:none;-webkit-appearance:none}
 .add-row input:focus{border-color:var(--pri)}
