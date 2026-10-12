@@ -1085,10 +1085,14 @@ function effectiveExpDate(t, u){
 }
 
 // 指定月(yr,mo)に請求される、カードごとの請求エントリ（effectiveExpDate基準で統一）
-function genBillingEntries(u, yr=UI.year, mo=UI.month){
+// ledgerId: 集計対象の帳簿。省略時は表示中の帳簿（No.0モードは null=全帳簿）。
+//   カード(payees.card)はユーザー単位で帳簿をまたいで共有されるため、ここで帳簿を絞らないと
+//   帳簿Aの利用分が帳簿B・Cの請求月にも現れてしまう（上部サマリーは帳簿で絞っており不一致になる）
+function genBillingEntries(u, yr=UI.year, mo=UI.month, ledgerId=(UI.isMainMode?null:UI.activeLedger)){
   const groups={};
   u.transactions.forEach(t=>{
     if(t.type!=='expense'||t.payKind!=='card')return;
+    if(ledgerId&&t.ledger!==ledgerId)return;
     const card=payeeOf(u,'card',t.payeeId);
     if(!card||!card.closeDay||!card.billingDay)return;
     const ed=effectiveExpDate(t,u);
@@ -3158,7 +3162,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.14';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.15';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
