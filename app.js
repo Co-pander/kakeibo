@@ -1519,7 +1519,9 @@ function closeAddModal(){hideEl('add-overlay');}
    戻り値：保存先ユーザー（特定できなければ null） */
 function rebuildDestCatGrid(type){
   const t=type||UI.txType;
-  const u=DB.users.find(x=>x.id===document.getElementById('f-dest-user')?.value);
+  // 保存先セレクトは通常ユーザーでもDOM上は残っている（#f-save-dest に hidden が付くだけ）。
+  // No.0のときだけ参照しないと、前回No.0で選んだユーザーの費目がそのまま出てしまう
+  const u=UI.isMainMode?DB.users.find(x=>x.id===document.getElementById('f-dest-user')?.value):null;
   if(!u){buildCatGrid('cat-grid',t,null,null,'pickCat');return null;}
   const savedId=DB.activeUser, savedLid=UI.activeLedger;
   DB.activeUser=u.id;
@@ -3136,7 +3138,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.17';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.18';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){

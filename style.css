@@ -251,7 +251,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
 .cal-dow{text-align:center;font-size:10px;color:var(--text-hint);padding:6px 0;font-weight:500}
 .cal-dow:first-child{color:#E05252}.cal-dow:last-child{color:var(--blue)}
-.cal-day{border-radius:var(--r8);min-height:50px;display:flex;flex-direction:column;align-items:center;padding:3px 2px;cursor:pointer;transition:background 0.1s}
+/* min-width:0 … 桁の多い金額でグリッド列（1fr）が広がって日付がずれるのを防ぐ（はみ出しは…で省略） */
+.cal-day{border-radius:var(--r8);min-height:50px;min-width:0;display:flex;flex-direction:column;align-items:center;padding:3px 2px;cursor:pointer;transition:background 0.1s}
 .cal-day:active{background:var(--border-l)}
 .cal-day.other .day-n{color:var(--text-hint)}
 .cal-day.selected{background:var(--pri-ll);outline:2px solid var(--pri);outline-offset:-2px}
@@ -261,8 +262,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .cal-day.today .day-n{background:var(--pri);color:#fff;border-radius:50%}
 .day-n{font-size:12px;font-weight:600;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin-bottom:2px}
 .day-amounts{display:flex;flex-direction:column;align-items:center;gap:0;width:100%}
-.day-amt{font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38px;line-height:1.4;text-align:center}
-.day-amt.inc{color:#3B82C4}.day-amt.exp{color:var(--red)}.day-amt.crd{color:var(--red);opacity:0.45;font-weight:500}
+.day-amt{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.35;text-align:center}
+/* カード利用（購入日）は請求と区別するため薄字。白背景に埋もれない濃さを保つ */
+.day-amt.inc{color:#3B82C4}.day-amt.exp{color:var(--red)}.day-amt.crd{color:var(--red);opacity:0.7;font-weight:600}
 
 /* ===== TX LIST（カード枠なし・仕切り線のみ） ===== */
 .tx-section{flex:1}

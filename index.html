@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.16.17">
+<link rel="stylesheet" href="style.css?v=3.16.18">
 <title>家計簿</title>
 </head>
 <body>
@@ -480,10 +480,6 @@
       <button class="sheet-close" onclick="closeAddModal()">✕</button>
     </div>
     <div class="form-body">
-      <div class="type-toggle">
-        <button class="tt-btn" id="tb-inc" onclick="setType('income')">💚 収入</button>
-        <button class="tt-btn" id="tb-exp" onclick="setType('expense')">🔴 支出</button>
-      </div>
       <div class="field">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
           <div>
@@ -513,6 +509,11 @@
             <select id="f-dest-ledger" onchange="onDestLedgerChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px"></select>
           </div>
         </div>
+      </div>
+      <!-- 収入／支出：選ぶと下のカテゴリが切り替わるので、カテゴリの直前に置く -->
+      <div class="type-toggle">
+        <button class="tt-btn" id="tb-inc" onclick="setType('income')">💚 収入</button>
+        <button class="tt-btn" id="tb-exp" onclick="setType('expense')">🔴 支出</button>
       </div>
       <div class="field">
         <div class="field-lbl" style="display:flex;align-items:center;justify-content:space-between">
@@ -994,6 +995,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.16.17"></script>
+<script src="app.js?v=3.16.18"></script>
 </body>
 </html>
