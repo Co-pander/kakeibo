@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.16.19">
+<link rel="stylesheet" href="style.css?v=3.16.21">
 <title>家計簿</title>
 </head>
 <body>
@@ -713,13 +713,27 @@
       <button class="sheet-close" onclick="closeTxEdit()">✕</button>
     </div>
     <div class="form-body">
-      <div class="type-toggle">
-        <button class="tt-btn" id="te-tb-inc" onclick="setTxEditType('income')">💚 収入</button>
-        <button class="tt-btn" id="te-tb-exp" onclick="setTxEditType('expense')">🔴 支出</button>
+      <!-- 以下の並びは新規取引（#add-overlay）と同じ順序に揃えてある -->
+      <div class="field">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+          <div>
+            <div class="field-lbl">日付</div>
+            <input type="date" id="te-date">
+          </div>
+          <div class="field" style="margin:0">
+            <div class="field-lbl">帳簿</div>
+            <select id="te-ledger" onchange="onTxEditLedgerChange()"></select>
+          </div>
+        </div>
       </div>
       <div class="field">
         <div class="field-lbl">金額</div>
         <div class="amount-wrap"><span class="amount-yen">¥</span><input type="text" id="te-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+      </div>
+      <!-- 収入／支出：選ぶと下のカテゴリが切り替わるので、カテゴリの直前に置く（新規取引と同じ並び） -->
+      <div class="type-toggle">
+        <button class="tt-btn" id="te-tb-inc" onclick="setTxEditType('income')">💚 収入</button>
+        <button class="tt-btn" id="te-tb-exp" onclick="setTxEditType('expense')">🔴 支出</button>
       </div>
       <div class="field">
         <div class="field-lbl" style="display:flex;align-items:center;justify-content:space-between">
@@ -737,14 +751,6 @@
         <div class="field-lbl">メモ</div>
         <input type="text" id="te-memo2" placeholder="例）セール品、ポイント利用">
         <div class="memo-hist" id="te-memo2-hist"></div>
-      </div>
-      <div class="field">
-        <div class="field-lbl">日付</div>
-        <input type="date" id="te-date">
-      </div>
-      <div class="field">
-        <div class="field-lbl">帳簿</div>
-        <select id="te-ledger" onchange="onTxEditLedgerChange()"></select>
       </div>
       <div id="te-pay-section">
         <div class="field-lbl" style="margin-bottom:8px">💳 支払い方法</div>
@@ -995,6 +1001,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.16.19"></script>
+<script src="app.js?v=3.16.21"></script>
 </body>
 </html>
