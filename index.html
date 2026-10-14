@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.16.21">
+<link rel="stylesheet" href="style.css?v=3.16.23">
 <title>家計簿</title>
 </head>
 <body>
@@ -806,7 +806,7 @@
         <input type="text" id="be-name" placeholder="例）三菱UFJ銀行">
       </div>
       <button class="submit-btn" onclick="saveBankEdit()">保存する</button>
-      <button class="submit-btn" onclick="deleteBankFromEdit()" style="background:var(--red);margin-top:8px">🗑️ この口座を削除</button>
+      <button class="submit-btn" onclick="deletePayeeFromEdit('bank')" style="background:var(--red);margin-top:8px">🗑️ この口座を削除</button>
       <button class="cancel-btn" onclick="closeBankEdit()">キャンセル</button>
     </div>
   </div>
@@ -842,7 +842,7 @@
       </div>
       <p class="hint" style="margin-bottom:12px">締め日・請求日を設定すると、利用月の支出が請求日の明細にも薄字で表示されます。またカレンダーの請求月にも薄字で反映されます。</p>
       <button class="submit-btn" onclick="saveCardEdit()">保存する</button>
-      <button class="submit-btn" onclick="deleteCardFromEdit()" style="background:var(--red);margin-top:8px">🗑️ このカードを削除</button>
+      <button class="submit-btn" onclick="deletePayeeFromEdit('card')" style="background:var(--red);margin-top:8px">🗑️ このカードを削除</button>
       <button class="cancel-btn" onclick="closeCardEdit()">キャンセル</button>
     </div>
   </div>
@@ -1001,6 +1001,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.16.21"></script>
+<script src="app.js?v=3.16.23"></script>
 </body>
 </html>

@@ -1541,8 +1541,7 @@ function onDestUserChange(){
   rebuildDestCatGrid();
   // 支払い方法リセット
   UI.selKind='cash';UI.selPayeeId=null;
-  ['pk-cash','pk-bank','pk-card'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='pk-btn';});
-  const pkc=document.getElementById('pk-cash');if(pkc)pkc.className='pk-btn sel-cash';
+  setPayKindUI('','cash');
   hideEl('f-payee-wrap');
   // 履歴も保存先ユーザーの帳簿のものに切替
   renderAddMemoHist();
@@ -1556,17 +1555,27 @@ function onDestLedgerChange(){
   renderAddMemoHist();
 }
 
+// 収入/支出トグルと支払い方法ボタンの選択表示。prefix は '' (新規取引) / 'te-' (取引編集)。
+// 両画面で markup が同じなので、ID の接頭辞だけ差し替えて共用する
+function setTypeToggleUI(prefix,type){
+  const set=(id,cls)=>{const el=document.getElementById(prefix+id);if(el)el.className='tt-btn'+cls;};
+  set('tb-inc',type==='income'?' a-inc':'');
+  set('tb-exp',type==='expense'?' a-exp':'');
+}
+function setPayKindUI(prefix,k){
+  const set=(id,cls)=>{const el=document.getElementById(prefix+id);if(el)el.className='pk-btn'+cls;};
+  set('pk-cash',k==='cash'?' sel-cash':'');
+  set('pk-bank',k==='bank'?' sel-bank':'');
+  set('pk-card',k==='card'?' sel-card':'');
+}
 function setType(t){
   UI.txType=t;UI.selEmoji=null;UI.selEmojiName=null;UI.selKind='cash';UI.selPayeeId=null;
-  document.getElementById('tb-inc').className='tt-btn'+(t==='income'?' a-inc':'');
-  document.getElementById('tb-exp').className='tt-btn'+(t==='expense'?' a-exp':'');
+  setTypeToggleUI('',t);
   // No.0では保存先ユーザーの費目で構築（通常ユーザーは今の帳簿のまま）
   rebuildDestCatGrid(t);
   document.getElementById('f-pay-section').style.display=t==='expense'?'block':'none';
   // 支払い方法はデフォルトで現金を選択状態（枠表示）に統一
-  document.getElementById('pk-cash').className='pk-btn sel-cash';
-  document.getElementById('pk-bank').className='pk-btn';
-  document.getElementById('pk-card').className='pk-btn';
+  setPayKindUI('','cash');
   hideEl('f-payee-wrap');
 }
 // 費目ボタン1個ぶんのHTML（入力画面・取引編集・ウィザードで共用）
@@ -1605,9 +1614,7 @@ function pickCat(iconId,n,btn,color){
 }
 function selectKind(k){
   UI.selKind=k;UI.selPayeeId=null;
-  document.getElementById('pk-cash').className='pk-btn'+(k==='cash'?' sel-cash':'');
-  document.getElementById('pk-bank').className='pk-btn'+(k==='bank'?' sel-bank':'');
-  document.getElementById('pk-card').className='pk-btn'+(k==='card'?' sel-card':'');
+  setPayKindUI('',k);
   const wrap=document.getElementById('f-payee-wrap');
   if(k==='cash'){wrap.classList.add('hidden');return;}
   // No.0モードでは保存先ユーザー、通常は activeUser の支払い方法を参照
@@ -2089,14 +2096,15 @@ function saveBankEdit(){
   if(p)p.name=name;
   closeBankEdit();save();renderPayUI();renderAll();
 }
-function deleteBankFromEdit(){
+// 支払い先（銀行/カード）の削除。その支払い先を使っていた取引は現金に戻す
+function deletePayeeFromEdit(kind){
   if(!confirm('登録情報も消えますが削除しますか？'))return;
   const u=activeUser();
-  const id=editingBankId;
-  hideEl('bank-edit-overlay');
-  editingBankId=null;
-  u.payees.bank=u.payees.bank.filter(p=>p.id!==id);
-  u.transactions.forEach(t=>{if(t.payKind==='bank'&&t.payeeId===id){t.payKind='cash';t.payeeId=null;}});
+  const id=kind==='bank'?editingBankId:editingCardId;
+  hideEl(kind+'-edit-overlay');
+  if(kind==='bank')editingBankId=null; else editingCardId=null;
+  u.payees[kind]=(u.payees[kind]||[]).filter(p=>p.id!==id);
+  u.transactions.forEach(t=>{if(t.payKind===kind&&t.payeeId===id){t.payKind='cash';t.payeeId=null;}});
   save();renderPayUI();renderAll();
 }
 
@@ -2132,16 +2140,6 @@ function saveCardEdit(){
     p.billingDay=parseInt(document.getElementById('ce2-billing-day').value)||'';
   }
   closeCardEdit();save();renderPayUI();renderAll();
-}
-function deleteCardFromEdit(){
-  if(!confirm('登録情報も消えますが削除しますか？'))return;
-  const u=activeUser();
-  const id=editingCardId;
-  hideEl('card-edit-overlay');
-  editingCardId=null;
-  u.payees.card=u.payees.card.filter(p=>p.id!==id);
-  u.transactions.forEach(t=>{if(t.payKind==='card'&&t.payeeId===id){t.payKind='cash';t.payeeId=null;}});
-  save();renderPayUI();renderAll();
 }
 
 /* =========================================================
@@ -2465,8 +2463,7 @@ function openTxEdit(id){
   UI.txEditEmojiName=t.emojiName;
   UI.txEditKind=t.payKind||'cash';UI.txEditPayeeId=t.payeeId||null;
   // type toggle
-  document.getElementById('te-tb-inc').className='tt-btn'+(t.type==='income'?' a-inc':'');
-  document.getElementById('te-tb-exp').className='tt-btn'+(t.type==='expense'?' a-exp':'');
+  setTypeToggleUI('te-',t.type);
   // 金額・メモ・日付
   document.getElementById('te-amount').value=Number(t.amount).toLocaleString('ja-JP');
   document.getElementById('te-memo').value=t.memo;
@@ -2487,8 +2484,7 @@ function closeTxEdit(){hideEl('tx-edit-overlay');}
 
 function setTxEditType(type){
   UI.txEditType=type;UI.txEditEmoji=null;UI.txEditEmojiName=null;
-  document.getElementById('te-tb-inc').className='tt-btn'+(type==='income'?' a-inc':'');
-  document.getElementById('te-tb-exp').className='tt-btn'+(type==='expense'?' a-exp':'');
+  setTypeToggleUI('te-',type);
   buildTxEditCatGrid(type,null);
   setTxEditKindUI(type,'cash',null);
 }
@@ -2510,9 +2506,7 @@ function setTxEditKind(k){
 function setTxEditKindUI(type,k,payeeId,ownerUser=null){
   if(type!=='expense'){document.getElementById('te-pay-section').style.display='none';return;}
   document.getElementById('te-pay-section').style.display='block';
-  document.getElementById('te-pk-cash').className='pk-btn'+(k==='cash'?' sel-cash':'');
-  document.getElementById('te-pk-bank').className='pk-btn'+(k==='bank'?' sel-bank':'');
-  document.getElementById('te-pk-card').className='pk-btn'+(k==='card'?' sel-card':'');
+  setPayKindUI('te-',k);
   UI.txEditKind=k;
   const wrap=document.getElementById('te-payee-wrap');
   if(k==='cash'){wrap.classList.add('hidden');return;}
@@ -3138,7 +3132,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.21';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.23';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
