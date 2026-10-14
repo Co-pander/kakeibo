@@ -262,7 +262,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .cal-day.today .day-n{background:var(--pri);color:#fff;border-radius:50%}
 .day-n{font-size:12px;font-weight:600;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin-bottom:2px}
 .day-amounts{display:flex;flex-direction:column;align-items:center;gap:0;width:100%}
-.day-amt{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.35;text-align:center}
+.day-amt{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.4;text-align:center}
 /* カード利用（購入日）は請求と区別するため薄字。白背景に埋もれない濃さを保つ */
 .day-amt.inc{color:#3B82C4}.day-amt.exp{color:var(--red)}.day-amt.crd{color:var(--red);opacity:0.7;font-weight:600}
 
@@ -279,7 +279,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* 内訳(tx-name)とメモ(tx-memo2)を横並び。メモは内訳の右に左揃え。長い場合は各2行まで折り返し（…はその後） */
 .tx-name-row{display:flex;align-items:flex-start;gap:8px;min-width:0}
 .tx-name-row .tx-name{flex:0 1 auto;min-width:0;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.3}
-.tx-memo2{flex:1 1 auto;min-width:0;font-size:11px;color:var(--text-hint);text-align:left;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.35}
+/* メモは補助情報だが --text-hint だと白背景に沈むため、費目名と同じ --text-sub に */
+.tx-memo2{flex:1 1 auto;min-width:0;font-size:11px;color:var(--text-sub);text-align:left;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;line-height:1.35}
 .tx-meta{display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap}
 .tx-cat{font-size:11px;color:var(--text-sub)}
 .pay-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:1px 6px;border-radius:20px}
