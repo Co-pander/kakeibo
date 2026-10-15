@@ -1440,7 +1440,7 @@ function pickTheme(id,prefix){UI.selThemeId=id;buildThemePicker(prefix);if(prefi
 
 function saveUser(){
   const name=document.getElementById('ue-name').value.trim();
-  if(!name){alert('名前を入力してください');return;}
+  if(!name){showToast('⚠️ 名前を入力してください');return;}
   const avatarId=USER_AVATARS[UI.selAvatarIdx]?.id||'person';
   if(UI.editingUserId){
     const u=DB.users.find(x=>x.id===UI.editingUserId);
@@ -1623,7 +1623,7 @@ function selectKind(k){
     u=DB.users.find(x=>x.id===uid)||u;
   }
   const list=u.payees[k]||[];
-  if(!list.length){wrap.classList.add('hidden');alert(`先に「💳」から${k==='bank'?'銀行口座':'クレジットカード'}を登録してください`);return;}
+  if(!list.length){wrap.classList.add('hidden');showToast(`⚠️ 先に「💳」から${k==='bank'?'銀行口座':'クレジットカード'}を登録してください`);return;}
   document.getElementById('f-payee-lbl').textContent=k==='bank'?'🏦 口座を選択':'💳 カードを選択';
   document.getElementById('f-payee-chips').innerHTML=list.map(p=>`<button class="payee-chip" id="py-${p.id}" onclick="pickPayee('${p.id}')">${esc(p.name)}</button>`).join('');
   wrap.classList.remove('hidden');
@@ -1635,13 +1635,13 @@ function pickPayee(id){
 }
 function addTx(){
   const amount=parseAmountInput('f-amount');
-  if(!amount){alert('金額を入力してください');return;}
+  if(!amount){showToast('⚠️ 金額を入力してください');return;}
   const iconId=UI.selEmoji||'other';
   const emojiName=UI.selEmojiName||(UI.txType==='income'?'収入':'支出');
   const memo=document.getElementById('f-memo').value||emojiName;
   const memo2=document.getElementById('f-memo2').value||'';
   const date=document.getElementById('f-date').value;
-  if(!date){alert('日付を選択してください');return;}
+  if(!date){showToast('⚠️ 日付を選択してください');return;}
 
   // 保存先ユーザー・帳簿を決定
   let targetUser, ledger;
@@ -1649,7 +1649,7 @@ function addTx(){
     const destUserId=document.getElementById('f-dest-user')?.value;
     const destLedgerId=document.getElementById('f-dest-ledger')?.value;
     targetUser=DB.users.find(x=>x.id===destUserId);
-    if(!targetUser){alert('保存先ユーザーを選択してください');return;}
+    if(!targetUser){showToast('⚠️ 保存先ユーザーを選択してください');return;}
     ledger=destLedgerId||targetUser.ledgers[0]?.id;
   } else {
     targetUser=activeUser();
@@ -1663,7 +1663,7 @@ function addTx(){
   if(UI.txType==='expense'){
     tx.payKind=UI.selKind||'cash';
     if((tx.payKind==='bank'||tx.payKind==='card')&&!UI.selPayeeId){
-      alert('支払い先を選択してください');return;
+      showToast('⚠️ 支払い先を選択してください');return;
     }
     tx.payeeId=UI.selPayeeId||null;
   }
@@ -1995,7 +1995,7 @@ function addLedger(){
 function delLedger(id){
   const u=activeUser();
   if(u.ledgers.length<=1){
-    alert('帳簿は最低1つ必要なため削除できません。');
+    showToast('⚠️ 帳簿は最低1つ必要なため削除できません。');
     return;
   }
   if(!confirm('データも削除されますが、帳簿を削除しますか？'))return;
@@ -2211,7 +2211,7 @@ function doExportCSV(){
   const targetLedgerIds = u.ledgers.filter(l=>exportSelLedgers.has(l.id)).map(l=>l.id);
 
   if(targetLedgerIds.length === 0){
-    alert('帳簿を1つ以上選択してください');
+    showToast('⚠️ 帳簿を1つ以上選択してください');
     return;
   }
 
@@ -2225,16 +2225,18 @@ function doExportCSV(){
     if(k==='bank') pName = payeeName(u,'bank',t.payeeId,'');
     if(k==='card') pName = payeeName(u,'card',t.payeeId,'');
     allTx.push([t.date, t.type==='income'?'収入':'支出', t.amount,
-      t.emojiName||t.emoji, t.memo, pLabel, pName, l, u.name]);
+      t.emojiName||t.emoji, t.memo, pLabel, pName, l, u.name, t.memo2||'']);
   });
 
   if(!allTx.length){
-    alert('保存するデータがありません');
+    showToast('⚠️ 保存するデータがありません');
     return;
   }
 
   allTx.sort((a,b)=>a[0].localeCompare(b[0]));
-  const rows = [['日付','種別','金額','カテゴリ','メモ','支払い方法','支払い先','帳簿','ユーザー'], ...allTx];
+  // 5列目は実データが memo（＝アプリ上の「内訳」）なので見出しもそれに合わせる。
+  // 「メモ」(memo2) は既存CSVの列位置を崩さないよう末尾に追加した
+  const rows = [['日付','種別','金額','カテゴリ','内訳','支払い方法','支払い先','帳簿','ユーザー','メモ'], ...allTx];
   const bom = '\uFEFF';
   const csv = bom + rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
@@ -2266,13 +2268,13 @@ function downloadBlob(blob, fname){
 function saveFile(blob, fname, desc, accept, doneMsg){
   if(window.showSaveFilePicker){
     window.showSaveFilePicker({suggestedName:fname, types:[{description:desc, accept}]})
-      .then(async fh=>{const ws=await fh.createWritable(); await ws.write(blob); await ws.close(); if(doneMsg)alert(doneMsg);})
+      .then(async fh=>{const ws=await fh.createWritable(); await ws.write(blob); await ws.close(); if(doneMsg)showToast(doneMsg);})
       .catch(err=>{
         if(err&&err.name==='AbortError')return;     // ユーザーがキャンセルしただけ
-        downloadBlob(blob, fname); if(doneMsg)alert(doneMsg);  // 非対応・内部エラー時は通常DLへ
+        downloadBlob(blob, fname); if(doneMsg)showToast(doneMsg);  // 非対応・内部エラー時は通常DLへ
       });
   }else{
-    downloadBlob(blob, fname); if(doneMsg)alert(doneMsg);
+    downloadBlob(blob, fname); if(doneMsg)showToast(doneMsg);
   }
 }
 
@@ -2319,12 +2321,11 @@ function importBackup(ev){
       if(!confirm(`全体バックアップ（ユーザー${userCount}人 / 取引${txCount}件）で現在のデータをすべて置き換えます。\n今の端末のデータは消えます。よろしいですか？`)){ev.target.value='';return;}
       // localStorageへ書いてリロード → load()のマイグレーションを通して安全に初期化
       localStorage.setItem('kb-v5',JSON.stringify({DB:db,activeUser:db.users[0].id}));
-      alert('✅ 全体を復元しました。画面を更新します。');
-      location.reload();
+      toastThenReload('✅ 全体を復元しました。画面を更新します。');
       return;
     }
-    alert('バックアップファイルの形式が正しくありません');ev.target.value='';
-  },err=>{alert('読み込みエラー：'+err.message);ev.target.value='';});
+    showToast('⚠️ バックアップファイルの形式が正しくありません');ev.target.value='';
+  },err=>{showToast('⚠️ 読み込みエラー：'+err.message);ev.target.value='';});
 }
 // 個人バックアップの復元：同名ユーザーがいれば上書き／いなければ新規作成
 function restoreUserBackup(imp){
@@ -2339,8 +2340,7 @@ function restoreUserBackup(imp){
   if(idx>=0){ DB.users[idx]=imp; } else { DB.users.push(imp); }
   DB.activeUser=imp.id;
   save();
-  alert(`✅ 「${imp.name}」を復元しました。画面を更新します。`);
-  location.reload();
+  toastThenReload(`✅ 「${imp.name}」を復元しました。画面を更新します。`);
 }
 
 function importCSV(ev){
@@ -2353,7 +2353,8 @@ function importCSV(ev){
       for(let i=1;i<lines.length;i++){
         const cols=parseCSV(lines[i]);
         if(cols.length<5)continue;
-        const[dateRaw,typeStr,amtStr,catName,memo,payLabel='',payeeName='',ledgerName='']=cols;
+        // 末尾2列は後から追加したもの。列が無い古いCSVでも既定値''で読み込める
+        const[dateRaw,typeStr,amtStr,catName,memo,payLabel='',payeeName='',ledgerName='',userName='',memo2='']=cols;
         const date=normalizeDate(dateRaw);                                // Excelのスラッシュ日付等を正規化
         const amount=parseInt(String(amtStr).replace(/[^\d-]/g,''))||0;    // カンマ・¥等を除去
         if(!amount||!date)continue;
@@ -2363,7 +2364,7 @@ function importCSV(ev){
         const cats=ledgerObj?.customCats?.[type]||(type==='income'?DEFAULT_INC_CATS:DEFAULT_EXP_CATS);
         const cat=cats.find(c=>c.n===catName);
         const iconId=cat?resolveIconId(cat):'other';
-        rows.push({date,type,amount,catName,memo:memo||catName,iconId,payLabel,payeeName,ledger});
+        rows.push({date,type,amount,catName,memo:memo||catName,memo2,iconId,payLabel,payeeName,ledger});
       }
       if(!rows.length){showToast('⚠️ 取り込めるデータがありませんでした');ev.target.value='';return;}
       pendingCSV=rows;
@@ -2403,7 +2404,7 @@ function doImportCSV(mode){
     let payKind='cash',payeeId=null;
     if(r.payLabel==='銀行'){payKind='bank';if(r.payeeName){let p=u.payees.bank.find(x=>x.name===r.payeeName);if(!p){p={id:'b'+Date.now()+i,name:r.payeeName};u.payees.bank.push(p);}payeeId=p.id;}}
     else if(r.payLabel==='カード'){payKind='card';if(r.payeeName){let p=u.payees.card.find(x=>x.name===r.payeeName);if(!p){p={id:'c'+Date.now()+i,name:r.payeeName};u.payees.card.push(p);}payeeId=p.id;}}
-    u.transactions.push({id:newTxId(i),ledger:r.ledger,type:r.type,amount:r.amount,iconId:r.iconId,emoji:r.iconId,emojiName:r.catName,memo:r.memo,date:r.date,payKind,payeeId});
+    u.transactions.push({id:newTxId(i),ledger:r.ledger,type:r.type,amount:r.amount,iconId:r.iconId,emoji:r.iconId,emojiName:r.catName,memo:r.memo,memo2:r.memo2||'',date:r.date,payKind,payeeId});
     seen.add(dupKey(r));
     added++;
   });
@@ -2445,8 +2446,7 @@ function clearAll(){
   if(!confirm('⚠️ 全データを削除します。取り消せません。\nCSVエクスポートを先に行ってください。'))return;
   // 保存データを消してリロード → 冒頭のデフォルトDB＋load()の初期化パスに一本化
   localStorage.removeItem('kb-v5');
-  alert('削除しました');
-  location.reload();
+  toastThenReload('🗑️ 削除しました');
 }
 
 /* =========================================================
@@ -2523,11 +2523,11 @@ function pickTxEditPayee(id){
 }
 function saveTxEdit(){
   const amount=parseAmountInput('te-amount');
-  if(!amount){alert('金額を入力してください');return;}
+  if(!amount){showToast('⚠️ 金額を入力してください');return;}
   const memo=document.getElementById('te-memo').value;
   const memo2=document.getElementById('te-memo2').value||'';
   const date=document.getElementById('te-date').value;
-  if(!date){alert('日付を選択してください');return;}
+  if(!date){showToast('⚠️ 日付を選択してください');return;}
   const ledger=document.getElementById('te-ledger').value;
   const u=findTxOwner(UI.editingTxId);  // No.0モード対応
   const t=u.transactions.find(x=>x.id===UI.editingTxId);if(!t)return;
@@ -2541,7 +2541,7 @@ function saveTxEdit(){
   t.emojiName=UI.txEditEmojiName||t.emojiName;
   if(UI.txEditType==='expense'){
     t.payKind=UI.txEditKind||'cash';
-    if((t.payKind==='bank'||t.payKind==='card')&&!UI.txEditPayeeId){alert('支払い先を選択してください');return;}
+    if((t.payKind==='bank'||t.payKind==='card')&&!UI.txEditPayeeId){showToast('⚠️ 支払い先を選択してください');return;}
     t.payeeId=UI.txEditPayeeId||null;
   } else {
     t.payKind=null;t.payeeId=null;
@@ -2908,7 +2908,7 @@ function pickCatEmoji(id,gridId){
 
 function addCat(){
   const name=document.getElementById('nc-catname').value.trim();
-  if(!name){alert('費目名を入力してください');return;}
+  if(!name){showToast('⚠️ 費目名を入力してください');return;}
   const iconId=UI.selCatEmoji||'other';
   ensureLedgerCats(catMgrLedgerObj())[UI.catTab].push({id:iconId,n:name});
   document.getElementById('nc-catname').value='';
@@ -3117,7 +3117,7 @@ function pickCatEditEmoji(id){
 
 function saveCatEdit(){
   const name=document.getElementById('ce-name').value.trim();
-  if(!name){alert('費目名を入力してください');return;}
+  if(!name){showToast('⚠️ 費目名を入力してください');return;}
   const defaultColor=CAT_ICONS[UI.catEditSelEmoji]?.color||'#8D8D8D';
   const cat={id:UI.catEditSelEmoji||'other',n:name};
   if(UI.catEditSelColor && UI.catEditSelColor.toLowerCase()!==defaultColor.toLowerCase()){
@@ -3131,9 +3131,11 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.24';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.26';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
+// 完了を知らせてから画面を作り直す。トーストは非ブロッキングなので、読める時間だけ待ってreloadする
+function toastThenReload(msg){showToast(msg);setTimeout(()=>location.reload(),1400);}
 function showToast(msg, type='', duration=3000){
   const el=document.getElementById('toast');
   el.textContent=msg;
@@ -3473,7 +3475,7 @@ async function _pinSubmit(){
         secState.pinHash=await pinHashOf(pin,secState.pinSalt);
         secState.failCount=0;secState.lockedUntil=0;
         saveSecCfg();closePinSetup();hidePinScreen();
-        updateSecurityUI();alert('PINを設定しました');
+        updateSecurityUI();showToast('✅ PINを設定しました');
       } else {
         pinFlashError();
         secState.pinInput='';secState.setupStep=0;secState.setupFirst='';
@@ -3485,7 +3487,7 @@ async function _pinSubmit(){
     if(await verifyPin(pin)){
       secState.pinHash=null;secState.pinSalt=null;secState.failCount=0;secState.lockedUntil=0;
       saveSecCfg();closePinSetup();hidePinScreen();
-      updateSecurityUI();alert('PINロックを解除しました');
+      updateSecurityUI();showToast('✅ PINロックを解除しました');
     } else {
       pinResetAfterError();
     }
@@ -4426,7 +4428,7 @@ function dateselPick(d){
 
 // 決定ボタン
 function confirmDateSel(){
-  if(!dateselD){alert('日付を選択してください');return;}
+  if(!dateselD){showToast('⚠️ 日付を選択してください');return;}
   if(!ctxTxId){closeDateSel();return;}
   const u=activeUser();
   const t=u.transactions.find(x=>x.id===ctxTxId);

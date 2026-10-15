@@ -359,12 +359,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   .cat-btn .cat-icon-wrap svg{width:22px;height:22px}
   .cat-btn{padding:4px 2px;gap:3px}
   .cat-btn span.cn{font-size:8px}
-  .cat-grid{grid-template-columns:repeat(7,1fr)!important;gap:2px}
+  .cat-grid{grid-template-columns:repeat(7,1fr);gap:2px}
 }
 @media(min-width:680px){
   .cat-btn .cat-icon-wrap{width:28px;height:28px}
   .cat-btn .cat-icon-wrap svg{width:19px;height:19px}
-  .cat-grid{grid-template-columns:repeat(9,1fr)!important;gap:2px}
+  .cat-grid{grid-template-columns:repeat(9,1fr);gap:2px}
 }
 /* アイコンSVG描画品質向上 */
 .cat-icon-wrap svg,.isb-inner svg{shape-rendering:geometricPrecision;text-rendering:optimizeLegibility}
