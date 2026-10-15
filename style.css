@@ -24,7 +24,7 @@
 body.locked .app,.locked .user-drawer{filter:blur(8px);pointer-events:none;user-select:none}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --pri:#2EBD8F;--pri-d:#239870;--pri-l:#E8F8F3;--pri-ll:#F2FCF8;
+  --pri:#2EBD8F;--pri-d:#239870;--pri-l:#E8F8F3;
   --red:#E05252;--red-l:#FDF0F0;
   --blue:#3B82C4;--blue-l:#EEF5FC;
   --orange:#E07B2E;--orange-l:#FDF4EC;
@@ -46,7 +46,7 @@ body.locked .app,.locked .user-drawer{filter:blur(8px);pointer-events:none;user-
     --bg-card-tr:rgba(30,37,48,0.9);
     --text:#E8EDF5;--text-sub:#8A97AA;--text-hint:#4A5568;
     --border:#2A3340;--border-l:#232B36;
-    --pri-l:#0D3328;--pri-ll:#0A2820;
+    --pri-l:#0D3328;
     --red-l:#2D1515;--blue-l:#132038;--orange-l:#2D1E0D;
   }
 }
@@ -255,11 +255,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .cal-day{border-radius:var(--r8);min-height:50px;min-width:0;display:flex;flex-direction:column;align-items:center;padding:3px 2px;cursor:pointer;transition:background 0.1s}
 .cal-day:active{background:var(--border-l)}
 .cal-day.other .day-n{color:var(--text-hint)}
-.cal-day.selected{background:var(--pri-ll);outline:2px solid var(--pri);outline-offset:-2px}
 .cal-day.sun .day-n{color:#E05252}.cal-day.sat .day-n{color:#2F80D8}
-/* 数字色の優先順: 曜日色 < 選択日(標準色) < 今日(白丸)。青テーマで土曜が同化するのを防ぐ */
-.cal-day.selected .day-n{color:var(--text)}
-.cal-day.today .day-n{background:var(--pri);color:#fff;border-radius:50%}
+/* ○フォーカスは常に1つだけ（選択日。未選択なら当日）。曜日色より後に置いて白丸を優先させる */
+.cal-day.focus .day-n{background:var(--pri);color:#fff;border-radius:50%}
 .day-n{font-size:12px;font-weight:600;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin-bottom:2px}
 .day-amounts{display:flex;flex-direction:column;align-items:center;gap:0;width:100%}
 .day-amt{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.4;text-align:center}
@@ -352,10 +350,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .amount-yen{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text-sub);font-weight:700}
 .cat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:4px}
 .cat-btn{border-radius:var(--r12);border:1.5px solid transparent;background:transparent;cursor:pointer;display:flex;align-items:center;flex-direction:column;gap:5px;padding:8px 4px;transition:all 0.12s}
-.cat-btn .cat-icon-wrap{width:44px;height:44px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;transition:all 0.12s;flex:none}
-.cat-btn .cat-icon-wrap svg{width:30px;height:30px}
+.cat-btn .cat-icon-wrap{width:44px;height:44px;border-radius:10px;background:var(--bg-card);border:none;display:flex;align-items:center;justify-content:center;flex:none;transition:all 0.12s;flex:none}
+.cat-btn .cat-icon-wrap svg{width:30px;height:30px;flex:none}
 .cat-btn span.cn{font-size:9px;color:var(--text-sub);line-height:1.2;text-align:center;word-break:keep-all}
-.cat-btn.sel .cat-icon-wrap{border-color:transparent;box-shadow:none}
 .cat-btn.sel span.cn{color:var(--pri);font-weight:700}
 @media(min-width:480px){.isb{max-width:54px}
   .cat-btn .cat-icon-wrap{width:32px;height:32px}

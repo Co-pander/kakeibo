@@ -4,31 +4,31 @@
 ========================================================= */
 const THEMES=[
   /* ── パステル（淡・グラデーション） ── */
-  {id:'mint',     name:'ミント',     g1:'#7ECFC0',g2:'#A8E6D8',pri:'#5DBBAA',prid:'#3FA090',pril:'#E4F7F4',prill:'#F0FBF9',icon:'🌿'},
-  {id:'sky',      name:'スカイ',     g1:'#7AB8E8',g2:'#A8D4F5',pri:'#5BA3D9',prid:'#4487BD',pril:'#E3F2FC',prill:'#F0F8FE',icon:'☁️'},
-  {id:'lavender', name:'ラベンダー', g1:'#B0A4EE',g2:'#CEC6F7',pri:'#9B8EE8',prid:'#7D6FD4',pril:'#EEEBFB',prill:'#F6F4FF',icon:'💜'},
-  {id:'rose',     name:'ローズ',     g1:'#EEA0B8',g2:'#F7C4D4',pri:'#E88EA8',prid:'#D0708D',pril:'#FDEDF2',prill:'#FEF5F8',icon:'🌸'},
-  {id:'peach',    name:'ピーチ',     g1:'#F2B48E',g2:'#F7CEB0',pri:'#EEA07A',prid:'#D9855A',pril:'#FDEFEA',prill:'#FEF6F2',icon:'🍑'},
-  {id:'butter',   name:'バター',     g1:'#E2CC6A',g2:'#EEE099',pri:'#D4B84A',prid:'#BA9E35',pril:'#FAF4D6',prill:'#FEFAEE',icon:'🌼'},
-  {id:'sage',     name:'セージ',     g1:'#96CC98',g2:'#BAE0BB',pri:'#7BBD7E',prid:'#5EA364',pril:'#E7F5E8',prill:'#F2FAF2',icon:'🍃'},
-  {id:'powder',   name:'パウダー',   g1:'#94BEF0',g2:'#BBDAF7',pri:'#7AAEE8',prid:'#5C93D4',pril:'#E6F1FD',prill:'#F2F8FE',icon:'🫐'},
-  {id:'lilac',    name:'ライラック', g1:'#CFA4E8',g2:'#E2C4F5',pri:'#C48EE0',prid:'#A870CA',pril:'#F5ECFC',prill:'#FAF4FF',icon:'🪻'},
-  {id:'coral',    name:'コーラル',   g1:'#F0A090',g2:'#F7C0B2',pri:'#EE8877',prid:'#D96E5D',pril:'#FDECEA',prill:'#FEF5F3',icon:'🪸'},
-  {id:'aqua',     name:'アクア',     g1:'#7AD4E0',g2:'#A8E8F0',pri:'#56C4D4',prid:'#3AABB8',pril:'#E2F7FA',prill:'#EFF9FB',icon:'🐳'},
-  {id:'mauve',    name:'モーブ',     g1:'#C4A0C8',g2:'#DCC0E0',pri:'#B48CB8',prid:'#9870A0',pril:'#F4EEF6',prill:'#FAF5FB',icon:'🌂'},
+  {id:'mint',     name:'ミント',     g1:'#7ECFC0',g2:'#A8E6D8',pri:'#5DBBAA',prid:'#3FA090',pril:'#E4F7F4',icon:'🌿'},
+  {id:'sky',      name:'スカイ',     g1:'#7AB8E8',g2:'#A8D4F5',pri:'#5BA3D9',prid:'#4487BD',pril:'#E3F2FC',icon:'☁️'},
+  {id:'lavender', name:'ラベンダー', g1:'#B0A4EE',g2:'#CEC6F7',pri:'#9B8EE8',prid:'#7D6FD4',pril:'#EEEBFB',icon:'💜'},
+  {id:'rose',     name:'ローズ',     g1:'#EEA0B8',g2:'#F7C4D4',pri:'#E88EA8',prid:'#D0708D',pril:'#FDEDF2',icon:'🌸'},
+  {id:'peach',    name:'ピーチ',     g1:'#F2B48E',g2:'#F7CEB0',pri:'#EEA07A',prid:'#D9855A',pril:'#FDEFEA',icon:'🍑'},
+  {id:'butter',   name:'バター',     g1:'#E2CC6A',g2:'#EEE099',pri:'#D4B84A',prid:'#BA9E35',pril:'#FAF4D6',icon:'🌼'},
+  {id:'sage',     name:'セージ',     g1:'#96CC98',g2:'#BAE0BB',pri:'#7BBD7E',prid:'#5EA364',pril:'#E7F5E8',icon:'🍃'},
+  {id:'powder',   name:'パウダー',   g1:'#94BEF0',g2:'#BBDAF7',pri:'#7AAEE8',prid:'#5C93D4',pril:'#E6F1FD',icon:'🫐'},
+  {id:'lilac',    name:'ライラック', g1:'#CFA4E8',g2:'#E2C4F5',pri:'#C48EE0',prid:'#A870CA',pril:'#F5ECFC',icon:'🪻'},
+  {id:'coral',    name:'コーラル',   g1:'#F0A090',g2:'#F7C0B2',pri:'#EE8877',prid:'#D96E5D',pril:'#FDECEA',icon:'🪸'},
+  {id:'aqua',     name:'アクア',     g1:'#7AD4E0',g2:'#A8E8F0',pri:'#56C4D4',prid:'#3AABB8',pril:'#E2F7FA',icon:'🐳'},
+  {id:'mauve',    name:'モーブ',     g1:'#C4A0C8',g2:'#DCC0E0',pri:'#B48CB8',prid:'#9870A0',pril:'#F4EEF6',icon:'🌂'},
   /* ── ビビッド系（鮮やか・グラデーション） ── */
-  {id:'green',    name:'グリーン',   g1:'#3ECF9C',g2:'#7DE0BF',pri:'#2EBD8F',prid:'#239870',pril:'#E4F8F2',prill:'#F0FCF8',icon:'✅'},
-  {id:'blue',     name:'ブルー',     g1:'#4E90D4',g2:'#82B8E8',pri:'#3B82C4',prid:'#2F6EA8',pril:'#E6F2FB',prill:'#F0F8FE',icon:'🔵'},
-  {id:'purple',   name:'パープル',   g1:'#9B6CF8',g2:'#C4A0FC',pri:'#8B5CF6',prid:'#7C3AED',pril:'#F0EAFF',prill:'#F7F4FF',icon:'🔮'},
-  {id:'pink',     name:'ピンク',     g1:'#F05AA8',g2:'#F79CCE',pri:'#EC4899',prid:'#DB2777',pril:'#FDE8F3',prill:'#FEF3F9',icon:'💗'},
-  {id:'orange',   name:'オレンジ',   g1:'#FC8830',g2:'#FCBA80',pri:'#F97316',prid:'#EA6D0D',pril:'#FEF0E3',prill:'#FEF7F0',icon:'🍊'},
-  {id:'teal',     name:'ティール',   g1:'#20C8B4',g2:'#60DED0',pri:'#14B8A6',prid:'#0D9488',pril:'#E0FBF8',prill:'#EDFCFA',icon:'🦋'},
-  {id:'indigo',   name:'インディゴ', g1:'#7476F4',g2:'#A8A8F8',pri:'#6366F1',prid:'#4F46E5',pril:'#EBEBFF',prill:'#F3F4FF',icon:'🌌'},
-  {id:'amber',    name:'アンバー',   g1:'#FCAB18',g2:'#FCCC60',pri:'#F59E0B',prid:'#D97706',pril:'#FEF6D8',prill:'#FFFAEC',icon:'🌟'},
+  {id:'green',    name:'グリーン',   g1:'#3ECF9C',g2:'#7DE0BF',pri:'#2EBD8F',prid:'#239870',pril:'#E4F8F2',icon:'✅'},
+  {id:'blue',     name:'ブルー',     g1:'#4E90D4',g2:'#82B8E8',pri:'#3B82C4',prid:'#2F6EA8',pril:'#E6F2FB',icon:'🔵'},
+  {id:'purple',   name:'パープル',   g1:'#9B6CF8',g2:'#C4A0FC',pri:'#8B5CF6',prid:'#7C3AED',pril:'#F0EAFF',icon:'🔮'},
+  {id:'pink',     name:'ピンク',     g1:'#F05AA8',g2:'#F79CCE',pri:'#EC4899',prid:'#DB2777',pril:'#FDE8F3',icon:'💗'},
+  {id:'orange',   name:'オレンジ',   g1:'#FC8830',g2:'#FCBA80',pri:'#F97316',prid:'#EA6D0D',pril:'#FEF0E3',icon:'🍊'},
+  {id:'teal',     name:'ティール',   g1:'#20C8B4',g2:'#60DED0',pri:'#14B8A6',prid:'#0D9488',pril:'#E0FBF8',icon:'🦋'},
+  {id:'indigo',   name:'インディゴ', g1:'#7476F4',g2:'#A8A8F8',pri:'#6366F1',prid:'#4F46E5',pril:'#EBEBFF',icon:'🌌'},
+  {id:'amber',    name:'アンバー',   g1:'#FCAB18',g2:'#FCCC60',pri:'#F59E0B',prid:'#D97706',pril:'#FEF6D8',icon:'🌟'},
   /* ── ピンク〜赤系（淡→濃の5色グラデーション用に追加） ── */
-  {id:'sakura',   name:'さくら',     g1:'#F6B8D2',g2:'#FBDBE8',pri:'#F2A6C6',prid:'#E283AC',pril:'#FEF0F6',prill:'#FFF8FB',icon:'🌷'},
-  {id:'raspberry',name:'ラズベリー', g1:'#E85A85',g2:'#F195B3',pri:'#DB3B6E',prid:'#BC2856',pril:'#FCE8EF',prill:'#FEF3F7',icon:'🍓'},
-  {id:'red',      name:'レッド',     g1:'#E85C5C',g2:'#F29494',pri:'#D42B36',prid:'#B91C24',pril:'#FCEAEA',prill:'#FEF4F4',icon:'❤️'},
+  {id:'sakura',   name:'さくら',     g1:'#F6B8D2',g2:'#FBDBE8',pri:'#F2A6C6',prid:'#E283AC',pril:'#FEF0F6',icon:'🌷'},
+  {id:'raspberry',name:'ラズベリー', g1:'#E85A85',g2:'#F195B3',pri:'#DB3B6E',prid:'#BC2856',pril:'#FCE8EF',icon:'🍓'},
+  {id:'red',      name:'レッド',     g1:'#E85C5C',g2:'#F29494',pri:'#D42B36',prid:'#B91C24',pril:'#FCEAEA',icon:'❤️'},
 ];
 const DEFAULT_THEME='green';
 
@@ -426,10 +426,8 @@ function applyTheme(themeId){
     // ダークモード：ライト用の淡色HEXで上書きすると白浮きするため、
     // テーマ色を暗背景(#121820)に溶かした色を生成して使う
     r.setProperty('--pri-l',_mixHex(t.pri,'#121820',0.22));
-    r.setProperty('--pri-ll',_mixHex(t.pri,'#121820',0.13));
   }else{
     r.setProperty('--pri-l',t.pril);
-    r.setProperty('--pri-ll',t.prill);
   }
   document.getElementById('meta-theme').setAttribute('content',t.pri);
 }
@@ -731,9 +729,10 @@ function renderCalendar(){
   for(let i=0;i<first;i++)h+=`<div class="cal-day other"><div class="day-n"></div></div>`;
   for(let d=1;d<=days;d++){
     const dow=(first+d-1)%7;
-    const isT=today.getFullYear()===yr&&today.getMonth()===mo&&today.getDate()===d;
-    const isS=UI.selDay===d;
-    const cls=(dow===0?' sun':dow===6?' sat':'')+(isT?' today':'')+(isS?' selected':'');
+    // ○フォーカスは1つだけ：日を選んでいればその日、未選択なら当日
+    const isToday=today.getFullYear()===yr&&today.getMonth()===mo&&today.getDate()===d;
+    const isFocus=UI.selDay!=null?UI.selDay===d:isToday;
+    const cls=(dow===0?' sun':dow===6?' sat':'')+(isFocus?' focus':'');
     const v=dm[d]||{};
     h+=`<div class="cal-day${cls}" onclick="selDay(${d})">
       <div class="day-n">${d}</div>
@@ -1097,7 +1096,7 @@ function billingHTML(e){
   const cardName=payeeName(u,'card',e.payeeId,e.cardName||'カード');
   // 請求ベース：カード請求は実際の支払い＝通常字で表示
   return `<div class="tx-item">
-    <div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none;font-size:20px">💳</div>
+    <div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);display:flex;align-items:center;justify-content:center;flex:none;font-size:24px">💳</div>
     <div class="tx-info">
       <div class="tx-name">クレジット請求</div>
       <div class="tx-meta">
@@ -1117,8 +1116,8 @@ function txHTML(t, billed){
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
   // アイコンは費目のカスタム色（取引の帳簿の設定を優先）で表示。グラフ・費目管理と揃える
   const color=catColorOf(t.emojiName||'',iid,t.ledger);
-  const iconEl=`<div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-l);display:flex;align-items:center;justify-content:center;flex:none">
-    <svg viewBox="-2 -2 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
+  const iconEl=`<div style="width:42px;height:42px;border-radius:10px;background:var(--bg-card);display:flex;align-items:center;justify-content:center;flex:none">
+    <svg viewBox="-2 -2 28 28" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
   </div>`;
 
   // メインユーザーの場合、保存先バッジを表示（inputByがある場合＝メインユーザーが入力した取引）
@@ -1585,8 +1584,8 @@ function catBtnHTML(c,isSel,onclickOf){
   const ic=CAT_ICONS[iid]||CAT_ICONS['other'];
   const color=c.color||ic.color;
   return `<button class="cat-btn${isSel?' sel':''}" onclick="${onclickOf(iid,c.n,color)}" style="${isSel?'border-color:'+color:''}">
-    <div class="cat-icon-wrap" style="width:44px;height:44px;background:var(--bg-card);border:1px solid ${isSel?'transparent':'var(--border-l)'};display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none">
-      <svg viewBox="-1 -1 26 26" style="width:30px;height:30px;flex:none" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
+    <div class="cat-icon-wrap">
+      <svg viewBox="-1 -1 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">${svgColored(ic.svg,color)}</svg>
     </div>
     <span class="cn">${esc(c.n)}</span>
   </button>`;
@@ -3132,7 +3131,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.23';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.24';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 function showToast(msg, type='', duration=3000){
