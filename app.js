@@ -278,11 +278,19 @@ function syncMemoToCat(inputId,newName,prevName){
 function payeeOf(u,kind,payeeId){return (u?.payees?.[kind]||[]).find(p=>p.id===payeeId);}
 // 支払い先の表示名（未登録なら fallback）
 function payeeName(u,kind,payeeId,fallback){return payeeOf(u,kind,payeeId)?.name||fallback;}
+// 支払い方法。このオブジェクトの並び順がそのまま画面の並び順になる
 const PAY_META={
   cash:{icon:'💴',label:'現金',cls:'pb-cash',chipCls:'cash',barcol:'#E07B2E'},
+  prepaid:{icon:'🎫',label:'プリペイド',cls:'pb-prepaid',chipCls:'prepaid',barcol:'#26A69A'},
   bank:{icon:'🏦',label:'銀行',cls:'pb-bank',chipCls:'bank',barcol:'#3B82C4'},
   card:{icon:'💳',label:'カード',cls:'pb-card',chipCls:'card',barcol:'#E05252'}
 };
+// 支払い先（名称）を登録する種別か。現金だけが登録先を持たない
+function hasPayee(k){return !!k&&k!=='cash';}
+// 名前だけ登録する種別（カードは締め日・請求日があるので専用の編集画面）
+const NAME_ONLY_PAYEES=['prepaid','bank'];
+// 支払い先の表示名（登録が消えていても種別名でフォールバック）
+function payeeLabelOf(u,k,payeeId){return hasPayee(k)?payeeName(u,k,payeeId,PAY_META[k].label):PAY_META[k].label;}
 
 /* =========================================================
    状態
@@ -292,7 +300,7 @@ let DB={
   users:[
     {id:'u1',name:'ユーザー',avatar:'person',theme:'green',
      ledgers:[{id:'l1',name:'家計',theme:null}],
-     payees:{bank:[],card:[]},transactions:[]}
+     payees:{prepaid:[],bank:[],card:[]},transactions:[]}
   ],
   activeUser:'u1',
   mainUser:{           // ユーザーNo.0（マスター）
@@ -351,7 +359,9 @@ function load(){
   // 既存の履歴は各帳簿に引き継ぐ（移行後は共有履歴を削除）
   const _legacyHist=DB.memoHistory;
   DB.users.forEach(u=>{
-    if(!u.payees)u.payees={bank:[],card:[]};
+    if(!u.payees)u.payees={prepaid:[],bank:[],card:[]};
+    // 既存データ向け：後から追加した種別を補う
+    Object.keys(PAY_META).forEach(k=>{if(k!=='cash'&&!u.payees[k])u.payees[k]=[];});
     if(!u.transactions)u.transactions=[];
     if(!u.ledgers)u.ledgers=[{id:'l1',name:'家計',theme:null}];
     // migration: ユーザーレベルのcustomCatsを最初の帳簿に移行
@@ -543,6 +553,7 @@ function renderAll(){
   renderChart();
   renderCalInfoBar();
   // 帳票タブ：No.0では非表示。表示中なら最新化
+  syncStickyHeads();
   const shBtn=document.getElementById('navBtn-sheet');
   if(shBtn)shBtn.style.display=UI.isMainMode?'none':'';
   if(typeof currentTab!=='undefined'&&currentTab==='sheet'){
@@ -602,7 +613,9 @@ function renderSummary(){
   const u=activeUser();
   document.getElementById('month-label').textContent=`${UI.year}年${UI.month+1}月`;
 
-  let inc=0,exp=0,cashAmt=0,cardAmt=0,bankAmt=0;
+  let inc=0,exp=0;
+  const byKind={};   // 支払い種別ごとの支出。PAY_META を回すので種別追加に自動追従する
+  Object.keys(PAY_META).forEach(k=>byKind[k]=0);
   // 請求ベース集計：カードは請求月で計上（利用月は計上しない）。現金・銀行は取引日で計上。
   const mk=ymKey(UI.year,UI.month);
   const tally=(usr,txs)=>{
@@ -610,9 +623,8 @@ function renderSummary(){
       if(!effDateOf(t,usr).startsWith(mk))return;
       if(t.type==='income'){inc+=t.amount;return;}
       exp+=t.amount;
-      if(t.payKind==='card')cardAmt+=t.amount;
-      else if(t.payKind==='bank')bankAmt+=t.amount;
-      else cashAmt+=t.amount;
+      const pk=PAY_META[t.payKind]?t.payKind:'cash';
+      byKind[pk]+=t.amount;
     });
   };
   if(UI.isMainMode){
@@ -626,9 +638,10 @@ function renderSummary(){
   document.getElementById('s-exp').textContent=fmt(exp);
   const be=document.getElementById('s-bal');
   be.textContent=sfmt(bal);be.className='s2-val '+(bal>=0?'bal':'exp');
-  document.getElementById('s-cash').textContent=fmt(cashAmt);
-  document.getElementById('s-card').textContent=fmt(cardAmt);
-  document.getElementById('s-bank').textContent=fmt(bankAmt);
+  // 内訳行は PAY_META の並び順で描画（現金→プリペイド→銀行→カード）
+  const brk=document.getElementById('s2-break');
+  if(brk)brk.innerHTML=Object.entries(PAY_META).map(([k,m])=>
+    `<div class="s2-bline"><span class="s2-blbl">${m.label}</span><span class="s2-bval ${m.chipCls}">${fmt(byKind[k])}</span></div>`).join('');
   const carry=carryoverBefore(UI.year,UI.month);
   // 収支(繰越含む)＝当月の収支＋前月繰越。繰越ONの帳簿のみ表示（繰越額0の初月も表示）。
   // カレンダー下部サマリーの残高と同じ値になる（下部は選択日までの累計なので、
@@ -669,6 +682,17 @@ function applySummaryBreakState(){
 function fbBtn(key,label){
   return `<button class="fb-btn${UI.payFilter===key?' active':''}" onclick="setFilter('${key}')">${label}</button>`;
 }
+// 上部固定の段積み用に、トップバーと帳簿バーの実測高さをCSS変数へ渡す。
+// セーフエリアや帳簿バーの表示/非表示で変わるため、描画のたびに取り直す
+function syncStickyHeads(){
+  const h=id=>{const el=document.getElementById(id);return el?Math.round(el.getBoundingClientRect().height):0;};
+  const st=document.documentElement.style;
+  st.setProperty('--h-top', h('topbar')+'px');
+  st.setProperty('--h-led', h('ledger-bar')+'px');
+}
+addEventListener('resize', syncStickyHeads);
+addEventListener('orientationchange', syncStickyHeads);
+
 function renderFilterBar(){
   const el=document.getElementById('filter-bar');
   if(!el)return;
@@ -679,9 +703,11 @@ function renderFilterBar(){
     return;
   }
   const u=activeUser();
-  h+=fbBtn('cash','💴 現金');
-  u.payees.bank.forEach(b=>{h+=fbBtn(`bank:${b.id}`,`🏦 ${esc(b.name)}`);});
-  u.payees.card.forEach(c=>{h+=fbBtn(`card:${c.id}`,`💳 ${esc(c.name)}`);});
+  h+=fbBtn('cash',`${PAY_META.cash.icon} ${PAY_META.cash.label}`);
+  Object.entries(PAY_META).forEach(([k,m])=>{
+    if(k==='cash')return;
+    (u.payees[k]||[]).forEach(p=>{h+=fbBtn(`${k}:${p.id}`,`${m.icon} ${esc(p.name)}`);});
+  });
   el.innerHTML=h;
 }
 function setFilter(v){UI.payFilter=v;UI.selDay=null;renderFilterBar();renderCalendar();renderTxArea();}
@@ -1150,7 +1176,7 @@ function txHTML(t, billed){
 function payBadge(t){
   const k=t.payKind||'cash';const m=PAY_META[k];if(!m)return '';
   const u=activeUser();
-  let name=(k==='bank'||k==='card')?payeeName(u,k,t.payeeId,m.label):m.label;
+  let name=payeeLabelOf(u,k,t.payeeId);
   return `<span class="pay-badge ${m.cls}">${m.icon} ${esc(name)}</span>`;
 }
 
@@ -1173,12 +1199,16 @@ function payBreakdownFor(yr,mo,scope){
   const payItems=[];
   const cash=effExp.filter(x=>!x.t.payKind||x.t.payKind==='cash').reduce((s,x)=>s+x.t.amount,0);
   if(cash>0)payItems.push({label:'現金',amt:cash,color:'#E07B2E',emoji:'💴'});
-  const bankMap={};
-  effExp.filter(x=>x.t.payKind==='bank').forEach(x=>{
-    const c=payeeOf(x.usr,'bank',x.t.payeeId);
-    const k=x.t.payeeId||'bank';(bankMap[k]=bankMap[k]||{name:c?c.name:'銀行',amt:0}).amt+=x.t.amount;
+  // 名前付きの支払い先（プリペイド・銀行）は登録先ごとに積み上げる。カードは請求ベースなので後段で別処理
+  NAME_ONLY_PAYEES.forEach(kind=>{
+    const m=PAY_META[kind], map={};
+    effExp.filter(x=>x.t.payKind===kind).forEach(x=>{
+      const c=payeeOf(x.usr,kind,x.t.payeeId);
+      const key=x.t.payeeId||kind;
+      (map[key]=map[key]||{name:c?c.name:m.label,amt:0}).amt+=x.t.amount;
+    });
+    Object.values(map).forEach(b=>{if(b.amt>0)payItems.push({label:b.name,amt:b.amt,color:m.barcol,emoji:m.icon});});
   });
-  Object.values(bankMap).forEach(b=>{if(b.amt>0)payItems.push({label:b.name,amt:b.amt,color:'#3B82C4',emoji:'🏦'});});
   const cardBill={};
   effExp.filter(x=>x.t.payKind==='card').forEach(x=>{
     const c=payeeOf(x.usr,'card',x.t.payeeId);
@@ -1449,7 +1479,7 @@ function saveUser(){
     const id='u'+Date.now();
     const newU={id,name,avatar:avatarId,theme:UI.selThemeId,
       ledgers:[{id:'l'+Date.now(),name:'家計',theme:null}],
-      payees:{bank:[],card:[]},transactions:[]};
+      payees:{prepaid:[],bank:[],card:[]},transactions:[]};
     DB.users.push(newU);
   }
   closeUserEdit();save();renderAll();
@@ -1562,10 +1592,11 @@ function setTypeToggleUI(prefix,type){
   set('tb-exp',type==='expense'?' a-exp':'');
 }
 function setPayKindUI(prefix,k){
-  const set=(id,cls)=>{const el=document.getElementById(prefix+id);if(el)el.className='pk-btn'+cls;};
-  set('pk-cash',k==='cash'?' sel-cash':'');
-  set('pk-bank',k==='bank'?' sel-bank':'');
-  set('pk-card',k==='card'?' sel-card':'');
+  // PAY_META を回すので、支払い種別を増やしてもここは直さなくてよい
+  Object.keys(PAY_META).forEach(kind=>{
+    const el=document.getElementById(prefix+'pk-'+kind);
+    if(el)el.className='pk-btn'+(k===kind?' sel-'+kind:'');
+  });
 }
 function setType(t){
   UI.txType=t;UI.selEmoji=null;UI.selEmojiName=null;UI.selKind='cash';UI.selPayeeId=null;
@@ -1623,8 +1654,8 @@ function selectKind(k){
     u=DB.users.find(x=>x.id===uid)||u;
   }
   const list=u.payees[k]||[];
-  if(!list.length){wrap.classList.add('hidden');showToast(`⚠️ 先に「💳」から${k==='bank'?'銀行口座':'クレジットカード'}を登録してください`);return;}
-  document.getElementById('f-payee-lbl').textContent=k==='bank'?'🏦 口座を選択':'💳 カードを選択';
+  if(!list.length){wrap.classList.add('hidden');showToast(`⚠️ 先に「💳」から${PAY_META[k].label}を登録してください`);return;}
+  document.getElementById('f-payee-lbl').textContent=`${PAY_META[k].icon} ${PAY_META[k].label}を選択`;
   document.getElementById('f-payee-chips').innerHTML=list.map(p=>`<button class="payee-chip" id="py-${p.id}" onclick="pickPayee('${p.id}')">${esc(p.name)}</button>`).join('');
   wrap.classList.remove('hidden');
 }
@@ -1662,7 +1693,7 @@ function addTx(){
   };
   if(UI.txType==='expense'){
     tx.payKind=UI.selKind||'cash';
-    if((tx.payKind==='bank'||tx.payKind==='card')&&!UI.selPayeeId){
+    if(hasPayee(tx.payKind)&&!UI.selPayeeId){
       showToast('⚠️ 支払い先を選択してください');return;
     }
     tx.payeeId=UI.selPayeeId||null;
@@ -1841,11 +1872,11 @@ function wizRenderPayees(){
   const wrap=document.getElementById('wz-payee-wrap');
   const el=document.getElementById('wz-payee-pills');
   const u=wzUser();
-  if(!u||(WZ.payKind!=='bank'&&WZ.payKind!=='card')){wrap.classList.add('hidden');return;}
-  const list=WZ.payKind==='bank'?(u.payees.bank||[]):(u.payees.card||[]);
+  if(!u||!hasPayee(WZ.payKind)){wrap.classList.add('hidden');return;}
+  const list=u.payees[WZ.payKind]||[];
   wrap.classList.remove('hidden');
   el.innerHTML=list.length
-    ? list.map(p=>`<button class="wiz-pill pay ${WZ.payKind==='bank'?'bank':'card'}${WZ.payeeId===p.id?' on':''}" onclick="wizPickPayee('${p.id}')">${esc(p.name)}</button>`).join('')
+    ? list.map(p=>`<button class="wiz-pill pay ${PAY_META[WZ.payKind].chipCls}${WZ.payeeId===p.id?' on':''}" onclick="wizPickPayee('${p.id}')">${esc(p.name)}</button>`).join('')
     : `<div class="csv-note" style="padding:4px 0">登録がありません。「支払い方法」画面から追加してください。</div>`;
 }
 function wizPickPayee(id){WZ.payeeId=id;wizRenderPayees();}
@@ -1864,7 +1895,7 @@ function wizSave(again){
     memo:WZ.memo||WZ.catName, memo2:WZ.memo2, date:WZ.date};
   if(WZ.type==='expense'){
     tx.payKind=WZ.payKind||'cash';
-    if((tx.payKind==='bank'||tx.payKind==='card')&&!WZ.payeeId){showToast('⚠️ 支払い先を選んでください');return;}
+    if(hasPayee(tx.payKind)&&!WZ.payeeId){showToast('⚠️ 支払い先を選んでください');return;}
     tx.payeeId=WZ.payeeId||null;
   }
   u.transactions.push(tx);
@@ -2041,20 +2072,24 @@ function closePayMgr(){closeNavModal('pay-overlay');}
 
 function renderPayUI(){
   const u=activeUser();
-  // 銀行
-  document.getElementById('bank-ui').innerHTML=u.payees.bank.length
-    ?u.payees.bank.map(p=>`
+  const empty=`<div style="font-size:13px;color:var(--text-hint);padding:8px 0">未登録</div>`;
+  // 名前だけの種別（プリペイド・銀行）は中身が同じなので共通で描画
+  NAME_ONLY_PAYEES.forEach(kind=>{
+    const el=document.getElementById(kind+'-ui');
+    if(!el)return;
+    const list=u.payees[kind]||[];
+    el.innerHTML=list.length?list.map(p=>`
       <div class="pay-mgr-item">
-        <span class="mgr-icon">🏦</span>
+        <span class="mgr-icon">${PAY_META[kind].icon}</span>
         <div class="pay-mgr-info">
           <div class="pay-mgr-name">${esc(p.name)}</div>
         </div>
-        <button class="cat-mgr-btn" onclick="openBankEdit('${p.id}')">✏️</button>
-      </div>`).join('')
-    :`<div style="font-size:13px;color:var(--text-hint);padding:8px 0">未登録</div>`;
+        <button class="cat-mgr-btn" onclick="openPayeeEdit('${kind}','${p.id}')">✏️</button>
+      </div>`).join(''):empty;
+  });
 
   // カード
-  document.getElementById('card-ui').innerHTML=u.payees.card.length
+  document.getElementById('card-ui').innerHTML=(u.payees.card||[]).length
     ?u.payees.card.map(p=>{
       const sub=[];
       if(p.closeDay) sub.push(`締め日: ${p.closeDay===31?'末日':p.closeDay+'日'}`);
@@ -2068,40 +2103,47 @@ function renderPayUI(){
         <button class="cat-mgr-btn" onclick="openCardEdit('${p.id}')">✏️</button>
       </div>`;
     }).join('')
-    :`<div style="font-size:13px;color:var(--text-hint);padding:8px 0">未登録</div>`;
+    :empty;
 }
 
 function addPayee(k){
-  const inp=document.getElementById(k==='bank'?'nb-name':'nc-name');
+  const inp=document.getElementById('np-'+k);
   const name=inp.value.trim();if(!name)return;
   const obj={id:k[0]+Date.now(),name};
   if(k==='card'){obj.closeDay='';obj.billingMonth=1;obj.billingDay='';}
-  activeUser().payees[k].push(obj);
+  const u=activeUser();
+  (u.payees[k]||(u.payees[k]=[])).push(obj);
   inp.value='';save();renderPayUI();renderAll();
 }
 
-/* ---- 銀行 編集 ---- */
-let editingBankId=null;
-function openBankEdit(id){
-  const u=activeUser();const p=payeeOf(u,'bank',id);if(!p)return;
-  editingBankId=id;
-  document.getElementById('be-name').value=p.name;
-  showEl('bank-edit-overlay');
+/* ---- プリペイド／銀行 の編集（名前だけなので1つの画面を共用） ---- */
+let editingPayeeKind=null, editingPayeeId=null;
+function openPayeeEdit(kind,id){
+  const u=activeUser();const p=payeeOf(u,kind,id);if(!p)return;
+  editingPayeeKind=kind; editingPayeeId=id;
+  const m=PAY_META[kind];
+  document.getElementById('pe-title').textContent=`${m.icon} ${m.label}を編集`;
+  document.getElementById('pe-lbl').textContent=`${m.label}の名称`;
+  document.getElementById('pe-name').value=p.name;
+  document.getElementById('pe-del').textContent=`🗑️ この${m.label}を削除`;
+  showEl('payee-edit-overlay');
 }
-function closeBankEdit(){hideEl('bank-edit-overlay');editingBankId=null;}
-function saveBankEdit(){
-  const name=document.getElementById('be-name').value.trim();if(!name)return;
-  const u=activeUser();const p=payeeOf(u,'bank',editingBankId);
+function closePayeeEdit(){hideEl('payee-edit-overlay');editingPayeeKind=null;editingPayeeId=null;}
+function savePayeeEdit(){
+  const name=document.getElementById('pe-name').value.trim();
+  if(!name){showToast('⚠️ 名称を入力してください');return;}
+  const p=payeeOf(activeUser(),editingPayeeKind,editingPayeeId);
   if(p)p.name=name;
-  closeBankEdit();save();renderPayUI();renderAll();
+  closePayeeEdit();save();renderPayUI();renderAll();
 }
 // 支払い先（銀行/カード）の削除。その支払い先を使っていた取引は現金に戻す
 function deletePayeeFromEdit(kind){
   if(!confirm('登録情報も消えますが削除しますか？'))return;
   const u=activeUser();
-  const id=kind==='bank'?editingBankId:editingCardId;
-  hideEl(kind+'-edit-overlay');
-  if(kind==='bank')editingBankId=null; else editingCardId=null;
+  const isCard=kind==='card';
+  const id=isCard?editingCardId:editingPayeeId;
+  hideEl(isCard?'card-edit-overlay':'payee-edit-overlay');
+  if(isCard)editingCardId=null; else {editingPayeeKind=null;editingPayeeId=null;}
   u.payees[kind]=(u.payees[kind]||[]).filter(p=>p.id!==id);
   u.transactions.forEach(t=>{if(t.payKind===kind&&t.payeeId===id){t.payKind='cash';t.payeeId=null;}});
   save();renderPayUI();renderAll();
@@ -2402,8 +2444,17 @@ function doImportCSV(mode){
   rows.forEach((r,i)=>{
     if(mode==='merge'&&seen.has(dupKey(r))){skipped++;return;}
     let payKind='cash',payeeId=null;
-    if(r.payLabel==='銀行'){payKind='bank';if(r.payeeName){let p=u.payees.bank.find(x=>x.name===r.payeeName);if(!p){p={id:'b'+Date.now()+i,name:r.payeeName};u.payees.bank.push(p);}payeeId=p.id;}}
-    else if(r.payLabel==='カード'){payKind='card';if(r.payeeName){let p=u.payees.card.find(x=>x.name===r.payeeName);if(!p){p={id:'c'+Date.now()+i,name:r.payeeName};u.payees.card.push(p);}payeeId=p.id;}}
+    // ラベルから種別を特定（PAY_META を引くので種別追加に自動追従。旧CSVの「銀行」「カード」もそのまま通る）
+    const kind=Object.keys(PAY_META).find(x=>PAY_META[x].label===r.payLabel);
+    if(hasPayee(kind)){
+      payKind=kind;
+      if(r.payeeName){
+        const list=u.payees[kind]||(u.payees[kind]=[]);
+        let p=list.find(x=>x.name===r.payeeName);
+        if(!p){p={id:kind[0]+Date.now()+i,name:r.payeeName};list.push(p);}
+        payeeId=p.id;
+      }
+    }
     u.transactions.push({id:newTxId(i),ledger:r.ledger,type:r.type,amount:r.amount,iconId:r.iconId,emoji:r.iconId,emojiName:r.catName,memo:r.memo,memo2:r.memo2||'',date:r.date,payKind,payeeId});
     seen.add(dupKey(r));
     added++;
@@ -2511,7 +2562,7 @@ function setTxEditKindUI(type,k,payeeId,ownerUser=null){
   if(k==='cash'){wrap.classList.add('hidden');return;}
   const u=ownerUser||activeUser();const list=u.payees[k]||[];
   if(!list.length){wrap.classList.add('hidden');return;}
-  document.getElementById('te-payee-lbl').textContent=k==='bank'?'🏦 口座を選択':'💳 カードを選択';
+  document.getElementById('te-payee-lbl').textContent=`${PAY_META[k].icon} ${PAY_META[k].label}を選択`;
   document.getElementById('te-payee-chips').innerHTML=list.map(p=>`<button class="payee-chip${p.id===payeeId?' sel':''}" id="te-py-${p.id}" onclick="pickTxEditPayee('${p.id}')">${esc(p.name)}</button>`).join('');
   wrap.classList.remove('hidden');
   if(payeeId)UI.txEditPayeeId=payeeId;
@@ -2541,7 +2592,7 @@ function saveTxEdit(){
   t.emojiName=UI.txEditEmojiName||t.emojiName;
   if(UI.txEditType==='expense'){
     t.payKind=UI.txEditKind||'cash';
-    if((t.payKind==='bank'||t.payKind==='card')&&!UI.txEditPayeeId){showToast('⚠️ 支払い先を選択してください');return;}
+    if(hasPayee(t.payKind)&&!UI.txEditPayeeId){showToast('⚠️ 支払い先を選択してください');return;}
     t.payeeId=UI.txEditPayeeId||null;
   } else {
     t.payKind=null;t.payeeId=null;
@@ -3131,7 +3182,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.26';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.28';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 // 完了を知らせてから画面を作り直す。トーストは非ブロッキングなので、読める時間だけ待ってreloadする
@@ -3592,6 +3643,7 @@ function switchTab(tab){
   // グラフタブでは上部の帳簿バーを隠す（グラフ内に帳簿チップがあるため二重表示を防ぐ）
   const lb=document.getElementById('ledger-bar');
   if(lb)lb.style.display=(tab==='graph')?'none':'';
+  syncStickyHeads();   // 帳簿バーの表示が変わると下の段の位置も変わる
 }
 
 /* =========================================================

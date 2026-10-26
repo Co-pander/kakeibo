@@ -28,6 +28,7 @@ body.locked .app,.locked .user-drawer{filter:blur(8px);pointer-events:none;user-
   --red:#E05252;--red-l:#FDF0F0;
   --blue:#3B82C4;--blue-l:#EEF5FC;
   --orange:#E07B2E;--orange-l:#FDF4EC;
+  --teal:#26A69A;--teal-l:#E6F5F3;   /* プリペイド */
   --bg:#F7F8FA;--bg-card:#fff;
   --bg-card-tr:rgba(255,255,255,0.9);   /* 半透明パネル用（すりガラス）。白90%=明るく・ごくうっすら透ける */
   --text:#1A2233;--text-sub:#6B7A90;--text-hint:#B0BBC8;
@@ -47,7 +48,7 @@ body.locked .app,.locked .user-drawer{filter:blur(8px);pointer-events:none;user-
     --text:#E8EDF5;--text-sub:#8A97AA;--text-hint:#4A5568;
     --border:#2A3340;--border-l:#232B36;
     --pri-l:#0D3328;
-    --red-l:#2D1515;--blue-l:#132038;--orange-l:#2D1E0D;
+    --red-l:#2D1515;--blue-l:#132038;--orange-l:#2D1E0D;--teal-l:#0D2926;
   }
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overscroll-behavior:none;font-size:14px}
@@ -88,7 +89,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .datesel-ok{flex:2;padding:10px;border-radius:var(--r8);border:none;background:var(--pri);color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer}
 
 /* タブ画面 */
-.tab-page{display:none;flex-direction:column;flex:1;overflow-y:auto}
+/* overflow-y は指定しない：中で position:sticky を使うため、スクロールの基準を文書側に保つ */
+.tab-page{display:none;flex-direction:column;flex:1}
 .tab-page.active{display:block}
 
 /* ===== カレンダー下 日付・残高バー ===== */
@@ -204,13 +206,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .ud-footer{padding:12px;border-top:1px solid var(--border-l)}
 
 /* ===== 帳簿タブ ===== */
-.ledger-bar{background:var(--pri-d);display:flex;gap:4px;overflow-x:auto;padding:6px 12px;scrollbar-width:none;transition:background 0.3s;align-items:center}
+/* 上部の段積み固定：トップバー → 帳簿バー → 月ナビ＋サマリー。
+   各段の高さは端末のセーフエリアや帳簿バーの有無で変わるので syncStickyHeads() が実測して渡す */
+.ledger-bar{position:sticky;top:var(--h-top, 0px);z-index:49;background:var(--pri-d);display:flex;gap:4px;overflow-x:auto;padding:6px 12px;scrollbar-width:none;transition:background 0.3s;align-items:center}
 .ledger-bar::-webkit-scrollbar{display:none}
 .ltab{flex:none;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);font-family:var(--font);transition:all 0.15s;position:relative;text-align:center}
 .ltab.active{background:#fff;color:var(--pri-d);font-weight:700}
 .ltab-dot{width:7px;height:7px;border-radius:50%;position:absolute;left:7px;top:50%;transform:translateY(-50%)}
 
 /* ===== MONTH NAV ===== */
+.home-head{position:sticky;top:calc(var(--h-top, 0px) + var(--h-led, 0px));z-index:48;background:var(--bg-card)}
 .month-nav{display:flex;align-items:center;background:var(--bg-card);border-bottom:1px solid var(--border);padding:10px 16px}
 .mnav-btn{background:none;border:none;cursor:pointer;color:var(--text-sub);font-size:22px;padding:0 10px;font-family:var(--font);line-height:1}
 .month-label{flex:1;text-align:center;font-size:15px;font-weight:700;letter-spacing:-0.2px}
@@ -236,7 +241,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .s2-bline{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0;line-height:1.4}
 .s2-blbl{font-size:10px;color:var(--text-sub);white-space:nowrap;flex:none}
 .s2-bval{font-size:11px;font-weight:600;text-align:right;white-space:nowrap;font-family:var(--font-num);font-variant-numeric:tabular-nums}
-.s2-bval.cash{color:#E07B2E}.s2-bval.card-c{color:#AB47BC}.s2-bval.bank{color:#42A5F5}
+.s2-bval.cash{color:#E07B2E}.s2-bval.prepaid{color:#26A69A}.s2-bval.card{color:#AB47BC}.s2-bval.bank{color:#42A5F5}
 /* 前月繰越（日別バー1行目） */
 .cal-info-carry{font-size:12px;font-weight:600;font-family:var(--font-num);font-variant-numeric:tabular-nums}
 
@@ -283,6 +288,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .tx-cat{font-size:11px;color:var(--text-sub)}
 .pay-badge{display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:1px 6px;border-radius:20px}
 .pb-cash{background:var(--orange-l);color:var(--orange)}
+.pb-prepaid{background:var(--teal-l);color:var(--teal)}
 .pb-bank{background:var(--blue-l);color:var(--blue)}
 .pb-card{background:var(--red-l);color:var(--red)}
 .tx-right{text-align:right;flex:none}
@@ -380,10 +386,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .isb .isb-inner svg{width:65%;height:65%}
 /* 選択時は内側の枠線（アイコン色・inline指定）のみ表示。外枠は出さない */
 .isb.sel{border-color:transparent;background:transparent}
-.pay-kinds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.pay-kinds{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
 .pk-btn{padding:10px 6px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);cursor:pointer;font-family:var(--font);text-align:center;font-size:12px;font-weight:600;color:var(--text-sub);transition:all 0.12s;display:flex;flex-direction:column;align-items:center;gap:3px}
 .pk-btn .pk-icon{font-size:18px}
 .pk-btn.sel-cash{background:var(--orange-l);color:var(--orange);border-color:var(--orange)}
+.pk-btn.sel-prepaid{background:var(--teal-l);color:var(--teal);border-color:var(--teal)}
 .pk-btn.sel-bank{background:var(--blue-l);color:var(--blue);border-color:var(--blue)}
 .pk-btn.sel-card{background:var(--red-l);color:var(--red);border-color:var(--red)}
 .payee-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
@@ -497,6 +504,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .wiz-pill.on{opacity:1;transform:scale(1.03);box-shadow:inset 0 0 0 2.5px rgba(255,255,255,0.9),0 2px 8px rgba(0,0,0,0.12)}
 .wiz-pill.pay{color:#fff}
 .wiz-pill.pay.cash{background:linear-gradient(135deg,#F0A249,#E07B2E)}
+.wiz-pill.pay.prepaid{background:linear-gradient(135deg,#4DBFB3,#26A69A)}
 .wiz-pill.pay.bank{background:linear-gradient(135deg,#5CA3DE,#3B82C4)}
 .wiz-pill.pay.card{background:linear-gradient(135deg,#C86FD8,#AB47BC)}
 .wiz-body{flex:1;overflow-y:auto;padding:8px 16px 16px;min-height:0}

@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.16.26">
+<link rel="stylesheet" href="style.css?v=3.16.28">
 <title>家計簿</title>
 </head>
 <body>
@@ -104,6 +104,8 @@
 
   <!-- ===== ホームタブ ===== -->
   <div class="tab-page active" id="tab-home">
+    <!-- ここまで（トップバー・帳簿バー・月ナビ・サマリー）が画面上部に固定され、以下がスクロールする -->
+    <div class="home-head">
     <div class="month-nav">
       <button class="mnav-btn" onclick="changeMonth(-1)">‹</button>
       <span class="month-label" id="month-label" onclick="openMonthPicker()" style="cursor:pointer"></span>
@@ -127,14 +129,12 @@
         </div>
         <div class="s2-col">
           <div class="s2-line s2-tog" onclick="toggleSummaryBreak()"><span class="s2-lbl">支出 <span class="s2-chev" id="s2-chev">⌄</span></span><span class="s2-val exp" id="s-exp">¥0</span></div>
-          <div class="s2-break" id="s2-break">
-            <div class="s2-bline"><span class="s2-blbl">現金</span><span class="s2-bval cash" id="s-cash">¥0</span></div>
-            <div class="s2-bline"><span class="s2-blbl">カード</span><span class="s2-bval card-c" id="s-card">¥0</span></div>
-            <div class="s2-bline"><span class="s2-blbl">銀行振込</span><span class="s2-bval bank" id="s-bank">¥0</span></div>
-          </div>
+          <!-- 支払い別の内訳は PAY_META の並び順で renderSummary() が生成する -->
+          <div class="s2-break" id="s2-break"></div>
         </div>
       </div>
     </div>
+    </div><!-- /home-head -->
 
     <div class="filter-bar" id="filter-bar"></div>
 
@@ -536,6 +536,7 @@
         <div class="field-lbl" style="margin-bottom:8px">💳 支払い方法</div>
         <div class="pay-kinds">
           <button class="pk-btn" id="pk-cash" onclick="selectKind('cash')"><span class="pk-icon">💴</span>現金</button>
+          <button class="pk-btn" id="pk-prepaid" onclick="selectKind('prepaid')"><span class="pk-icon">🎫</span>プリペイド</button>
           <button class="pk-btn" id="pk-bank" onclick="selectKind('bank')"><span class="pk-icon">🏦</span>銀行</button>
           <button class="pk-btn" id="pk-card" onclick="selectKind('card')"><span class="pk-icon">💳</span>カード</button>
         </div>
@@ -756,6 +757,7 @@
         <div class="field-lbl" style="margin-bottom:8px">💳 支払い方法</div>
         <div class="pay-kinds">
           <button class="pk-btn" id="te-pk-cash" onclick="setTxEditKind('cash')"><span class="pk-icon">💴</span>現金</button>
+          <button class="pk-btn" id="te-pk-prepaid" onclick="setTxEditKind('prepaid')"><span class="pk-icon">🎫</span>プリペイド</button>
           <button class="pk-btn" id="te-pk-bank" onclick="setTxEditKind('bank')"><span class="pk-icon">🏦</span>銀行</button>
           <button class="pk-btn" id="te-pk-card" onclick="setTxEditKind('card')"><span class="pk-icon">💳</span>カード</button>
         </div>
@@ -779,35 +781,40 @@
       <button class="sheet-close" onclick="closePayMgr()">✕</button>
     </div>
     <div class="mgr-section">
+      <div class="mgr-stitle">🎫 プリペイドカード</div>
+      <div id="prepaid-ui"></div>
+      <div class="add-row"><input type="text" id="np-prepaid" placeholder="例）PASMO、nanaco"><button onclick="addPayee('prepaid')">追加</button></div>
+    </div>
+    <div class="mgr-section">
       <div class="mgr-stitle">🏦 銀行口座</div>
       <div id="bank-ui"></div>
-      <div class="add-row"><input type="text" id="nb-name" placeholder="例）三菱UFJ銀行"><button onclick="addPayee('bank')">追加</button></div>
+      <div class="add-row"><input type="text" id="np-bank" placeholder="例）三菱UFJ銀行"><button onclick="addPayee('bank')">追加</button></div>
     </div>
     <div class="mgr-section">
       <div class="mgr-stitle">💳 クレジットカード</div>
       <div id="card-ui"></div>
-      <div class="add-row"><input type="text" id="nc-name" placeholder="例）楽天カード"><button onclick="addPayee('card')">追加</button></div>
+      <div class="add-row"><input type="text" id="np-card" placeholder="例）楽天カード"><button onclick="addPayee('card')">追加</button></div>
     </div>
-    <div style="padding:14px 16px"><p class="hint">現金は常に利用可能です。銀行・カードはここで登録した項目が取引入力時に選べます。</p></div>
+    <div style="padding:14px 16px"><p class="hint">現金は常に利用可能です。プリペイド・銀行・カードはここで登録した項目が取引入力時に選べます。</p></div>
   </div>
 </div>
 
 <!-- ===== 銀行口座 編集モーダル ===== -->
-<div class="overlay hidden" id="bank-edit-overlay" style="z-index:70">
+<div class="overlay hidden" id="payee-edit-overlay" style="z-index:70">
   <div class="sheet">
     <div class="sheet-drag"></div>
     <div class="sheet-head">
-      <span class="sheet-title">🏦 銀行口座を編集</span>
-      <button class="sheet-close" onclick="closeBankEdit()">✕</button>
+      <span class="sheet-title" id="pe-title">支払い先を編集</span>
+      <button class="sheet-close" onclick="closePayeeEdit()">✕</button>
     </div>
     <div class="form-body">
       <div class="field">
-        <div class="field-lbl">口座名</div>
-        <input type="text" id="be-name" placeholder="例）三菱UFJ銀行">
+        <div class="field-lbl" id="pe-lbl">名称</div>
+        <input type="text" id="pe-name">
       </div>
-      <button class="submit-btn" onclick="saveBankEdit()">保存する</button>
-      <button class="submit-btn" onclick="deletePayeeFromEdit('bank')" style="background:var(--red);margin-top:8px">🗑️ この口座を削除</button>
-      <button class="cancel-btn" onclick="closeBankEdit()">キャンセル</button>
+      <button class="submit-btn" onclick="savePayeeEdit()">保存する</button>
+      <button class="submit-btn" id="pe-del" onclick="deletePayeeFromEdit(editingPayeeKind)" style="background:var(--red);margin-top:8px">🗑️ 削除</button>
+      <button class="cancel-btn" onclick="closePayeeEdit()">キャンセル</button>
     </div>
   </div>
 </div>
@@ -1001,6 +1008,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.16.26"></script>
+<script src="app.js?v=3.16.28"></script>
 </body>
 </html>
