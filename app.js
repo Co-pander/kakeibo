@@ -2263,9 +2263,8 @@ function doExportCSV(){
     const l = u.ledgers.find(x=>x.id===t.ledger)?.name||'';
     const k = t.payKind||'cash';
     const pLabel = PAY_META[k]?.label||k;
-    let pName = '';
-    if(k==='bank') pName = payeeName(u,'bank',t.payeeId,'');
-    if(k==='card') pName = payeeName(u,'card',t.payeeId,'');
+    // 現金以外はすべて支払い先名を書き出す（種別を決め打ちするとプリペイド等が欠落する）
+    const pName = hasPayee(k) ? payeeName(u,k,t.payeeId,'') : '';
     allTx.push([t.date, t.type==='income'?'収入':'支出', t.amount,
       t.emojiName||t.emoji, t.memo, pLabel, pName, l, u.name, t.memo2||'']);
   });
@@ -3182,7 +3181,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.29';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.30';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 // 完了を知らせてから画面を作り直す。トーストは非ブロッキングなので、読める時間だけ待ってreloadする
