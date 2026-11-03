@@ -611,7 +611,10 @@ function switchLedger(id){UI.activeLedger=id;UI.selDay=null;UI.payFilter='all';r
 
 function renderSummary(){
   const u=activeUser();
-  document.getElementById('month-label').textContent=`${UI.year}年${UI.month+1}月`;
+  // 日を選んでいる間は「その日までの累計」を出すので、月ラベルにも範囲を添える
+  const upto=UI.selDay;   // null＝月全体
+  document.getElementById('month-label').textContent=
+    `${UI.year}年${UI.month+1}月`+(upto!=null?`（${upto}日まで）`:'');
 
   let inc=0,exp=0;
   const byKind={};   // 支払い種別ごとの支出。PAY_META を回すので種別追加に自動追従する
@@ -620,7 +623,9 @@ function renderSummary(){
   const mk=ymKey(UI.year,UI.month);
   const tally=(usr,txs)=>{
     txs.forEach(t=>{
-      if(!effDateOf(t,usr).startsWith(mk))return;
+      const ed=effDateOf(t,usr);
+      if(!ed.startsWith(mk))return;
+      if(upto!=null&&parseInt(ed.slice(8),10)>upto)return;   // 選択日より後は数えない
       if(t.type==='income'){inc+=t.amount;return;}
       exp+=t.amount;
       const pk=PAY_META[t.payKind]?t.payKind:'cash';
@@ -771,7 +776,11 @@ function renderCalendar(){
   }
   document.getElementById('cal-grid').innerHTML=h;
 }
-function selDay(d){UI.selDay=UI.selDay===d?null:d;UI.expandList=false;renderCalendar();renderTxArea();renderCalInfoBar();}
+function selDay(d){
+  UI.selDay=UI.selDay===d?null:d;UI.expandList=false;
+  renderSummary();   // 上部サマリーも「その日まで」に追従させる（未選択に戻せば月全体）
+  renderCalendar();renderTxArea();renderCalInfoBar();
+}
 
 function renderCalInfoBar(){
   const dateEl=document.getElementById('cal-info-date');
@@ -3187,7 +3196,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.31';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.32';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 // 完了を知らせてから画面を作り直す。トーストは非ブロッキングなので、読める時間だけ待ってreloadする
