@@ -783,6 +783,7 @@ function renderCalInfoBar(){
 
   // 請求ベースで集計：収入は取引日、支出はeffectiveExpDate（カードは請求日）でその月に計上
   let cumInc=0,cumExp=0,dayInc=0,dayExp=0;
+  let dayExpCash=0;   // その日の現金払いだけの合計（併記用。既存の集計には影響させない）
   const flow=(usr,txs)=>{
     txs.forEach(t=>{
       if(t.type==='income'){
@@ -794,7 +795,8 @@ function renderCalInfoBar(){
         const ed=effectiveExpDate(t,usr);
         const[ey,em,edd]=ed.split('-').map(Number);
         if(ey!==yr||em-1!==mo)return;
-        if(edd<=d)cumExp+=t.amount; if(edd===d)dayExp+=t.amount;
+        if(edd<=d)cumExp+=t.amount;
+        if(edd===d){dayExp+=t.amount; if((t.payKind||'cash')==='cash')dayExpCash+=t.amount;}
       }
     });
   };
@@ -833,7 +835,11 @@ function renderCalInfoBar(){
   dateEl.textContent=dateLabel;
   const dInc=document.getElementById('cal-day-inc'), dExp=document.getElementById('cal-day-exp');
   if(dayInc>0){dInc.textContent=`収入 ${fmtN(dayInc)}`;dInc.classList.remove('hidden');}else dInc.classList.add('hidden');
-  if(dayExp>0){dExp.textContent=`支出 ${fmtN(dayExp)}`;dExp.classList.remove('hidden');}else dExp.classList.add('hidden');
+  if(dayExp>0){
+    // 現金以外の支払いが混ざる日だけ「（現金 ○○）」を併記する
+    dExp.innerHTML=`支出 ${fmtN(dayExp)}`+(dayExpCash!==dayExp?`<span class="cal-exp-sub">（現金 ${fmtN(dayExpCash)}）</span>`:'');
+    dExp.classList.remove('hidden');
+  }else dExp.classList.add('hidden');
   const dayBalEl=document.getElementById('cal-day-bal');
   dayBalEl.textContent=`残高 ${sfmt(dayBal)}`;
   dayBalEl.style.color=dayBal<0?'var(--red)':'var(--text-sub)';
@@ -3181,7 +3187,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.30';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.31';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 // 完了を知らせてから画面を作り直す。トーストは非ブロッキングなので、読める時間だけ待ってreloadする
