@@ -1,8 +1,8 @@
 {
-  "name": "家計簿",
-  "short_name": "家計簿",
+  "name": "家計簿 Money Note",
+  "short_name": "家計簿Note",
   "description": "シンプルな家計簿アプリ",
-  "start_url": "./",
+  "start_url": "./?app=1",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
