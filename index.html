@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<!-- viewport-fit=cover：画面の端まで描画する。これが無いと env(safe-area-inset-*) が常に0になり、
+     ノッチ端末向けの余白指定（--safe-top/--safe-bot）が一切効かない -->
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
 <meta name="theme-color" content="#2EBD8F" id="meta-theme">
 <meta name="mobile-web-app-capable" content="yes">
@@ -14,10 +16,14 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.16.32">
+<link rel="stylesheet" href="style.css?v=3.16.33">
 <title>家計簿</title>
 </head>
 <body>
+<!-- 画面最下部（Androidのナビゲーションバーが重なる領域）にテーマ色を敷く。
+     バーが半透明の端末ではこの色が透けて見える。セーフエリアが0の端末では高さ0で何も起きない -->
+<div class="safe-bottom-fill" id="safe-bottom-fill"></div>
+
 <!-- ===== トースト通知 ===== -->
 <div class="toast" id="toast"></div>
 
@@ -1008,6 +1014,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.16.32"></script>
+<script src="app.js?v=3.16.33"></script>
 </body>
 </html>
