@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+<meta name="theme-color" content="#2EBD8F" id="meta-theme">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="家計簿">
+<meta name="application-name" content="家計簿">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" type="image/png" sizes="32x32" href="../app-icons/favicon-32.png">
+<link rel="apple-touch-icon" href="../app-icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css?v=3.16.37">
+<title>家計簿</title>
+</head>
+<body>
+<!-- ===== トースト通知 ===== -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== PINロック画面 ===== -->
+<div id="pin-screen" class="hidden">
+  <div class="pin-logo">🔐</div>
+  <div class="pin-title" id="pin-title">PINを入力</div>
+  <div class="pin-sub" id="pin-sub"></div>
+  <div class="pin-setup-step hidden" id="pin-setup-step"></div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-key" onclick="pinKey('1')"><span>1</span></button>
+    <button class="pin-key" onclick="pinKey('2')"><span>2</span><span class="sub">ABC</span></button>
+    <button class="pin-key" onclick="pinKey('3')"><span>3</span><span class="sub">DEF</span></button>
+    <button class="pin-key" onclick="pinKey('4')"><span>4</span><span class="sub">GHI</span></button>
+    <button class="pin-key" onclick="pinKey('5')"><span>5</span><span class="sub">JKL</span></button>
+    <button class="pin-key" onclick="pinKey('6')"><span>6</span><span class="sub">MNO</span></button>
+    <button class="pin-key" onclick="pinKey('7')"><span>7</span><span class="sub">PQRS</span></button>
+    <button class="pin-key" onclick="pinKey('8')"><span>8</span><span class="sub">TUV</span></button>
+    <button class="pin-key" onclick="pinKey('9')"><span>9</span><span class="sub">WXYZ</span></button>
+    <button class="pin-key empty"></button>
+    <button class="pin-key" onclick="pinKey('0')"><span>0</span></button>
+    <button class="pin-key del" onclick="pinDel()">⌫</button>
+  </div>
+  <span class="pin-link hidden" id="pin-forgot" onclick="pinForgot()">PINを忘れた場合（データ削除）</span>
+</div>
+<!-- ===== PIN設定モーダル ===== -->
+<div class="overlay hidden" id="pin-setup-overlay" style="z-index:70">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">🔐 PINロックの設定</span>
+      <button class="sheet-close" onclick="closePinSetup()">✕</button>
+    </div>
+    <div class="form-body">
+      <div id="pin-setup-body">
+        <!-- JSで動的に構築 -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <!-- ===== トップバー（全タブ共通） ===== -->
+  <div class="topbar" id="topbar">
+    <div class="topbar-btns">
+      <button class="tib nav-btn" id="navBtn-forecast" onclick="openForecast()" title="年間予測">
+        <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M3 17l5-5 4 3 8-8" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 7h4v4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="tib nav-btn" id="navBtn-graph" onclick="switchTab('graph')" title="グラフ">
+        <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><rect x="3" y="12" width="4" height="9" rx="1" stroke="#fff" stroke-width="1.5"/><rect x="10" y="7" width="4" height="14" rx="1" stroke="#fff" stroke-width="1.5"/><rect x="17" y="3" width="4" height="18" rx="1" stroke="#fff" stroke-width="1.5"/></svg>
+      </button>
+      <button class="tib nav-btn" id="navBtn-sheet" onclick="switchTab('sheet')" title="帳票">
+        <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#fff" stroke-width="1.5"/><path d="M3 9h18M9 9v11M15 9v11" stroke="#fff" stroke-width="1.3"/></svg>
+      </button>
+      <button class="tib nav-btn" id="navBtn-pay" onclick="openPayMgr()" title="支払い方法">
+        <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#fff" stroke-width="1.5"/><path d="M2 10h20" stroke="#fff" stroke-width="1.5"/><path d="M6 15h4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <button class="tib nav-btn" id="navBtn-ledger" onclick="openLedgerMgr()" title="帳簿">
+        <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><rect x="4" y="2" width="13" height="18" rx="1.5" stroke="#fff" stroke-width="1.5"/><path d="M4 6h13M8 10h5M8 14h3" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><path d="M17 6l3 3v11a1 1 0 0 1-1 1H8" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="tib nav-btn" id="navBtn-settings" onclick="openSettings()" title="設定">
+        <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><circle cx="12" cy="12" r="3" stroke="#fff" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#fff" stroke-width="1.3"/></svg>
+      </button>
+      <button class="tib nav-btn" id="navBtn-home" onclick="switchTab('home')" title="ホーム">
+        <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M3 12L12 3l9 9" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M9 21V12h6v9" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="topbar-user" id="topbar-user">
+      <div id="ua-avatar" style="flex:none"></div>
+      <div class="user-info">
+        <div class="user-name" id="ua-name">ユーザー</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 帳簿タブ -->
+  <div class="ledger-bar" id="ledger-bar"></div>
+
+  <!-- ===== ホームタブ ===== -->
+  <div class="tab-page active" id="tab-home">
+    <!-- ここまで（トップバー・帳簿バー・月ナビ・サマリー）が画面上部に固定され、以下がスクロールする -->
+    <div class="home-head">
+    <div class="month-nav">
+      <button class="mnav-btn" onclick="changeMonth(-1)">‹</button>
+      <span class="month-label" id="month-label" onclick="openMonthPicker()" style="cursor:pointer"></span>
+      <button class="mnav-today" onclick="goToday()">今月</button>
+      <button class="mnav-btn" onclick="changeMonth(1)">›</button>
+    </div>
+
+    <div class="summary-wrap">
+      <div class="summary2">
+        <div class="s2-col">
+          <div class="s2-line"><span class="s2-lbl">収入</span><span class="s2-val inc" id="s-inc">¥0</span></div>
+          <div class="s2-line"><span class="s2-lbl">収支</span><span class="s2-val bal" id="s-bal">¥0</span></div>
+          <!-- 収支(繰越含む)＝収支＋前月繰越（繰越ONの帳簿のみ。下部サマリーの残高と一致） -->
+          <div class="s2-break hidden" id="s2-balc-wrap">
+            <div class="s2-bline"><span class="s2-blbl">収支(繰越含む)</span><span class="s2-bval" id="s-bal-carry">¥0</span></div>
+          </div>
+          <!-- 前月繰越（繰越ONの帳簿のみ。収支下の余白に内訳と同じ大きさで常時表示） -->
+          <div class="s2-break hidden" id="s2-carry-wrap">
+            <div class="s2-bline"><span class="s2-blbl">前月繰越</span><span class="s2-bval" id="s-carry">¥0</span></div>
+          </div>
+        </div>
+        <div class="s2-col">
+          <div class="s2-line s2-tog" onclick="toggleSummaryBreak()"><span class="s2-lbl">支出 <span class="s2-chev" id="s2-chev">⌄</span></span><span class="s2-val exp" id="s-exp">¥0</span></div>
+          <!-- 支払い別の内訳は PAY_META の並び順で renderSummary() が生成する -->
+          <div class="s2-break" id="s2-break"></div>
+        </div>
+      </div>
+    </div>
+    </div><!-- /home-head -->
+
+    <div class="filter-bar" id="filter-bar"></div>
+
+    <div class="cal-section" style="position:relative" id="cal-section"
+         ontouchstart="swipeStart(event)" ontouchend="swipeEnd(event,changeMonth)">
+      <div class="cal-grid" id="cal-grid"></div>
+      <button class="cal-fab" onclick="onAddTap()" id="cal-fab">＋</button>
+    </div>
+
+    <!-- カレンダー下の集計バー（1行目=選択日までの累計／2行目=その日。日付行タップで明細の遡り展開を切替） -->
+    <div class="cal-info-bar" id="cal-info-bar">
+      <div class="cal-info-row cal-row-cum">
+        <div class="cal-info-main">
+          <span class="cal-info-carry hidden" id="cal-carry"></span>
+          <span class="cal-info-inc" id="cal-cum-inc"></span>
+          <span class="cal-info-exp" id="cal-cum-exp"></span>
+        </div>
+        <span class="cal-info-balance" id="cal-cum-bal"></span>
+      </div>
+      <div class="cal-info-row cal-row-day" onclick="toggleExpandList()">
+        <div class="cal-info-main">
+          <span class="cal-expand-tri" id="cal-expand-tri">▶</span>
+          <span class="cal-info-date" id="cal-info-date"></span>
+          <span class="cal-info-inc hidden" id="cal-day-inc"></span>
+          <span class="cal-info-exp hidden" id="cal-day-exp"></span>
+          <span class="cal-info-badge hidden" id="cal-info-badge">無支出日 ☑</span>
+        </div>
+        <span class="cal-info-day-bal" id="cal-day-bal"></span>
+      </div>
+    </div>
+
+    <div class="tx-section"><div id="tx-area"></div></div>
+
+    <div class="chart-section">
+      <div class="chart-header">
+        <span class="chart-title">内訳グラフ</span>
+      </div>
+      <div class="chart-body" id="chart-body"></div>
+    </div>
+  </div><!-- /tab-home -->
+
+  <!-- ===== グラフタブ ===== -->
+  <div class="tab-page" id="tab-graph">
+    <div class="graph-page">
+      <!-- No.0モード：ユーザー選択チップ -->
+      <div id="graph-user-chips" style="display:none"></div>
+      <!-- 帳簿選択チップ（帳簿が2つ以上のとき） -->
+      <div id="graph-ledger-chips" style="display:none"></div>
+      <!-- 月次収支推移 -->
+      <div class="graph-section">
+        <div class="graph-section-head">
+          <span class="graph-section-title">📊 月次収支推移（12ヶ月）</span>
+          <div class="graph-type-tabs">
+            <button class="gtt-btn active" id="gtt-both" onclick="setBarMode('both')">収支</button>
+            <button class="gtt-btn" id="gtt-exp" onclick="setBarMode('exp')">支出</button>
+            <button class="gtt-btn" id="gtt-inc" onclick="setBarMode('inc')">収入</button>
+          </div>
+        </div>
+        <div class="bar-chart-wrap"><div class="bar-chart" id="bar-chart"></div></div>
+        <!-- 選択月サマリー -->
+        <div style="padding:0 14px 12px;display:flex;gap:10px;justify-content:center">
+          <span style="font-size:12px;color:var(--text-hint)" id="bar-sel-label"></span>
+        </div>
+      </div>
+
+      <!-- 費目別集計（月◀▶ナビ＋支出/収入トグル → ドーナツ → 支払別 → カテゴリ一覧） -->
+      <div class="graph-section" id="graph-cat-section">
+        <div class="graph-month-nav">
+          <button class="mnav-btn" onclick="gChangeMonth(-1)">‹</button>
+          <div class="graph-month-center">
+            <span class="graph-month-label" id="graph-month-label"></span>
+            <span class="graph-month-range" id="graph-month-range"></span>
+          </div>
+          <button class="mnav-btn" onclick="gChangeMonth(1)">›</button>
+          <div class="graph-type-tabs" style="margin-left:auto">
+            <button class="gtt-btn active" id="gcat-exp" onclick="setCatGraphType('expense')">支出</button>
+            <button class="gtt-btn" id="gcat-inc" onclick="setCatGraphType('income')">収入</button>
+          </div>
+        </div>
+        <!-- ドーナツグラフ -->
+        <div class="donut-wrap">
+          <div style="position:relative;flex:none">
+            <svg id="donut-svg" width="150" height="150" viewBox="0 0 110 110"></svg>
+            <div class="donut-center" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div style="font-size:10px;color:var(--text-hint)" id="donut-lbl">合計</div>
+              <div style="font-size:15px;font-weight:800;font-family:var(--font-num)" id="donut-total">¥0</div>
+            </div>
+          </div>
+          <div class="donut-legend" id="donut-legend"></div>
+        </div>
+        <!-- 支払別（支出のみ） -->
+        <div id="graph-pay-section">
+          <div class="chart-sub" style="padding:8px 16px 2px">支払別</div>
+          <div id="graph-pay-breakdown"></div>
+        </div>
+        <!-- カテゴリ別リスト -->
+        <div class="chart-sub" style="padding:8px 16px 2px">カテゴリ別</div>
+        <div class="cat-sum-list" id="cat-sum-list"></div>
+      </div>
+    </div>
+  </div><!-- /tab-graph -->
+
+  <!-- ===== 帳票タブ（予算・支出・残高の出納帳） ===== -->
+  <div class="tab-page" id="tab-sheet" ontouchstart="swipeStart(event)" ontouchend="swipeEnd(event,shChangeMonth)">
+    <div class="month-nav">
+      <button class="mnav-btn" onclick="shChangeMonth(-1)">‹</button>
+      <span class="month-label" id="sh-month-label" onclick="openSheetMonthPicker()" style="cursor:pointer"></span>
+      <button class="mnav-btn" onclick="shChangeMonth(1)">›</button>
+    </div>
+    <!-- 予算消化ゲージ -->
+    <div class="sh-card" id="sh-gauge"></div>
+    <!-- 帳票テーブル（表を上に。日にち行の各欄タップで操作） -->
+    <div class="sh-card" style="padding:0">
+      <div id="sh-table"></div>
+    </div>
+    <p class="csv-note" style="padding:6px 16px 0">・「予算」欄タップ＝予算の追加/編集　・「支出」欄タップ＝支出を入力　・日付/残高タップ＝明細の開閉　・明細タップ＝編集<br>・支出は購入日ベース（カードも購入日で計上）／残高は月ごと計算（繰り越しなし）</p>
+    <button class="sh-forms-btn" onclick="openSheetForms()">✏️ まとめて入力（一覧入力・予算）</button>
+  </div><!-- /tab-sheet -->
+
+  <!-- ===== 帳票：まとめて入力モーダル（一覧入力・予算） ===== -->
+  <div class="overlay hidden" id="sh-forms-overlay">
+    <div class="sheet">
+      <div class="sheet-drag"></div>
+      <div class="sheet-head">
+        <span class="sheet-title">✏️ まとめて入力</span>
+        <button class="sheet-close" onclick="closeSheetForms()">✕</button>
+      </div>
+      <div class="sh-card">
+        <div class="sh-title">✏️ 一覧入力（支出）</div>
+        <div class="sh-form-row"><input type="date" id="sh-date" class="sh-inp" style="flex:1"></div>
+        <div class="sh-form-row"><select id="sh-cat" class="sh-inp" style="flex:1"></select></div>
+        <div class="sh-form-row"><input type="text" id="sh-memo" class="sh-inp" placeholder="内訳" style="flex:1"></div>
+        <div class="memo-hist" id="sh-memo-hist"></div>
+        <div class="sh-form-row"><input type="text" id="sh-memo2" class="sh-inp" placeholder="メモ" style="flex:1"></div>
+        <div class="memo-hist" id="sh-memo2-hist"></div>
+        <div class="sh-form-row">
+          <div class="amount-wrap" style="flex:1"><span class="amount-yen">¥</span><input type="text" id="sh-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+          <button class="sh-add-btn" onclick="sheetQuickAdd()">追加</button>
+        </div>
+        <p class="csv-note" style="margin:6px 0 0">・支払い方法は現金で登録（銀行・カードは＋ボタンから）／カレンダーにも反映されます</p>
+      </div>
+      <div class="sh-card">
+        <div class="sh-title">💰 予算</div>
+        <div class="sh-form-row"><input type="date" id="sh-bdate" class="sh-inp" style="flex:1"></div>
+        <div class="sh-form-row">
+          <div class="amount-wrap" style="flex:1"><span class="amount-yen">¥</span><input type="text" id="sh-bamount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+          <button class="sh-add-btn" onclick="addSheetBudget()">予算追加</button>
+        </div>
+        <div id="sh-budget-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+        <p class="csv-note" style="margin:6px 0 0">・予算は帳票専用（収入・支出の統計には含まれません）</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 長押しメニュー ===== -->
+<div class="ctx-overlay hidden" id="ctx-overlay" onclick="closeCtxMenu()">
+  <div class="ctx-sheet" onclick="event.stopPropagation()">
+    <div class="ctx-title" id="ctx-title">費目名</div>
+    <div class="ctx-item" onclick="ctxAction('copy')">
+      <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      コピー
+    </div>
+    <div class="ctx-item" onclick="ctxAction('move')">
+      <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      移動
+    </div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" onclick="closeCtxMenu()" style="color:var(--text-hint)">
+      <svg viewBox="-2 -2 28 28" width="20" height="20" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      キャンセル
+    </div>
+  </div>
+</div>
+
+<!-- ===== 日付選択モーダル ===== -->
+<div class="datesel-overlay hidden" id="datesel-overlay">
+  <div class="datesel-sheet">
+    <div class="datesel-head">
+      <div class="datesel-title" id="datesel-title">日付を選択</div>
+      <div class="datesel-nav">
+        <button onclick="dateselPrev()">‹</button>
+        <span class="datesel-month" id="datesel-month"></span>
+        <button onclick="dateselNext()">›</button>
+      </div>
+    </div>
+    <div class="datesel-cal" id="datesel-cal"></div>
+    <div class="datesel-foot">
+      <button class="datesel-cancel" onclick="closeDateSel()">キャンセル</button>
+      <button class="datesel-ok" id="datesel-ok" onclick="confirmDateSel()">この日に決定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 月選択モーダル ===== -->
+<div class="datesel-overlay hidden" id="monthpicker-overlay">
+  <div class="datesel-sheet">
+    <div class="datesel-head">
+      <div class="datesel-title">月を選択</div>
+      <div class="datesel-nav">
+        <button onclick="monthPickerYear(-1)">‹</button>
+        <span class="datesel-month" id="monthpicker-year"></span>
+        <button onclick="monthPickerYear(1)">›</button>
+      </div>
+    </div>
+    <div id="monthpicker-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px"></div>
+    <div class="datesel-foot">
+      <button class="datesel-cancel" onclick="closeMonthPicker()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- タブバー廃止 -->
+
+<!-- ===== ユーザードロワー ===== -->
+<div class="user-drawer" id="user-drawer">
+  <div class="ud-backdrop" onclick="closeUserDrawer()"></div>
+  <div class="ud-panel">
+    <div class="ud-header" id="ud-header">
+      <div class="ud-title">👥 ユーザー切り替え</div>
+    </div>
+    <div class="ud-user-list" id="ud-user-list"></div>
+    <div class="ud-footer">
+      <button class="ud-add-btn" onclick="openAddUser()">＋ 新しいユーザーを追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ユーザー追加/編集モーダル ===== -->
+<div class="overlay hidden" id="user-edit-overlay" style="z-index:90">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title" id="user-edit-title">ユーザーを追加</span>
+      <button class="sheet-close" onclick="closeUserEdit()">✕</button>
+    </div>
+    <div class="form-body">
+      <div class="field">
+        <div class="field-lbl">絵文字アイコン</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="avatar-picker"></div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">ユーザー名</div>
+        <input type="text" id="ue-name" placeholder="例）パパ・ママ・自分">
+      </div>
+      <div class="field">
+        <div class="field-lbl">🎨 カラーテーマ</div>
+        <div class="theme-grid" id="ue-theme-grid"></div>
+      </div>
+      <button class="submit-btn" onclick="saveUser()">保存する</button>
+      <button class="cancel-btn" id="ue-del-btn" onclick="deleteUser()" style="color:var(--red)">このユーザーを削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 取引追加モーダル ===== -->
+<!-- ===== ウィザードの日付選択カレンダー（年移動・左右フリック対応） ===== -->
+<div class="wcal-overlay hidden" id="wcal-overlay" onclick="if(event.target===this)closeWizCal()">
+  <div class="wcal-sheet" ontouchstart="swipeStart(event)" ontouchend="swipeEnd(event,wcalMonth)">
+    <div class="wcal-nav">
+      <button class="wcal-btn" onclick="wcalYear(-1)" title="前年">«</button>
+      <button class="wcal-btn" onclick="wcalMonth(-1)" title="前月">‹</button>
+      <span class="wcal-title" id="wcal-title"></span>
+      <button class="wcal-btn" onclick="wcalMonth(1)" title="翌月">›</button>
+      <button class="wcal-btn" onclick="wcalYear(1)" title="翌年">»</button>
+    </div>
+    <div class="wcal-grid" id="wcal-grid"></div>
+  </div>
+</div>
+
+<!-- ===== No.0 ウィザード入力（金額→費目→支払方法の3ステップ） ===== -->
+<div class="wiz hidden" id="wiz-overlay">
+  <!-- ステップ1：日付・金額・収入/支出・保存先 -->
+  <div class="wiz-step" id="wiz-step1">
+    <div class="wiz-head wiz-head-1">
+      <button type="button" id="wz-date" class="wiz-date" onclick="openWizCal()"></button>
+      <button class="wiz-close" onclick="closeWizard()">✕</button>
+    </div>
+    <div class="wiz-amount-row">
+      <span class="wiz-yen">¥</span>
+      <input type="text" id="wz-amount" class="wiz-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)">
+    </div>
+    <div class="wiz-type-row">
+      <button class="wiz-type-btn inc" id="wz-t-inc" onclick="wizPickType('income')">収入</button>
+      <button class="wiz-type-btn exp" id="wz-t-exp" onclick="wizPickType('expense')">支出</button>
+    </div>
+    <div class="wiz-dest">
+      <div class="wiz-dest-lbl">保存先</div>
+      <div class="wiz-pills" id="wz-users"></div>
+      <div class="wiz-dest-lbl" style="margin-top:10px">帳簿</div>
+      <div class="wiz-pills" id="wz-ledgers"></div>
+    </div>
+  </div>
+
+  <!-- ステップ2：費目・内訳・メモ -->
+  <div class="wiz-step hidden" id="wiz-step2">
+    <div class="wiz-head">
+      <button class="wiz-back" onclick="wizGoStep(1)">←</button>
+      <span class="wiz-amt-label" id="wz-amt-label">¥0</span>
+      <button class="wiz-close" onclick="closeWizard()">✕</button>
+    </div>
+    <div class="wiz-body">
+      <div class="wiz-cat-head">
+        <span class="wiz-cat-lbl" id="wz-cat-dest"></span>
+        <button class="wiz-cat-edit" onclick="openCatMgrFromTx('wiz')">＋ 費目を編集</button>
+      </div>
+      <div class="cat-grid" id="wz-cat-grid"></div>
+      <input type="text" id="wz-memo" class="wiz-inp" placeholder="内訳" style="margin-top:12px">
+      <div class="memo-hist" id="wz-memo-hist"></div>
+      <input type="text" id="wz-memo2" class="wiz-inp" placeholder="メモ" style="margin-top:10px">
+      <div class="memo-hist" id="wz-memo2-hist"></div>
+    </div>
+    <button class="wiz-next" onclick="wizFromStep2()">→</button>
+  </div>
+
+  <!-- ステップ3：支払方法（支出のみ）／支払い先 -->
+  <div class="wiz-step hidden" id="wiz-step3">
+    <div class="wiz-head">
+      <button class="wiz-back" onclick="wizGoStep(2)">←</button>
+      <span class="wiz-amt-label" id="wz-amt-label3">¥0</span>
+      <button class="wiz-close" onclick="closeWizard()">✕</button>
+    </div>
+    <div class="wiz-body">
+      <div class="wiz-pay-title" id="wz-pay-title">支払方法</div>
+      <div class="wiz-pay-pills" id="wz-pay-pills"></div>
+      <div id="wz-payee-wrap" class="hidden">
+        <div class="wiz-pay-title" style="margin-top:18px">支払い先</div>
+        <div class="wiz-pay-pills" id="wz-payee-pills"></div>
+      </div>
+    </div>
+    <div class="wiz-actions">
+      <button class="wiz-save" onclick="wizSave(false)">登録</button>
+      <button class="wiz-save alt" onclick="wizSave(true)">続けて追加</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="add-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">新規取引</span>
+      <button class="sheet-close" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="form-body">
+      <div class="field">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+          <div>
+            <div class="field-lbl">日付</div>
+            <input type="date" id="f-date">
+          </div>
+          <div class="field" style="margin:0">
+            <div class="field-lbl">帳簿</div>
+            <select id="f-ledger" onchange="onAddLedgerChange()"></select>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">金額</div>
+        <div class="amount-wrap"><span class="amount-yen">¥</span><input type="text" id="f-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+      </div>
+      <!-- メインユーザー専用：保存先選択 -->
+      <div id="f-save-dest" class="hidden">
+        <div class="field-lbl" style="margin-bottom:6px;color:var(--pri);font-weight:700">📌 保存先</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
+          <div>
+            <div class="field-lbl" style="font-size:11px;margin-bottom:4px">ユーザー</div>
+            <select id="f-dest-user" onchange="onDestUserChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px"></select>
+          </div>
+          <div>
+            <div class="field-lbl" style="font-size:11px;margin-bottom:4px">帳簿</div>
+            <select id="f-dest-ledger" onchange="onDestLedgerChange()" style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px"></select>
+          </div>
+        </div>
+      </div>
+      <!-- 収入／支出：選ぶと下のカテゴリが切り替わるので、カテゴリの直前に置く -->
+      <div class="type-toggle">
+        <button class="tt-btn" id="tb-inc" onclick="setType('income')">💚 収入</button>
+        <button class="tt-btn" id="tb-exp" onclick="setType('expense')">🔴 支出</button>
+      </div>
+      <div class="field">
+        <div class="field-lbl" style="display:flex;align-items:center;justify-content:space-between">
+          <span>カテゴリ</span>
+          <button onclick="openCatMgrFromTx('add')" style="font-size:11px;color:var(--pri);font-weight:600;background:none;border:none;cursor:pointer;font-family:var(--font);padding:2px 6px;border-radius:4px;border:1px solid var(--pri)">＋ 費目を編集</button>
+        </div>
+        <div class="cat-grid" id="cat-grid"></div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">内訳</div>
+        <input type="text" id="f-memo" placeholder="例）イオンで買い物">
+        <div class="memo-hist" id="f-memo-hist"></div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">メモ</div>
+        <input type="text" id="f-memo2" placeholder="例）セール品、ポイント利用">
+        <div class="memo-hist" id="f-memo2-hist"></div>
+      </div>
+      <div id="f-pay-section">
+        <div class="field-lbl" style="margin-bottom:8px">💳 支払い方法</div>
+        <div class="pay-kinds">
+          <button class="pk-btn" id="pk-cash" onclick="selectKind('cash')"><span class="pk-icon">💴</span>現金</button>
+          <button class="pk-btn" id="pk-prepaid" onclick="selectKind('prepaid')"><span class="pk-icon">🎫</span>プリペイド</button>
+          <button class="pk-btn" id="pk-bank" onclick="selectKind('bank')"><span class="pk-icon">🏦</span>銀行</button>
+          <button class="pk-btn" id="pk-card" onclick="selectKind('card')"><span class="pk-icon">💳</span>カード</button>
+        </div>
+        <div id="f-payee-wrap" class="hidden">
+          <div class="field-lbl" id="f-payee-lbl" style="margin-bottom:6px"></div>
+          <div class="payee-chips" id="f-payee-chips"></div>
+        </div>
+      </div>
+      <button class="submit-btn" id="add-submit-btn" onclick="addTx()">追加する</button>
+      <button class="cancel-btn" onclick="closeAddModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 帳簿管理モーダル ===== -->
+<div class="overlay hidden" id="ledger-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">📒 帳簿管理</span>
+      <button class="sheet-close" onclick="closeLedgerMgr()">✕</button>
+    </div>
+    <div class="mgr-section">
+      <div class="mgr-stitle">帳簿一覧（現在のユーザー）</div>
+      <div id="ledger-ui"></div>
+      <div class="add-row" style="margin-top:12px">
+        <input type="text" id="nl-name" placeholder="新しい帳簿名">
+        <button onclick="addLedger()">追加</button>
+      </div>
+    </div>
+    <div class="mgr-section">
+      <div class="mgr-stitle">🎨 帳簿のカラー設定</div>
+      <div id="ledger-color-ui"></div>
+      <p class="hint">各帳簿に個別のカラーを設定できます。設定しない場合はユーザーのカラーが使われます。</p>
+    </div>
+    <div class="mgr-section">
+      <div class="mgr-stitle">🗂️ 費目の管理</div>
+      <p style="font-size:13px;color:var(--text-sub);margin-bottom:10px">収入・支出の費目をカスタマイズできます。</p>
+      <button class="submit-btn" style="margin-top:0" onclick="closeLedgerMgr();openCatMgr()">費目を編集する →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 費目管理モーダル ===== -->
+<div class="overlay hidden" id="cat-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">🗂️ 費目の管理</span>
+      <button class="sheet-close" onclick="closeCatMgr()">✕</button>
+    </div>
+    <div class="form-body" style="padding-bottom:0">
+      <!-- 帳簿セレクタ（帳簿が複数のとき表示） -->
+      <div id="cat-ledger-sel" style="display:none;margin-bottom:10px">
+        <div class="field-lbl" style="font-size:11px;margin-bottom:4px">編集する帳簿</div>
+        <select id="cat-ledger-select" onchange="setCatMgrLedger(this.value)"
+          style="width:100%;padding:8px;border-radius:var(--r8);border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px"></select>
+      </div>
+      <div class="cat-type-tabs">
+        <button class="cat-type-tab active" id="cat-tab-exp" onclick="setCatTab('expense')">🔴 支出費目</button>
+        <button class="cat-type-tab" id="cat-tab-inc" onclick="setCatTab('income')">💚 収入費目</button>
+      </div>
+    </div>
+    <div class="mgr-section" style="border-top:1px solid var(--border-l)">
+      <div id="cat-list-ui"></div>
+      <div style="margin-top:12px;background:var(--bg);border-radius:var(--r12);padding:12px;border:1px solid var(--border-l)">
+        <div class="field-lbl" style="margin-bottom:8px">新しい費目を追加</div>
+        <div class="add-row" style="margin-bottom:10px">
+          <input type="text" id="nc-catname" placeholder="費目名（例）習い事">
+          <button onclick="addCat()">追加</button>
+        </div>
+        <div class="field-lbl" style="margin-bottom:4px;font-weight:400;color:var(--text-hint)">アイコンを選択</div>
+        <div class="icon-sel-grid" id="cat-emoji-grid"></div>
+      </div>
+    </div>
+    <div style="padding:12px 16px;display:flex;gap:8px">
+      <button class="csv-btn" onclick="resetCats()" style="color:var(--red);flex:1">🔄 デフォルトに戻す</button>
+    </div>
+    <!-- 取引画面から開いたときの「戻る」ボタン -->
+    <div id="cat-back-bar" class="hidden" style="padding:0 16px 12px">
+      <button class="submit-btn" style="margin-top:0" onclick="closeCatMgrToTx()">← 取引入力に戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 費目編集モーダル ===== -->
+<div class="overlay hidden" id="cat-edit-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">費目を編集</span>
+      <button class="sheet-close" onclick="closeCatEdit()">✕</button>
+    </div>
+    <div class="form-body">
+      <div class="field">
+        <div class="field-lbl">アイコン</div>
+        <div class="icon-sel-grid" id="cat-edit-emoji-grid"></div>
+      </div>
+      <div class="field">
+        <div class="field-lbl" style="display:flex;align-items:center;justify-content:space-between">
+          <span>カラー</span>
+          <button onclick="resetCatColor()" style="font-size:11px;color:var(--text-hint);background:none;border:none;padding:2px 6px;cursor:pointer">デフォルトに戻す</button>
+        </div>
+        <!-- プレビュー＋プリセット＋カスタム -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div id="ce-color-preview" style="width:44px;height:44px;border-radius:10px;flex-shrink:0;border:2px solid var(--border);background:var(--bg-card);display:flex;align-items:center;justify-content:center"></div>
+          <div style="flex:1">
+            <div id="ce-color-presets" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:12px;color:var(--text-hint);flex-shrink:0">カスタム</span>
+              <!-- OS標準のカラーピッカー（iOSはシステムのピッカーシートが開く） -->
+              <input type="color" id="ce-native-color" value="#4CAF8E"
+                oninput="onCatColorPick(this.value)"
+                style="width:44px;height:30px;padding:0;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer">
+              <input id="ce-hex-input" type="text" maxlength="7" placeholder="#FF9900"
+                style="flex:1;min-width:0;padding:5px 8px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-family:monospace"
+                oninput="onHexInput(this.value)">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">費目名</div>
+        <input type="text" id="ce-name" placeholder="費目名">
+      </div>
+      <button class="submit-btn" onclick="saveCatEdit()">保存する</button>
+      <button class="cancel-btn" onclick="closeCatEdit()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 帳票：予算編集モーダル ===== -->
+<div class="overlay hidden" id="sh-budget-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">💰 予算を編集</span>
+      <button class="sheet-close" onclick="closeSheetBudgetEdit()">✕</button>
+    </div>
+    <div style="padding:12px 16px">
+      <div class="field-lbl">日付</div>
+      <input type="date" id="sh-be-date" class="sh-inp" style="width:100%;margin:4px 0 12px">
+      <div class="field-lbl">金額</div>
+      <div class="amount-wrap" style="margin:4px 0 4px"><span class="amount-yen">¥</span><input type="text" id="sh-be-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+      <button class="submit-btn" onclick="saveSheetBudgetEdit()">保存</button>
+      <button class="csv-btn" id="sh-be-del" onclick="delSheetBudgetFromEdit()" style="width:100%;margin-top:8px;color:var(--red)">🗑️ 削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 費目別明細モーダル（グラフの費目タップで表示） ===== -->
+<div class="overlay hidden" id="cat-detail-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title" id="cd-title">費目明細</span>
+      <button class="sheet-close" onclick="closeCatDetail()">✕</button>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;padding:10px 16px 4px">
+      <span id="cd-sub" style="font-size:12px;color:var(--text-sub)"></span>
+      <span id="cd-total" style="font-size:18px;font-weight:800"></span>
+    </div>
+    <div id="cd-bars" style="padding:4px 12px 0"></div>
+    <div id="cd-list" style="padding:6px 12px 0"></div>
+    <p class="csv-note" style="padding:8px 16px 0;margin:0">明細をタップすると編集できます</p>
+  </div>
+</div>
+
+<!-- ===== 取引編集モーダル ===== -->
+<div class="overlay hidden" id="tx-edit-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">取引を編集</span>
+      <button class="sheet-close" onclick="closeTxEdit()">✕</button>
+    </div>
+    <div class="form-body">
+      <!-- 以下の並びは新規取引（#add-overlay）と同じ順序に揃えてある -->
+      <div class="field">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+          <div>
+            <div class="field-lbl">日付</div>
+            <input type="date" id="te-date">
+          </div>
+          <div class="field" style="margin:0">
+            <div class="field-lbl">帳簿</div>
+            <select id="te-ledger" onchange="onTxEditLedgerChange()"></select>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">金額</div>
+        <div class="amount-wrap"><span class="amount-yen">¥</span><input type="text" id="te-amount" inputmode="numeric" placeholder="0" oninput="formatAmountInput(this)"></div>
+      </div>
+      <!-- 収入／支出：選ぶと下のカテゴリが切り替わるので、カテゴリの直前に置く（新規取引と同じ並び） -->
+      <div class="type-toggle">
+        <button class="tt-btn" id="te-tb-inc" onclick="setTxEditType('income')">💚 収入</button>
+        <button class="tt-btn" id="te-tb-exp" onclick="setTxEditType('expense')">🔴 支出</button>
+      </div>
+      <div class="field">
+        <div class="field-lbl" style="display:flex;align-items:center;justify-content:space-between">
+          <span>カテゴリ</span>
+          <button onclick="openCatMgrFromTx('edit')" style="font-size:11px;color:var(--pri);font-weight:600;background:none;border:none;cursor:pointer;font-family:var(--font);padding:2px 6px;border-radius:4px;border:1px solid var(--pri)">＋ 費目を編集</button>
+        </div>
+        <div class="cat-grid" id="te-cat-grid"></div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">内訳</div>
+        <input type="text" id="te-memo" placeholder="例）イオンで買い物">
+        <div class="memo-hist" id="te-memo-hist"></div>
+      </div>
+      <div class="field">
+        <div class="field-lbl">メモ</div>
+        <input type="text" id="te-memo2" placeholder="例）セール品、ポイント利用">
+        <div class="memo-hist" id="te-memo2-hist"></div>
+      </div>
+      <div id="te-pay-section">
+        <div class="field-lbl" style="margin-bottom:8px">💳 支払い方法</div>
+        <div class="pay-kinds">
+          <button class="pk-btn" id="te-pk-cash" onclick="setTxEditKind('cash')"><span class="pk-icon">💴</span>現金</button>
+          <button class="pk-btn" id="te-pk-prepaid" onclick="setTxEditKind('prepaid')"><span class="pk-icon">🎫</span>プリペイド</button>
+          <button class="pk-btn" id="te-pk-bank" onclick="setTxEditKind('bank')"><span class="pk-icon">🏦</span>銀行</button>
+          <button class="pk-btn" id="te-pk-card" onclick="setTxEditKind('card')"><span class="pk-icon">💳</span>カード</button>
+        </div>
+        <div id="te-payee-wrap" class="hidden">
+          <div class="field-lbl" id="te-payee-lbl" style="margin-bottom:6px"></div>
+          <div class="payee-chips" id="te-payee-chips"></div>
+        </div>
+      </div>
+      <button class="submit-btn" onclick="saveTxEdit()">変更を保存</button>
+      <button class="cancel-btn" onclick="delTxFromEdit()" style="color:var(--red)">この取引を削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 支払い管理モーダル ===== -->
+<div class="overlay hidden" id="pay-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">💳 支払い方法</span>
+      <button class="sheet-close" onclick="closePayMgr()">✕</button>
+    </div>
+    <div class="mgr-section">
+      <div class="mgr-stitle">🎫 プリペイドカード</div>
+      <div id="prepaid-ui"></div>
+      <div class="add-row"><input type="text" id="np-prepaid" placeholder="例）PASMO、nanaco"><button onclick="addPayee('prepaid')">追加</button></div>
+    </div>
+    <div class="mgr-section">
+      <div class="mgr-stitle">🏦 銀行口座</div>
+      <div id="bank-ui"></div>
+      <div class="add-row"><input type="text" id="np-bank" placeholder="例）三菱UFJ銀行"><button onclick="addPayee('bank')">追加</button></div>
+    </div>
+    <div class="mgr-section">
+      <div class="mgr-stitle">💳 クレジットカード</div>
+      <div id="card-ui"></div>
+      <div class="add-row"><input type="text" id="np-card" placeholder="例）楽天カード"><button onclick="addPayee('card')">追加</button></div>
+    </div>
+    <div style="padding:14px 16px"><p class="hint">現金は常に利用可能です。プリペイド・銀行・カードはここで登録した項目が取引入力時に選べます。</p></div>
+  </div>
+</div>
+
+<!-- ===== 銀行口座 編集モーダル ===== -->
+<div class="overlay hidden" id="payee-edit-overlay" style="z-index:70">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title" id="pe-title">支払い先を編集</span>
+      <button class="sheet-close" onclick="closePayeeEdit()">✕</button>
+    </div>
+    <div class="form-body">
+      <div class="field">
+        <div class="field-lbl" id="pe-lbl">名称</div>
+        <input type="text" id="pe-name">
+      </div>
+      <button class="submit-btn" onclick="savePayeeEdit()">保存する</button>
+      <button class="submit-btn" id="pe-del" onclick="deletePayeeFromEdit(editingPayeeKind)" style="background:var(--red);margin-top:8px">🗑️ 削除</button>
+      <button class="cancel-btn" onclick="closePayeeEdit()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== クレジットカード 編集モーダル ===== -->
+<div class="overlay hidden" id="card-edit-overlay" style="z-index:70">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">💳 カードを編集</span>
+      <button class="sheet-close" onclick="closeCardEdit()">✕</button>
+    </div>
+    <div class="form-body">
+      <div class="field">
+        <div class="field-lbl">カード名</div>
+        <input type="text" id="ce2-name" placeholder="例）楽天カード">
+      </div>
+      <div class="field">
+        <div class="field-lbl">締め日</div>
+        <select id="ce2-close"></select>
+      </div>
+      <div class="field">
+        <div class="field-lbl">請求月</div>
+        <select id="ce2-billing-month">
+          <option value="1">翌月</option>
+          <option value="2">翌々月</option>
+        </select>
+      </div>
+      <div class="field">
+        <div class="field-lbl">請求日</div>
+        <select id="ce2-billing-day"></select>
+      </div>
+      <p class="hint" style="margin-bottom:12px">締め日・請求日を設定すると、利用月の支出が請求日の明細にも薄字で表示されます。またカレンダーの請求月にも薄字で反映されます。</p>
+      <button class="submit-btn" onclick="saveCardEdit()">保存する</button>
+      <button class="submit-btn" onclick="deletePayeeFromEdit('card')" style="background:var(--red);margin-top:8px">🗑️ このカードを削除</button>
+      <button class="cancel-btn" onclick="closeCardEdit()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 設定モーダル ===== -->
+<div class="overlay hidden" id="settings-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">⚙️ 設定・バックアップ</span>
+      <button class="sheet-close" onclick="closeSettings()">✕</button>
+    </div>
+    <!-- 個人バックアップ（各ユーザー画面で表示） -->
+    <div class="mgr-section" id="backup-user-section">
+      <div class="mgr-stitle">💾 このユーザーのバックアップ・復元</div>
+      <p class="csv-note" style="margin-top:0;margin-bottom:10px">今のユーザーの設定・帳簿・費目・支払い先・取引を1ファイルに保存します。機種変更のときは、このファイルを移行先で「復元」してください。</p>
+      <button class="submit-btn" style="margin-top:0;font-size:14px" onclick="exportUserBackup()">💾 このユーザーをバックアップ（JSON）</button>
+      <button class="csv-btn" onclick="document.getElementById('backup-import').click()" style="width:100%;margin-top:8px">📥 バックアップから復元</button>
+      <p class="csv-note" style="margin-top:8px">※同名ユーザーがいれば上書き、いなければ新規ユーザーとして復元します。</p>
+    </div>
+    <!-- 全体バックアップ（No.0＝管理者画面で表示） -->
+    <div class="mgr-section" id="backup-full-section" style="display:none">
+      <div class="mgr-stitle">💾 全ユーザーまとめてバックアップ・復元</div>
+      <p class="csv-note" style="margin-top:0;margin-bottom:10px">登録ユーザー・帳簿・費目・支払い先・取引をすべて1ファイルに保存します。端末移行はこちらが確実です（設定もそのまま復元）。</p>
+      <button class="submit-btn" style="margin-top:0;font-size:14px" onclick="exportBackup()">💾 全ユーザーをバックアップ（JSON）</button>
+      <button class="csv-btn" onclick="document.getElementById('backup-import').click()" style="width:100%;margin-top:8px">📥 バックアップから復元</button>
+      <p class="csv-note" style="margin-top:8px">※全体バックアップは全データを置き換え、個人バックアップはそのユーザーだけを復元します（自動判別）。</p>
+    </div>
+    <input type="file" id="backup-import" accept=".json,application/json" class="hidden" onchange="importBackup(event)">
+    <div class="mgr-section" id="csv-export-section">
+      <div class="mgr-stitle">📤 CSVエクスポート</div>
+      <div class="field-lbl" style="margin-bottom:8px">出力する帳簿を選択</div>
+      <div id="export-ledger-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+      <button class="submit-btn" style="margin-top:0;font-size:14px" onclick="doExportCSV()">📤 CSVをダウンロード</button>
+      <p class="csv-note" style="margin-top:8px">・Excelや Google スプレッドシートで開けます<br>・ファイルの保存先はブラウザのダウンロード設定に従います</p>
+    </div>
+    <div class="mgr-section" id="csv-import-section">
+      <div class="mgr-stitle">📥 CSVインポート</div>
+      <button class="csv-btn" onclick="document.getElementById('csv-import').click()" style="width:100%">📥 ファイルを選択してインポート</button>
+      <input type="file" id="csv-import" accept=".csv" class="hidden" onchange="importCSV(event)">
+      <p class="csv-note" style="margin-top:8px">・エクスポートしたCSVから取引を復元・追加します</p>
+    </div>
+    <div class="mgr-section" id="main-user-setting" style="display:none">
+      <div class="mgr-stitle">⭐ メインユーザー（No.0）</div>
+      <div class="mgr-item">
+        <span class="mgr-icon">⭐</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">メインユーザーを使用</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px">全ユーザーの帳簿を管理できるNo.0ユーザー</div>
+        </div>
+        <label style="position:relative;width:44px;height:24px;flex:none;cursor:pointer">
+          <input type="checkbox" id="setting-main-enabled" onchange="toggleMainUser()" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="smu-track" style="position:absolute;inset:0;border-radius:12px;background:var(--border);transition:all 0.2s;display:block"></span>
+          <span id="smu-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span>
+        </label>
+      </div>
+      <div class="mgr-item" id="main-user-name-row">
+        <span class="mgr-icon" style="display:inline-block;transform:scaleX(-1)">✏️</span>
+        <div style="flex:1;font-size:14px;font-weight:600">No.0の名前</div>
+        <input id="main-user-name-inp" type="text" style="width:100px;padding:5px 8px;border-radius:var(--r8);border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;text-align:right" onchange="saveMainUserName()">
+      </div>
+      <div class="mgr-item" id="main-user-startup-row">
+        <span class="mgr-icon">🚀</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">起動時にNo.0を開く</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px">アプリを開いた最初の画面をNo.0（管理画面）にします</div>
+        </div>
+        <label style="position:relative;width:44px;height:24px;flex:none;cursor:pointer">
+          <input type="checkbox" id="setting-startup-main" onchange="toggleStartupMain()" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="sms-track" style="position:absolute;inset:0;border-radius:12px;background:var(--border);transition:all 0.2s;display:block"></span>
+          <span id="sms-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span>
+        </label>
+      </div>
+      <div class="mgr-item" id="main-user-wizard-row">
+        <span class="mgr-icon">🪄</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">No.0の入力をウィザード形式に</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px">金額→費目→支払方法を1画面ずつ選んで登録します</div>
+        </div>
+        <label style="position:relative;width:44px;height:24px;flex:none;cursor:pointer">
+          <input type="checkbox" id="setting-wizard" onchange="toggleWizardMode()" style="opacity:0;width:0;height:0;position:absolute">
+          <span id="smw-track" style="position:absolute;inset:0;border-radius:12px;background:var(--border);transition:all 0.2s;display:block"></span>
+          <span id="smw-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:all 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span>
+        </label>
+      </div>
+      <div class="mgr-item" id="main-user-color-row" style="display:block">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="mgr-icon">🎨</span>
+          <div style="flex:1;font-size:14px;font-weight:600">No.0のカラー</div>
+        </div>
+        <div class="theme-grid-compact" id="main-theme-grid"></div>
+      </div>
+    </div>
+    <div class="mgr-section">
+      <div class="mgr-stitle">🔐 セキュリティ</div>
+      <div class="mgr-item">
+        <span class="mgr-icon">🔒</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">PINロック</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:1px" id="pin-status-lbl">未設定</div>
+        </div>
+        <button id="pin-toggle-btn" onclick="openPinSetup()" style="padding:6px 12px;border-radius:var(--r8);border:1px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);color:var(--text-sub)">設定する</button>
+      </div>
+      <div class="mgr-item" id="auto-lock-row" style="display:none">
+        <span class="mgr-icon">⏱️</span>
+        <div style="flex:1;font-size:14px;font-weight:600">自動ロック</div>
+        <select id="auto-lock-sel" onchange="saveAutoLock()" style="padding:6px 10px;border-radius:var(--r8);border:1px solid var(--border);background:var(--bg);font-size:13px;font-family:var(--font);color:var(--text)">
+          <option value="0">即時</option>
+          <option value="60">1分後</option>
+          <option value="300">5分後</option>
+          <option value="600">10分後</option>
+          <option value="-1">しない</option>
+        </select>
+      </div>
+    </div>
+    <div class="mgr-section">
+      <div class="mgr-stitle">🗑️ データ管理</div>
+      <div class="csv-row"><button class="csv-btn" onclick="clearAll()" style="color:var(--red)">🗑️ 全データを削除</button></div>
+      <p class="csv-note">※削除前にCSVエクスポートでバックアップを推奨します</p>
+    </div>
+    <div class="mgr-section">
+      <div class="mgr-stitle">ℹ️ アプリ情報</div>
+      <div class="mgr-item">
+        <span class="mgr-icon">📦</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">バージョン</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:1px" id="ver-lbl"></div>
+        </div>
+      </div>
+      <div class="mgr-item">
+        <span class="mgr-icon">🔄</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">最新版への更新方法</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:1px">タップして手順を確認</div>
+        </div>
+        <button onclick="hardReload()" style="padding:6px 12px;border-radius:var(--r8);border:1px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);color:var(--text-sub)">確認</button>
+      </div>
+      <p class="hint" style="margin-top:8px">※ 更新後もデータはそのまま引き継がれます。新しいHTMLファイルを開き直してください。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 年間予測オーバーレイ ===== -->
+<div class="overlay hidden" id="forecast-overlay">
+  <div class="sheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">📈 年間予測</span>
+      <button class="sheet-close" onclick="closeForecast()">✕</button>
+    </div>
+    <div class="form-body">
+      <p class="hint" style="margin-bottom:12px">実績のある月の平均×12ヶ月で算出した目安です。月数が増えるほど精度が上がります。</p>
+      <div id="forecast-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=3.16.37"></script>
+</body>
+</html>
