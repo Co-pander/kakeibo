@@ -2,7 +2,10 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<!-- viewport-fit=cover: 画面端まで描画させ、上下の帯を自前で塗り分けるために必要。
+     上端はトップバー（--safe-top分の余白込み）がユーザーのテーマ色で塗り、
+     下端は body::after が中立色（--nav-fill）で塗る -->
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
 <meta name="theme-color" content="#2EBD8F" id="meta-theme">
 <meta name="mobile-web-app-capable" content="yes">
@@ -14,7 +17,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="app-icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app-icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css?v=3.16.37">
+<link rel="stylesheet" href="style.css?v=3.16.39">
 <title>家計簿</title>
 </head>
 <body>
@@ -1008,6 +1011,6 @@
   </div>
 </div>
 
-<script src="app.js?v=3.16.37"></script>
+<script src="app.js?v=3.16.39"></script>
 </body>
 </html>
