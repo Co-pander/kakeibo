@@ -3,7 +3,10 @@
    方針: ネットワーク優先（常に最新を取得）、失敗時のみキャッシュ
    → 「古い画面が表示され続ける」問題を構造的に防ぐ
 ========================================================= */
-const CACHE_NAME = 'kakeibo-app-v3.16.37';
+const CACHE_NAME = 'kakeibo-app-v3.16.40';
+// 同じサイトに別フォルダ版（/kakeibo/app/）が同居するため、掃除対象を自分の系列だけに限定する。
+// 「自分以外を全部消す」ままだと、互いのオフライン用データを消し合ってしまう。
+const CACHE_PREFIX = CACHE_NAME.replace(/[0-9.]+$/, '');
 const ASSETS = [
   './',
   './index.html',
@@ -25,7 +28,8 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(keys => Promise.all(
+        keys.filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

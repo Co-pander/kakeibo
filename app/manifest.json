@@ -1,6 +1,6 @@
 {
-  "name": "家計簿 Money Note",
-  "short_name": "家計簿Note",
+  "name": "家計簿",
+  "short_name": "家計簿",
   "description": "シンプルな家計簿アプリ",
   "id": "kakeibo-note-app",
   "start_url": "./?app=1",

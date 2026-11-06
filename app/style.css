@@ -4,7 +4,7 @@
 .toast{position:fixed;bottom:calc(90px + var(--safe-bot));left:50%;transform:translateX(-50%) translateY(20px);background:#1A2233;color:#fff;font-size:13px;font-weight:500;padding:10px 18px;border-radius:24px;white-space:nowrap;z-index:9998;opacity:0;transition:all 0.3s;pointer-events:none;max-width:90vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.updated{background:var(--pri)}
-#pin-screen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;transition:background 0.3s}
+#pin-screen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(32px + var(--safe-top)) 24px calc(32px + var(--safe-bot));transition:background 0.3s}
 #pin-screen.hidden{display:none}
 .pin-logo{font-size:48px;margin-bottom:8px}
 .pin-title{font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:-0.3px}
@@ -40,6 +40,10 @@ body.locked .app,.locked .user-drawer{filter:blur(8px);pointer-events:none;user-
   /* 数字表示用：丸ゴシック系（参考アプリ風）。iOSはSF Rounded、他は近い丸文字にフォールバック */
   --font-num:ui-rounded,'SF Pro Rounded','Hiragino Maru Gothic ProN','Arial Rounded MT Bold','M PLUS Rounded 1c',var(--font);
   --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
+  /* 画面最下部（iOSのホームインジケータ／Androidのナビゲーションバー）の帯の色。
+     上部はユーザーのテーマ色、下部はユーザーに依存しない中立色、という使い分け。
+     Androidの実機では manifest 側の theme_color が使われるので、そちらと同じ値にしておく */
+  --nav-fill:#D2D7DF;
   /* OSのライト/ダークに合わせてフォーム部品（select・日付等）のネイティブUIを描画させる */
   color-scheme:light dark;
 }
@@ -51,10 +55,15 @@ body.locked .app,.locked .user-drawer{filter:blur(8px);pointer-events:none;user-
     --border:#2A3340;--border-l:#232B36;
     --pri-l:#0D3328;
     --red-l:#2D1515;--blue-l:#132038;--orange-l:#2D1E0D;--teal-l:#0D2926;
+    --nav-fill:#2B323C;
   }
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overscroll-behavior:none;font-size:14px}
-.app{max-width:430px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
+/* 最下部の帯を中立色で塗る。viewport-fit=cover のときだけ高さを持つ（非対応環境では0＝無害）。
+   モーダルやPIN画面より手前に出すので、どの画面でも帯の色は変わらない。
+   pointer-eventsを切ってあるため操作の邪魔はしない */
+body::after{content:'';position:fixed;left:0;right:0;bottom:0;height:var(--safe-bot);background:var(--nav-fill);z-index:10000;pointer-events:none}
+.app{max-width:430px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;padding-bottom:var(--safe-bot)}
 
 /* ===== ナビゲーション（トップバー内） ===== */
 .nav-btn{transition:all 0.12s;opacity:1}
@@ -511,7 +520,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .wiz-pill.pay.prepaid{background:linear-gradient(135deg,#4DBFB3,#26A69A)}
 .wiz-pill.pay.bank{background:linear-gradient(135deg,#5CA3DE,#3B82C4)}
 .wiz-pill.pay.card{background:linear-gradient(135deg,#C86FD8,#AB47BC)}
-.wiz-body{flex:1;overflow-y:auto;padding:8px 16px 16px;min-height:0}
+.wiz-body{flex:1;overflow-y:auto;padding:8px 16px calc(16px + var(--safe-bot));min-height:0}
 .wiz-inp{width:100%;padding:12px 4px;border:none;border-bottom:1.5px solid var(--border);background:transparent;color:var(--text);font-size:16px;font-family:var(--font);outline:none;box-sizing:border-box}
 /* ステップ2の費目ヘッダ（保存先の表示＋費目編集ボタン） */
 .wiz-cat-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 8px}
