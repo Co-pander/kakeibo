@@ -8,7 +8,7 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
-  "theme_color": "#E1E4EA",
+  "theme_color": "#E9ECF0",
   "icons": [
     { "src": "app-icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "app-icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
