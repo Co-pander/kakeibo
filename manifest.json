@@ -3,7 +3,7 @@
   "short_name": "出納帳",
   "description": "シンプルな出納帳アプリ",
   "id": "kakeibo-note-v2",
-  "start_url": "./?app=1",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
