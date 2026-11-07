@@ -43,7 +43,7 @@ body.locked .app,.locked .user-drawer{filter:blur(8px);pointer-events:none;user-
   /* 画面最下部（iOSのホームインジケータ／Androidのナビゲーションバー）の帯の色。
      上部はユーザーのテーマ色、下部はユーザーに依存しない中立色、という使い分け。
      Androidの実機では manifest 側の theme_color が使われるので、そちらと同じ値にしておく */
-  --nav-fill:#D2D7DF;
+  --nav-fill:#E1E4EA;
   /* OSのライト/ダークに合わせてフォーム部品（select・日付等）のネイティブUIを描画させる */
   color-scheme:light dark;
 }
