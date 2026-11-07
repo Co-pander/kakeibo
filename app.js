@@ -2300,7 +2300,7 @@ function doExportCSV(){
   // ファイル名に帳簿名＋日時を入れ、保存のたびに一意にする（上書き・重複ダイアログ防止）
   const ledgerNames = u.ledgers.filter(l=>targetLedgerIds.includes(l.id)).map(l=>l.name);
   const ledgerPart = ledgerNames.length===1 ? safeName(ledgerNames[0]) : `${ledgerNames.length}帳簿`;
-  const fname = `家計簿_${ledgerPart}_${nowStamp()}.csv`;
+  const fname = `出納帳_${ledgerPart}_${nowStamp()}.csv`;
 
   saveFile(blob, fname, 'CSVファイル', {'text/csv':['.csv']}, `✅ ${allTx.length}件をエクスポートしました`);
 }
@@ -2339,7 +2339,7 @@ function saveFile(blob, fname, desc, accept, doneMsg){
 function exportBackup(){
   const backup={app:'kakeibo', type:'full-backup', version:APP_VERSION, exportedAt:new Date().toISOString(), DB};
   const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
-  const fname=`家計簿_全体バックアップ_${nowStamp()}.json`;
+  const fname=`出納帳_全体バックアップ_${nowStamp()}.json`;
   saveFile(blob, fname, 'バックアップファイル', {'application/json':['.json']}, `✅ 全ユーザー（${DB.users.length}人）のバックアップを保存しました`);
 }
 // 個人バックアップ（各ユーザー用）：今表示中のユーザーの設定・帳簿・取引を1ファイルに保存
@@ -2348,7 +2348,7 @@ function exportUserBackup(){
   const user=JSON.parse(JSON.stringify(u));   // ディープコピー
   const backup={app:'kakeibo', type:'user-backup', version:APP_VERSION, exportedAt:new Date().toISOString(), user};
   const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
-  const fname=`家計簿_${safeName(u.name)}_バックアップ_${nowStamp()}.json`;
+  const fname=`出納帳_${safeName(u.name)}_バックアップ_${nowStamp()}.json`;
   const tx=(u.transactions||[]).length;
   saveFile(blob, fname, 'バックアップファイル', {'application/json':['.json']}, `✅ 「${u.name}」のバックアップを保存しました（取引${tx}件）`);
 }
@@ -3196,7 +3196,7 @@ function saveCatEdit(){
    バージョン管理・更新通知
 /* =========================================================
 ========================================================= */
-const APP_VERSION='3.16.40';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
+const APP_VERSION='3.16.41';  // ← 更新するたびここを上げる（sw.jsのCACHE_NAMEも合わせて上げる）
 const VER_KEY='kb-app-ver';
 
 // 完了を知らせてから画面を作り直す。トーストは非ブロッキングなので、読める時間だけ待ってreloadする

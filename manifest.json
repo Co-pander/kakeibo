@@ -1,7 +1,7 @@
 {
-  "name": "家計簿",
-  "short_name": "家計簿",
-  "description": "シンプルな家計簿アプリ",
+  "name": "出納帳",
+  "short_name": "出納帳",
+  "description": "シンプルな出納帳アプリ",
   "id": "kakeibo-note-v2",
   "start_url": "./?app=1",
   "scope": "./",
